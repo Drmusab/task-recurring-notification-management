@@ -1,0 +1,24 @@
+{
+  "name": "task-management",
+  "author": "Drmusab",
+  "url": "",
+  "version": "0.0.1",
+  "minAppVersion": "2.9.0",
+  "backends": ["all"],
+  "frontends": ["all"],
+  "displayName": {
+    "default": "Task Manager",
+    "zh_CN": "循环任务管理器"
+  },
+  "description": {
+    "default": "Advanced recurring task management with notifications via n8n, Telegram, and Gmail",
+    "zh_CN": "高级循环任务管理，支持通过 n8n、Telegram 和 Gmail 发送通知"
+  },
+  "readme": {
+    "default": "README.md",
+    "zh_CN": "README.md"
+  },
+  "funding": {
+    "custom": []
+  }
+}

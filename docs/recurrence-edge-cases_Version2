@@ -1,0 +1,268 @@
+# Recurrence Edge Cases & Handling
+
+## 1. Double Generation Prevention
+
+### Problem
+When a task is completed, the system must generate the next occurrence WITHOUT creating duplicates.
+
+### Solution
+- **Single Source of Truth**: Only `RecurrenceEngine.calculateNextDueDate()` creates occurrences
+- **Atomic Operation**: Task completion + next occurrence calculation happen in single transaction
+- **Idempotency**: Completion with idempotency key prevents duplicate calls
+
+### Example
+```typescript
+// WRONG: Manual generation
+async completeTask(taskId) {
+  await markComplete(taskId);
+  await createNewTask(taskId); // ❌ Duplicate risk
+}
+
+// CORRECT: Engine-driven
+async completeTask(taskId) {
+  const task = await getTask(taskId);
+  task.lastCompleted = new Date();
+  task.nextDue = recurrenceEngine.calculateNextDueDate(task, task.lastCompleted);
+  await saveTask(task); // ✅ Single task, updated due date
+}
+```
+
+---
+
+## 2. Skipped Notifications
+
+### Problem
+When skipping occurrences, notifications must NOT fire for skipped dates.
+
+### Solution
+- Skip command directly updates `nextDueDate` without triggering completion
+- Scheduler only checks `nextDueDate` field
+- No intermediate task states created
+
+### Flow
+```
+Current: 2026-01-27
+Skip next 2 occurrences
+
+Old nextDueDate: 2026-01-27
+Calculate next: 2026-02-03 (skipped, don't notify)
+Calculate next: 2026-02-10 (skipped, don't notify)
+Calculate next: 2026-02-17 (new nextDueDate)
+
+Update task.nextDueDate = 2026-02-17
+Scheduler fires notification only on 2026-02-17 ✅
+```
+
+---
+
+## 3. Pause/Resume State Integrity
+
+### Problem
+Paused tasks must not generate occurrences or fire notifications.
+
+### Solution
+- **Scheduler Unregistration**: Paused tasks removed from scheduler
+- **State Check**: RecurrenceEngine checks task status before calculation
+- **Resume Modes**:
+  - `resumeFromNow: true` → Calculate next from resume timestamp
+  - `resumeFromNow: false` → Keep original schedule
+
+### Example
+```
+Task paused: 2026-01-24 (next due was 2026-01-27)
+Resumed: 2026-02-01
+
+resumeFromNow = false:
+  → nextDueDate = 2026-01-27 (missed, immediately due)
+
+resumeFromNow = true:
+  → nextDueDate = 2026-02-03 (next Monday after resume)
+```
+
+---
+
+## 4. Pattern Update Timing
+
+### Problem
+When updating recurrence pattern, should existing due date change?
+
+### Solution
+- **Default**: Update pattern for FUTURE occurrences only
+- **Optional**: `applyToExisting: true` recalculates immediately
+
+### Flow
+```
+Current task:
+  - Pattern: Every Monday
+  - nextDueDate: 2026-01-27
+
+Update pattern: Every 3 days
+  - applyToExisting: false
+    → nextDueDate: 2026-01-27 (unchanged)
+    → After completion: 2026-01-30, 2026-02-02... ✅
+
+  - applyToExisting: true
+    → nextDueDate: 2026-01-27 (recalculated from now)
+    → Immediately: 2026-01-27, 2026-01-30... ✅
+```
+
+---
+
+## 5. Horizon Enforcement
+
+### Problem
+Prevent infinite task generation while allowing long-term planning.
+
+### Solution
+- **Default Horizon**: 365 days
+- **Hard Maximum**: 1095 days (3 years)
+- **Beyond Horizon**: `calculateNextDueDate()` returns `null`
+
+### Behavior
+```
+Task created: 2026-01-24
+Pattern: Daily
+Horizon: 365 days
+
+Last completion: 2027-01-23
+Next calculation: 2027-01-24
+Result: null (beyond 365-day horizon from creation)
+
+Task archived automatically ✅
+```
+
+---
+
+## 6. Month-End Edge Cases
+
+### Problem
+"Monthly on 31st" fails in February.
+
+### Solution
+- **Clamping**: If target day > days in month, use last day
+- **Forward Progress**: Always ensure next > previous
+
+### Example
+```
+Pattern: Monthly on 31st
+Last: 2026-01-31
+
+Calculate next:
+  - Target: 2026-02-31 (invalid)
+  - Clamp: 2026-02-28
+  - Verify: Feb 28 > Jan 31? ❌
+  - Adjust: Skip to 2026-03-31 ✅
+
+Result: Jan 31 → Mar 31 → Apr 30 → May 31...
+```
+
+---
+
+## 7. Timezone Considerations
+
+### Problem
+Tasks created in one timezone, completed in another.
+
+### Solution (Current)
+- **All timestamps in UTC**
+- **Display timezone**: Handled by client
+- **Due time preserved**: Completion time doesn't affect recurrence time
+
+### Future Enhancement
+```typescript
+interface RecurrencePattern {
+  timezone?: string; // e.g., "America/New_York"
+  preserveLocalTime?: boolean; // If true, 9 AM always stays 9 AM local
+}
+```
+
+---
+
+## 8. Scheduler Race Conditions
+
+### Problem
+Scheduler checks due date while task is being completed.
+
+### Solution
+- **Optimistic Locking**: Task has version number
+- **Status Check**: Scheduler only processes tasks in 'active' or 'due' state
+- **Completion Unschedules**: Immediately removes from scheduler queue
+
+### Flow
+```
+Scheduler checks task_123 at 09:00:00
+  → Task status: active, due: 09:00:00
+  → Begin notification process
+
+User completes task_123 at 09:00:05
+  → Update status: completed
+  → Unschedule from scheduler
+  → Calculate next occurrence
+
+Scheduler attempts notification at 09:00:10
+  → Check status: completed ✅
+  → Abort notification (already handled)
+```
+
+---
+
+## 9. Iteration Limit Safety
+
+### Problem
+Complex patterns (e.g., "31st of month") might loop finding valid dates.
+
+### Solution
+- **Maximum Iterations**: 1000 per calculation
+- **Error on Exceed**: Throw `RECURRENCE_ITERATION_LIMIT_EXCEEDED`
+- **User Guidance**: Suggest simplifying pattern
+
+### Example
+```
+Pattern: "Monthly on 31st, only if it's a Tuesday"
+
+Iteration 1: Jan 31 → Not Tuesday, skip
+Iteration 2: Feb 28 → Not Tuesday, skip
+...
+Iteration 1000: Exceeded
+
+Error: "Pattern too complex. Consider separate weekly + monthly patterns."
+```
+
+---
+
+## 10. Preview vs. Generation
+
+### Critical Distinction
+
+**Preview** (read-only):
+- Does NOT create task instances
+- Uses `RecurrencePreview.previewOccurrences()`
+- No scheduler involvement
+- Can preview patterns without task
+
+**Generation** (write):
+- ONLY happens on task completion
+- Uses `RecurrenceEngine.calculateNextDueDate()`
+- Updates single task's `nextDueDate`
+- Never pre-generates multiple instances
+
+### Anti-Pattern
+```typescript
+// ❌ WRONG: Pre-generate all occurrences
+function createRecurringTask(pattern) {
+  const occurrences = preview(pattern, 365); // Array of 365 dates
+  for (const date of occurrences) {
+    createTaskInstance(date); // Creates 365 tasks!
+  }
+}
+
+// ✅ CORRECT: Lazy generation
+function createRecurringTask(pattern) {
+  const task = {
+    recurrencePattern: pattern,
+    nextDueDate: calculateFirst(pattern),
+    // Only 1 task created
+  };
+  saveTask(task);
+}
+```

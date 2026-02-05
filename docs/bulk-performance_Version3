@@ -1,0 +1,185 @@
+# Bulk Operations Performance Guide
+
+## Batching Strategy
+
+### Why Batch?
+- **Prevent UI Freezes**: Large operations run in background
+- **Rate Limit Compliance**: Stay within API limits
+- **Memory Management**: Process chunks, not entire dataset
+- **Partial Progress**: Show progress, handle failures gracefully
+
+### Default Batch Sizes
+
+| Operation | Batch Size | Concurrent | Delay |
+|-----------|------------|------------|-------|
+| Complete | 50 | 10 | 100ms |
+| Reschedule | 100 | 20 | 50ms |
+| Delete | 50 | 10 | 100ms |
+
+### Customizing Batch Config
+
+```typescript
+const customConfig: BatchConfig = {
+  maxBatchSize: 25,        // Smaller batches for slower operations
+  batchDelay: 200,         // More delay for rate-limited APIs
+  maxConcurrent: 5,        // Less concurrency for heavy operations
+  operationTimeout: 10000, // Longer timeout for complex tasks
+  continueOnError: true,   // Don't stop on failures
+};
+```
+
+---
+
+## Partial Failure Handling
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 100,
+    "successful": 97,
+    "failed": 3,
+    "successes": [
+      { "taskId": "task_001", "result": { ... } },
+      ...
+    ],
+    "failures": [
+      {
+        "taskId": "task_042",
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "Task not found"
+        }
+      },
+      ...
+    ],
+    "completedFully": false
+  }
+}
+```
+
+### Handling in Client
+
+```typescript
+const result = await bulkComplete(taskIds);
+
+if (result.completedFully) {
+  console.log('✅ All tasks completed');
+} else {
+  console.log(`⚠️ ${result.successful}/${result.total} completed`);
+  
+  // Retry failures
+  const failedIds = result.failures.map(f => f.taskId);
+  await retryBulkComplete(failedIds);
+}
+```
+
+---
+
+## Performance Limits
+
+### Maximum Bulk Sizes
+
+| Operation | Max Items | Reason |
+|-----------|-----------|--------|
+| Any Bulk | 1000 | Prevent request timeout |
+| Search | 10,000 results | Memory constraints |
+| Stats | Unlimited | Aggregated, not returned |
+
+### Timeout Protection
+
+```typescript
+// Each operation has timeout
+operationTimeout: 5000 // 5 seconds per task
+
+// Total bulk operation timeout
+requestTimeout: 30000 // 30 seconds for HTTP request
+
+// If timeout exceeded:
+{
+  "error": {
+    "code": "SERVICE_UNAVAILABLE",
+    "message": "Bulk operation timeout"
+  }
+}
+```
+
+---
+
+## Optimization Tips
+
+### 1. Use Bulk Operations
+
+```typescript
+// ❌ SLOW: Sequential individual requests
+for (const taskId of taskIds) {
+  await completeTask(taskId);
+}
+
+// ✅ FAST: Single bulk request
+await bulkComplete({ taskIds });
+```
+
+### 2. Filter Before Bulk
+
+```typescript
+// ❌ INEFFICIENT: Bulk operation with many failures
+await bulkComplete({ taskIds: allTaskIds });
+
+// ✅ EFFICIENT: Pre-filter active tasks
+const activeTasks = await search({
+  filters: { status: ['active', 'due'] }
+});
+await bulkComplete({ taskIds: activeTasks.map(t => t.taskId) });
+```
+
+### 3. Use Stats for Dashboards
+
+```typescript
+// ❌ EXPENSIVE: Load all tasks and calculate client-side
+const tasks = await listAllTasks();
+const completed = tasks.filter(t => t.status === 'completed').length;
+
+// ✅ EFFICIENT: Use stats endpoint
+const stats = await getStats();
+const completed = stats.byStatus.completed;
+```
+
+---
+
+## Monitoring Bulk Operations
+
+### Progress Tracking
+
+```typescript
+// Server-side progress (internal)
+collector.getProgress(); // 0-100
+
+// Client-side: Poll for status
+const operationId = await startBulkComplete(taskIds);
+
+while (true) {
+  const status = await getBulkOperationStatus(operationId);
+  console.log(`Progress: ${status.progress}%`);
+  
+  if (status.completed) break;
+  await sleep(1000);
+}
+```
+
+### Error Rate Monitoring
+
+```typescript
+const result = await bulkComplete(taskIds);
+
+const errorRate = result.failed / result.total;
+
+if (errorRate > 0.1) {
+  console.warn('⚠️ High error rate: ' + (errorRate * 100) + '%');
+  // Investigate common errors
+  const errorCodes = result.failures.map(f => f.error.code);
+  console.log('Common errors:', [...new Set(errorCodes)]);
+}
+```

@@ -1,0 +1,6 @@
+<svg width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+  <rect width="160" height="160" rx="20" fill="#3b82f6"/>
+  <path d="M40 80 L70 110 L120 50" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="120" cy="110" r="8" fill="white"/>
+  <text x="80" y="145" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle" font-weight="bold">TASK</text>
+</svg>
