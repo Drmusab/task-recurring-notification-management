@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RecurrenceExplainer - Debug and explanation layer for RRULE calculations
  * 
  * Provides detailed explanations of:
@@ -10,9 +10,9 @@
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
 import type { Task } from '@backend/core/models/Task';
-import type { RecurrenceExplanation, ExplanationStep, RecurrenceMode } from './types';
-import { getUserTimezone } from '@shared/utils/misc/timezone';
-import * as logger from '@shared/utils/misc/logger';
+import type { RecurrenceExplanation, ExplanationStep, RecurrenceMode } from './recurrence.types';
+import { getUserTimezone } from "@shared/utils/date/timezone";
+import * as logger from "@backend/logging/logger";
 
 /**
  * RecurrenceExplainer generates human-readable explanations

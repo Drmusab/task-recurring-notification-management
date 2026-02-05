@@ -1,8 +1,8 @@
-import type { Task } from '@backend/core/models/Task';
+﻿import type { Task } from '@backend/core/models/Task';
 import { normalizePriority } from '@backend/core/models/Task';
 import { Status, StatusType } from '@backend/core/models/Status';
 import { StatusRegistry } from '@backend/core/models/StatusRegistry';
-import { EMOJI_SIGNIFIERS, type TaskFormat } from '@shared/utils/misc/signifiers';
+import { EMOJI_SIGNIFIERS, type TaskFormat } from "@shared/utils/task/signifiers";
 import { DateParser } from '@backend/core/parsers/DateParser';
 import { GlobalFilter } from '@backend/core/filtering/GlobalFilter';
 

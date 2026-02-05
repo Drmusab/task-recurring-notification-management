@@ -1,5 +1,5 @@
-import { RenderInfo, Size, TextValueMap, Transform } from "@components/dashboard/data";
-import { TFile, TFolder, normalizePath } from "@shared/utils/misc/siyuan-compat";
+﻿import { RenderInfo, Size, TextValueMap, Transform } from "@components/dashboard/data";
+import { TFile, TFolder, normalizePath } from "@shared/utils/compat/siyuan-compat";
 import { ValueType } from "@components/dashboard/data";
 import * as d3 from "d3";
 import { Moment, Duration } from "moment";

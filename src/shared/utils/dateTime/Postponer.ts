@@ -1,9 +1,9 @@
 import type { Moment, unitOfTime } from 'moment';
-import { capitalizeFirstLetter } from "@shared/utils/lib/StringHelpers";
-import { Task } from "@shared/utils/Task/Task";
-import { DateFallback } from "@shared/utils/dateTime/DateFallback";
-import { TasksDate } from "@shared/utils/dateTime/TasksDate";
-import type { AllTaskDateFields, HappensDate } from "@shared/utils/dateTime/DateFieldTypes";
+import { capitalizeFirstLetter } from "@shared/utils/lib/string-helpers";
+import { Task } from "@backend/core/models/Task";
+import { DateFallback } from "@shared/utils/dateTime/date-fallback";
+import { TasksDate } from "@shared/utils/dateTime/tasks-date";
+import type { AllTaskDateFields, HappensDate } from "@shared/utils/dateTime/date-field-types";
 
 export function shouldShowPostponeButton(task: Task) {
     // don't postpone if any invalid dates

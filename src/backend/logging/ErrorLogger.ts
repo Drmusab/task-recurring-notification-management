@@ -1,8 +1,8 @@
-/**
+﻿/**
  * ErrorLogger - Wrapper around shared logger for webhook server
  * Provides async logError method for compatibility with WebhookServer
  */
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 export class ErrorLogger {
   async logError(error: Error | string, context?: Record<string, unknown>): Promise<void> {

@@ -1,4 +1,4 @@
-import { SCHEDULER_INTERVAL_MS } from "@shared/utils/misc/constants";
+﻿import { SCHEDULER_INTERVAL_MS } from "@shared/constants/misc-constants";
 
 /**
  * SchedulerTimer manages the self-correcting timer loop for the Scheduler.

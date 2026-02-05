@@ -7,8 +7,8 @@
  * @module InlineTaskParser
  */
 
-import { parseNaturalLanguageDate } from '@shared/utils/misc/DateParser';
-import { parseRecurrenceRule, rruleToText } from '@shared/utils/misc/RecurrenceParser';
+import { parseNaturalLanguageDate } from '@backend/core/parsers/DateParser';
+import { parseRecurrenceRule, rruleToText } from '@backend/core/parsers/RecurrenceParser';
 
 /**
  * Task status enum

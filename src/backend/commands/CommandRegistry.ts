@@ -1,4 +1,4 @@
-import { Router } from "@backend/webhooks/Router";
+import { Router } from "@backend/webhooks/inbound/Router";
 import { TaskCommandHandler, ITaskManager } from "@backend/commands/handlers/TaskCommandHandler";
 import { QueryCommandHandler, IStorageService } from "@backend/commands/handlers/QueryCommandHandler";
 import { RecurrenceCommandHandler } from "@backend/commands/handlers/RecurrenceCommandHandler";
@@ -6,10 +6,10 @@ import { PreviewCommandHandler } from "@backend/commands/handlers/PreviewCommand
 import { BulkCommandHandler } from "@backend/commands/handlers/BulkCommandHandler";
 import { SearchCommandHandler } from "@backend/commands/handlers/SearchCommandHandler";
 import { TaskValidator } from "@backend/commands/validation/TaskValidator";
-import { RecurrenceLimitsConfig } from "@backend/config/WebhookConfig";
-import { IRecurrenceEngine } from "@backend/services/RecurrenceEngine";
-import { ISchedulerService } from "@backend/services/SchedulerService";
-import { WebhookError } from "@backend/webhook/types/Error";
+import { RecurrenceLimitsConfig } from "@shared/config/WebhookConfig";
+import { IRecurrenceEngine } from "@backend/core/engine/recurrence/recurrence.types";
+import { Scheduler } from "@backend/core/engine/Scheduler";
+import { WebhookError } from "@backend/webhooks/types/Error";
 
 /**
  * Command registry - registers all command handlers
@@ -27,7 +27,7 @@ export class CommandRegistry {
     taskManager: ITaskManager,
     storage: IStorageService,
     recurrenceEngine: IRecurrenceEngine,
-    scheduler: ISchedulerService,
+    scheduler: Scheduler,
     recurrenceLimits: RecurrenceLimitsConfig
   ) {
     const validator = new TaskValidator(recurrenceLimits);

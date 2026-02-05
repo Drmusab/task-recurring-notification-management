@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RecurrenceEngine - Complete RRULE-based recurrence engine
  * 
  * Single source of truth for recurrence calculations based on RFC 5545 RRULE.
@@ -21,13 +21,13 @@ import type {
   MissedOccurrencesResult,
   MissedOccurrenceOptions,
   MissPolicy
-} from './types';
+} from './recurrence.types';
 import { RRuleCache } from './RRuleCache';
 import { RecurrenceValidator } from './RecurrenceValidator';
 import { RecurrenceExplainer } from './RecurrenceExplainer';
 import { generateCacheKey } from './utils';
-import { getUserTimezone } from '@shared/utils/misc/timezone';
-import * as logger from '@shared/utils/misc/logger';
+import { getUserTimezone } from "@shared/utils/date/timezone";
+import * as logger from "@backend/logging/logger";
 
 /**
  * Maximum number of occurrences to generate in preview mode

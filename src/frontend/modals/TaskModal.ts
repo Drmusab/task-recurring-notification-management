@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TaskModal - Main task editor modal wrapper for SiYuan
  * 
  * This modal opens the unified task editor for creating/editing tasks.
@@ -15,12 +15,12 @@ import { Dialog, showMessage } from "siyuan";
 import type { Plugin } from "siyuan";
 import { createUnifiedEditor } from "@components/common/EditTaskUnified";
 import type { Task as SiYuanTask } from "@backend/core/models/Task";
-import type { Task as ObsidianTask } from "@shared/utils/task/Task";
+import type { Task as ObsidianTask } from "@backend/core/models/Task";
 import type { Status } from "@shared/types/Status";
-import { TaskModelAdapter } from "@backend/adapters/TaskModelAdapter";
-import { updateAnalyticsFromTasks } from "@stores/taskAnalyticsStore";
+import { TaskModelAdapter } from "@backend/services/TaskAdapterService";
+import { updateAnalyticsFromTasks } from "@stores/task-analytics.store";
 import { getTaskReminderBridge } from "@backend/core/integration/TaskReminderBridge";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 export interface TaskModalParams {
     plugin: Plugin;

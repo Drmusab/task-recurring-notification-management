@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Delete Handler for safe task deletion with nested items protection
  */
 
 import type { Task } from "@backend/core/models/Task";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 export interface DeleteResult {
   success: boolean;

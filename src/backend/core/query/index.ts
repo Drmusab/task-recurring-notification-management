@@ -4,7 +4,7 @@
  * Provides a powerful query language for filtering, sorting, and grouping tasks.
  */
 
-export { QueryEngine, type QueryResult, type TaskIndex } from "@backend/core/query/QueryEngine";
+export { QueryEngine, type QueryResult, type TaskQueryIndex } from "@backend/core/query/QueryEngine";
 export { QueryParser, type QueryAST, type FilterNode, type SortNode, type GroupNode } from "@backend/core/query/QueryParser";
 export { QuerySyntaxError, QueryExecutionError } from "@backend/core/query/QueryError";
 

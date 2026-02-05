@@ -1,4 +1,4 @@
-import type { App } from "@shared/utils/misc/siyuan-compat";
+﻿import type { App } from "@shared/utils/compat/siyuan-compat";
 
 /* eslint-disable */
 const mockApp: App = {

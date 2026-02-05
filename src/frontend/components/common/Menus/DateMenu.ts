@@ -1,5 +1,5 @@
-import type { Task } from "@shared/utils/task/Task";
-import { type AllTaskDateFields, isAHappensDate } from "@shared/utils/dateTime/DateFieldTypes";
+import type { Task } from "@backend/core/models/Task";
+import { type AllTaskDateFields, isAHappensDate } from "@shared/utils/dateTime/date-field-types";
 import { allHappensDateInstructions, allLifeCycleDateInstructions } from "@components/common/EditInstructions/DateInstructions";
 import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/common/Menus/TaskEditingMenu";
 

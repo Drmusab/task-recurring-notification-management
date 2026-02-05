@@ -1,12 +1,12 @@
-import type { Moment } from "moment";
+﻿import type { Moment } from "moment";
 import {
   getDailyNote,
   getDailyNoteSettings,
   getDateFromFile,
   getWeeklyNote,
   getWeeklyNoteSettings,
-} from "@shared/utils/misc/daily-notes-compat";
-import { FileView, TFile, ItemView, WorkspaceLeaf } from "@shared/utils/misc/siyuan-compat";
+} from "@shared/utils/compat/daily-notes-compat";
+import { FileView, TFile, ItemView, WorkspaceLeaf } from "@shared/utils/compat/siyuan-compat";
 import { get } from "svelte/store";
 
 import { TRIGGER_ON_OPEN, VIEW_TYPE_CALENDAR } from "src/constants";

@@ -1,4 +1,4 @@
-import * as fs from 'fs/promises';
+﻿import * as fs from 'fs/promises';
 import * as path from 'path';
 import { randomBytes } from 'crypto';
 import {
@@ -6,8 +6,8 @@ import {
   CreateSubscriptionData,
   UpdateSubscriptionData,
 } from "@backend/events/types/SubscriptionTypes";
-import { WebhookError } from "@backend/webhook/types/Error";
-import * as logger from "@backend/utils/logger";
+import { WebhookError } from "@backend/webhooks/types/Error";
+import * as logger from "@backend/logging/logger";
 
 /**
  * Manages webhook subscriptions

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Auto Task Creator - Automatic task creation from inline markdown checklists
  * 
  * Implements debounced auto-creation with duplicate detection and error handling.
@@ -14,7 +14,7 @@ import { showParseErrorHint } from '@components/common/InlineErrorHints';
 import { createTask } from '@backend/core/models/Task';
 import { createDefaultFrequency } from '@backend/core/models/Frequency';
 import { normalizeTask } from '@backend/parsers/InlineTaskParser';
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 /**
  * Dependencies required for auto task creation

@@ -1,6 +1,6 @@
-import type { Frequency } from "./Frequency";
+﻿import type { Frequency } from "./Frequency";
 import { isValidFrequency } from "./Frequency";
-import { MAX_RECENT_COMPLETIONS, CURRENT_SCHEMA_VERSION } from "@shared/utils/misc/constants";
+import { MAX_RECENT_COMPLETIONS, CURRENT_SCHEMA_VERSION } from "@shared/constants/misc-constants";
 import { calculateUrgencyScore } from "@backend/core/urgency/UrgencyScoreCalculator";
 import type { BlockLinkedAction } from "@backend/core/block-actions/BlockActionTypes";
 

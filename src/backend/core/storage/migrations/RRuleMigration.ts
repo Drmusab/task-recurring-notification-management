@@ -1,8 +1,8 @@
-import type { Frequency } from "@backend/core/models/Frequency";
+﻿import type { Frequency } from "@backend/core/models/Frequency";
 import type { Task } from "@backend/core/models/Task";
 import { RRule, Weekday } from "rrule";
-import { getUserTimezone } from "@shared/utils/misc/timezone";
-import * as logger from "@shared/utils/misc/logger";
+import { getUserTimezone } from "@shared/utils/date/timezone";
+import * as logger from "@backend/logging/logger";
 
 /**
  * Migration utilities for converting legacy Frequency to RRULE format

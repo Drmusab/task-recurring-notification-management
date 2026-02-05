@@ -4,7 +4,7 @@
     import type { EditableTask } from "@components/common/EditableTask";
     import { descriptionAdjustedForDependencySearch, searchForCandidateTasksForDependency } from "@components/common/DependencyHelpers";
     import { labelContentWithAccessKey } from "@components/common/EditTaskHelpers";
-    import { t } from '@stores/i18nStore';
+    import { t } from '@stores/i18n.store';
 
     export let task: Task;
     export let editableTask: EditableTask;

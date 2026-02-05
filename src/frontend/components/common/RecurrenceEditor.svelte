@@ -4,7 +4,7 @@
     import { labelContentWithAccessKey } from "@components/common/EditTaskHelpers";
     import RecurrencePreview from "@components/common/RecurrencePreview.svelte";
     import type { Frequency } from '@backend/core/models/Frequency';
-    import { t } from '@stores/i18nStore';
+    import { t } from '@stores/i18n.store';
 
     export let editableTask: EditableTask;
     export let isRecurrenceValid: boolean;

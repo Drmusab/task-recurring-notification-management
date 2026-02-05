@@ -1,6 +1,6 @@
 <script lang="ts">
     import { TASK_FORMATS } from "@shared/config/Settings";
-    import { t, getTranslation } from '@stores/i18nStore';
+    import { t, getTranslation } from '@stores/i18n.store';
 
     export let priority: string;
     export let withAccessKeys: boolean;

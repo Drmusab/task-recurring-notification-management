@@ -23,8 +23,8 @@
     overallHealthStatus,
     streakEmoji,
     type AnalyticsState
-  } from '@stores/taskAnalyticsStore';
-  import { t } from '@stores/i18nStore';
+  } from '@stores/task-analytics.store';
+  import { t } from '@stores/i18n.store';
   
   export let onClose: () => void = () => {};
   

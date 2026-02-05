@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SiYuan Task Management Plugin
  * Main entry point
  */
@@ -16,11 +16,11 @@ import {
 import { TaskManager } from "@backend/core/managers/TaskManager";
 import { SmartSuggestionEngine } from "@backend/core/ai/SmartSuggestionEngine";
 import type { Task } from "@backend/core/models/Task";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 import { TaskUIStateManager } from "@backend/core/ui/TaskUIState";
-import { updateAnalyticsFromTasks } from "@frontend/stores/taskAnalyticsStore";
+import { updateAnalyticsFromTasks } from "@frontend/stores/task-analytics.store";
 import { getTaskReminderBridge } from "@backend/core/integration/TaskReminderBridge";
-import { i18nStore } from "@frontend/stores/i18nStore";
+import { i18nStore } from "@frontend/stores/i18n.store";
 
 // Import styles
 import "@frontend/styles/main.scss";

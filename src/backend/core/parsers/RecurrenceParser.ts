@@ -579,3 +579,43 @@ export class RecurrenceParser {
     return `FREQ=YEARLY;INTERVAL=${interval}`;
   }
 }
+
+/**
+ * Backward compatibility wrapper for parseRecurrenceRule
+ * Used by InlineTaskParser
+ */
+export function parseRecurrenceRule(input: string): { error: boolean; message?: string; rule?: string; mode?: string } {
+  // Check for "when done" suffix
+  const whenDoneMatch = input.match(/^(.+?)\s+when\s+done$/i);
+  const cleanInput = whenDoneMatch ? whenDoneMatch[1] : input;
+  const mode = whenDoneMatch ? 'done' : 'schedule';
+  
+  const result = RecurrenceParser.parse(cleanInput);
+  
+  if (!result.isValid) {
+    return {
+      error: true,
+      message: result.error || 'Invalid recurrence pattern'
+    };
+  }
+  
+  return {
+    error: false,
+    rule: result.frequency.rruleString || '',
+    mode: mode
+  };
+}
+
+/**
+ * Backward compatibility wrapper for rruleToText
+ * Converts RRULE string to human-readable text
+ */
+export function rruleToText(rruleString: string): string {
+  try {
+    // Use RRule library's built-in toText() method
+    const rrule = RRule.fromString(rruleString.replace(/^RRULE:/, ''));
+    return rrule.toText();
+  } catch (error) {
+    return rruleString; // Fallback to raw string if parsing fails
+  }
+}

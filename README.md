@@ -1,4 +1,4 @@
-# Shehab-Note Recurring Task Manager
+﻿# Shehab-Note Recurring Task Manager
 
 A powerful recurring task management plugin for Shehab-Note (SiYuan fork) with advanced scheduling, multi-channel notifications, visual timeline planning, and **inline task creation**.
 
@@ -140,66 +140,32 @@ npm run make-link -- --workspace=/path/to/shehab-note/workspace
 
 ### Project Structure
 
+The plugin follows a **clean 3-layer architecture** with strict separation of concerns:
+
 ```
 src/
-├── index.ts                          # Plugin entry point (onload/onunload)
-├── index. scss                        # Global styles
-├── core/
-│   ├── api/
-│   │   └── SiYuanApiAdapter.ts       # SiYuan API abstraction layer
-│   ├── engine/
-│   │   ├── RecurrenceEngine.ts       # Date calculation logic (275 lines)
-│   │   ├── Scheduler.ts              # Task timing & events (~500 lines)
-│   │   ├── SchedulerTimer.ts         # ✨ NEW:  Extracted timer management
-│   │   ├── SchedulerEvents.ts        # Event type definitions
-│   │   ├── TimezoneHandler.ts        # Timezone utilities
-│   │   └── NotificationState.ts      # Notification tracking
-│   ├── managers/
-│   │   └── TaskManager.ts            # Singleton lifecycle manager
-│   ├── models/
-│   │   ├── Task.ts                   # Task entity & helpers (now with duplicateTask)
-│   │   └���─ Frequency.ts              # Recurrence rule types (now with yearly)
-│   ├── storage/
-│   │   ├── TaskStorage.ts            # Main storage facade
-│   │   ├── TaskRepository.ts         # Repository abstraction
-│   │   ├── ActiveTaskStore.ts        # Active tasks persistence
-│   │   ├── ArchiveTaskStore.ts       # Archived tasks storage
-│   │   ├── TaskPersistenceController.ts  # Debounced save controller
-│   │   └── MigrationManager.ts       # Schema migration
-│   └── events/
-│       └── PluginEventBus.ts         # Internal event bus
-├── services/
-│   ├── EventService. ts               # n8n webhook orchestration
-│   └── types. ts                      # Service type definitions
-├── components/
-│   ├── Dashboard.svelte              # Main dashboard container
-│   ├── dashboard/
-│   │   └── taskState.ts              # UI state helpers
-│   ├── tabs/
-│   │   ├── TodayTab.svelte           # Today & overdue view
-│   │   ├── AllTasksTab.svelte        # All tasks management (now with duplicate)
-│   │   ├── TimelineTab.svelte        # Calendar timeline (with memoization)
-│   │   └── AnalyticsTab.svelte       # Statistics dashboard
-│   ├── cards/
-│   │   ├── TaskCard.svelte           # Task display component
-│   │   ├── TaskForm.svelte           # Task creation/editing (with templates & preview)
-│   │   └── QuickAddOverlay.svelte    # Quick task creation
-│   └── settings/
-│       └── Settings.svelte           # Configuration panel
-├── plugin/
-│   ├── commands. ts                   # Slash commands & hotkeys
-│   ├── menus.ts                      # Block context menus
-│   └── topbar.ts                     # Topbar integration
-├── utils/
-│   ├── constants.ts                  # Application constants
-│   ├── date.ts                       # Date utilities
-│   ├── logger.ts                     # Logging
-│   ├── notifications.ts              # Toast notifications
-│   ├── blocks.ts                     # Block fetching utilities
-│   └── taskTemplates.ts              # ✨ NEW:  Task template management
-└── __tests__/                        # Test files (comprehensive)
+ backend/                  # Business logic and data management
+    api/, blocks/, commands/, core/, events/, features/
+    integrations/, logging/, services/, webhooks/
+ frontend/                 # UI components and presentation
+    components/, hooks/, modals/, stores/, styles/, views/
+ shared/                   # Shared utilities and types
+     assets/, config/, constants/, utils/
 ```
 
+**Architecture Highlights:**
+-  **3-Layer Separation**: Backend (business logic)  Shared (utilities/types)  Frontend (UI)
+-  **Path Aliases**: Clean imports (`@backend`, `@frontend`, `@shared`)
+-  **No Business Logic in Frontend**: All domain logic in backend layer
+-  **Event-Driven**: Scheduler emits events, services react
+-  **Singleton Managers**: TaskManager, Scheduler use getInstance() pattern
+-  **Storage Abstraction**: Repository pattern decouples from SiYuan API
+
+See detailed documentation:
+- [Backend README](src/backend/README.md) - Business logic architecture
+- [Frontend README](src/frontend/README.md) - UI component structure
+- [Shared README](src/shared/README.md) - Shared utilities guide
+- [Architectural Decisions](docs/ARCHITECTURAL_DECISIONS.md) - Key design decisions
 ## Usage
 
 ### Creating a Task

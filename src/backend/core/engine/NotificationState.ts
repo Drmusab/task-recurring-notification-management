@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Persistent notification state to prevent duplicate notifications across restarts
  */
 
 import type { Plugin } from "siyuan";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 interface NotificationRecord {
   taskKey: string;

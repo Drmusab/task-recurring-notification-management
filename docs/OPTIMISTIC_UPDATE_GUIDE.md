@@ -408,7 +408,7 @@ async function updateTask(task: Task, changes: Partial<Task>) {
 ### Unit Test Example:
 
 ```typescript
-import { OptimisticUpdateManager } from '@/core/ui/OptimisticUpdateManager';
+import { OptimisticUpdateManager } from '@backend/core/ui/OptimisticUpdateManager';
 
 describe('OptimisticUpdateManager', () => {
   it('should rollback on failure', async () => {

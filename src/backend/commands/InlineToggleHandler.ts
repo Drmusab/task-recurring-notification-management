@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Inline Toggle Handler
  * 
  * Handles checkbox toggle events for inline tasks in SiYuan editor.
@@ -10,8 +10,8 @@ import type { TaskCommands } from "@backend/commands/TaskCommands";
 import type { TaskIndex } from "@backend/core/storage/TaskIndex";
 import type { ParsedTask } from "@backend/parsers/InlineTaskParser";
 import { parseInlineTask, normalizeTask } from "@backend/parsers/InlineTaskParser";
-import * as logger from "@shared/utils/misc/logger";
-import { toast } from "@shared/utils/misc/notifications";
+import * as logger from "@backend/logging/logger";
+import { toast } from "@frontend/utils/notifications";
 
 export interface InlineToggleHandlerDeps {
   taskIndex: TaskIndex;

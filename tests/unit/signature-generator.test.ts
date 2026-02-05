@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SignatureGenerator } from '@backend/events/SignatureGenerator';
+import { SignatureGenerator } from '@backend/webhooks/outbound/SignatureGenerator';
 
 describe('SignatureGenerator', () => {
   const secret = 'test-secret-key';

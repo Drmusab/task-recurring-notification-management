@@ -1,4 +1,4 @@
-import { capitalizeFirstLetter } from "@shared/utils/lib/StringHelpers";
+import { capitalizeFirstLetter } from "@shared/utils/lib/string-helpers";
 
 /**
  * Returns contents for a `<label>` HTML element.

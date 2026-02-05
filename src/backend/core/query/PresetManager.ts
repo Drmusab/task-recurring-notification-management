@@ -1,8 +1,8 @@
-import type { Plugin } from 'siyuan';
-import { SettingUtils } from '@shared/utils/misc/SettingUtils';
+﻿import type { Plugin } from 'siyuan';
+import { SettingUtils } from "@shared/config/setting-utils";
 import type { QueryPreset } from "@backend/core/query/QueryPreset";
 import { BUILT_IN_PRESETS, isValidQueryPreset, createQueryPreset } from "@backend/core/query/QueryPreset";
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 const PRESETS_STORAGE_KEY = 'query-presets';
 

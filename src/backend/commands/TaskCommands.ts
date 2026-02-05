@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Task Commands for keyboard shortcuts and actions
  */
 
@@ -10,8 +10,8 @@ import { StatusRegistry } from "@backend/core/models/StatusRegistry";
 import { pluginEventBus } from "@backend/core/events/PluginEventBus";
 import { CompletionHandler } from "@backend/core/actions/CompletionHandler";
 import type { SiYuanBlockAPI } from "@backend/core/actions/CompletionHandler";
-import * as logger from "@shared/utils/misc/logger";
-import { toast } from "@shared/utils/misc/notifications";
+import * as logger from "@backend/logging/logger";
+import { toast } from "@frontend/utils/notifications";
 
 export class TaskCommands {
   private completionHandler?: CompletionHandler;

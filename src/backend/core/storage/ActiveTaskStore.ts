@@ -1,7 +1,7 @@
-import type { Plugin } from "siyuan";
+﻿import type { Plugin } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
-import { STORAGE_ACTIVE_KEY } from "@shared/utils/misc/constants";
-import * as logger from "@shared/utils/misc/logger";
+import { STORAGE_ACTIVE_KEY } from "@shared/constants/misc-constants";
+import * as logger from "@backend/logging/logger";
 import type { TaskState, TaskStateWriter } from "@backend/core/storage/TaskPersistenceController";
 import path from "path";
 import { type SiYuanEnvironmentAPI, reportSiYuanApiIssue } from "@backend/core/api/SiYuanApiAdapter";

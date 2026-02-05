@@ -1,4 +1,4 @@
-import type { Task } from "@shared/utils/task/Task";
+import type { Task } from "@backend/core/models/Task";
 import { replaceTaskWithTasks } from "@backend/core/file/File";
 import type { TaskEditingInstruction } from "@components/common/EditInstructions/TaskEditingInstruction";
 import { SEPARATOR_INSTRUCTION_DISPLAY_NAME } from "@components/common/EditInstructions/MenuDividerInstruction";

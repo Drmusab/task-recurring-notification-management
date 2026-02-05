@@ -1,5 +1,5 @@
-import type { Task } from '@backend/core/models/Task';
-import { EMOJI_SIGNIFIERS, getPriorityEmoji, type TaskFormat } from '@shared/utils/misc/signifiers';
+﻿import type { Task } from '@backend/core/models/Task';
+import { EMOJI_SIGNIFIERS, getPriorityEmoji, type TaskFormat } from "@shared/utils/task/signifiers";
 import { normalizePriority } from '@backend/core/models/Task';
 import { DateParser } from "@backend/core/parsers/DateParser";
 

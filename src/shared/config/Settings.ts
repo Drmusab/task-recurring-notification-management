@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Settings - Central configuration module for the task management plugin
  * 
  * This file provides:
@@ -7,8 +7,8 @@
  * - getUserSelectedTaskFormat: Get the current task format
  */
 
-import type { Task } from "@shared/utils/task/Task";
-import { EMOJI_SIGNIFIERS } from "@shared/utils/misc/signifiers";
+import type { Task } from "@backend/core/models/Task";
+import { EMOJI_SIGNIFIERS } from "@shared/utils/task/signifiers";
 import type { EditModalShowSettings } from "@shared/config/EditModalShowSettings";
 import { defaultEditModalShowSettings } from "@shared/config/EditModalShowSettings";
 

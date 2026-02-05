@@ -1,5 +1,5 @@
-<script lang="typescript">
-  import { MarkdownRenderer } from "@shared/utils/misc/siyuan-compat";
+﻿<script lang="typescript">
+  import { MarkdownRenderer } from "@shared/utils/compat/siyuan-compat";
   import { afterUpdate } from "svelte";
   export let sourcePath: string;
   export let markdown: string;

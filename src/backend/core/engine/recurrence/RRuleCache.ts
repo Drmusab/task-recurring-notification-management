@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RRuleCache - LRU cache for parsed RRule objects
  * 
  * Provides:
@@ -9,9 +9,9 @@
  */
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
-import type { CacheEntry, CacheStats } from './types';
+import type { CacheEntry, CacheStats } from './recurrence.types';
 import { extractRRuleOptions } from './utils';
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 /**
  * LRU Cache for parsed RRule objects

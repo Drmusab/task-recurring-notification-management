@@ -1,4 +1,4 @@
-import type { Task } from "@backend/core/models/Task";
+﻿import type { Task } from "@backend/core/models/Task";
 import type { TaskStorage } from "@backend/core/storage/TaskStorage";
 import { RecurrenceEngineRRULE as RecurrenceEngine } from "./recurrence/RecurrenceEngineRRULE";
 import { TimezoneHandler } from "./TimezoneHandler";
@@ -12,8 +12,8 @@ import {
   MAX_RECOVERY_ITERATIONS,
   MISSED_GRACE_PERIOD_MS,
   SCHEDULER_INTERVAL_MS,
-} from "@shared/utils/misc/constants";
-import * as logger from "@shared/utils/misc/logger";
+} from "@shared/constants/misc-constants";
+import * as logger from "@backend/logging/logger";
 import type { Plugin } from "siyuan";
 import { SchedulerTimer } from "@backend/core/engine/SchedulerTimer";
 

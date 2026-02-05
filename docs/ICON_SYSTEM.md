@@ -204,7 +204,7 @@ The icon system replaced these emoji icons:
 The icon system is fully typed:
 
 ```typescript
-import { type IconCategory, type IconSize } from '@/assets/icons';
+import { type IconCategory, type IconSize } from '@shared/assets/icons';
 
 const category: IconCategory = 'navigation';
 const size: IconSize = 16;

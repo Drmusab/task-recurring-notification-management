@@ -6,7 +6,7 @@
    * - Add/remove tags for task organization
    * - Set task category for grouping
    */
-  import { t } from '@stores/i18nStore';
+  import { t } from '@stores/i18n.store';
   
   export let tags: string[] = [];
   export let category: string = '';

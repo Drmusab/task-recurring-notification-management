@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RecurrenceValidator - RRULE validation layer
  * 
  * Validates RRULE strings for:
@@ -9,9 +9,9 @@
  */
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
-import type { ValidationResult } from './types';
+import type { ValidationResult } from './recurrence.types';
 import { extractRRuleOptions } from './utils';
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 /**
  * RecurrenceValidator provides comprehensive RRULE validation

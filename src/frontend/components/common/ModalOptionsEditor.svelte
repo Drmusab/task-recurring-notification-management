@@ -1,7 +1,7 @@
 <script lang="ts">
     import { defaultEditModalShowSettings } from "@shared/config/EditModalShowSettings";
     import { settingsStore } from "@components/common/SettingsStore";
-    import { t } from '@stores/i18nStore';
+    import { t } from '@stores/i18n.store';
 
     export let onSave: () => void;
     export let onClose: () => void;

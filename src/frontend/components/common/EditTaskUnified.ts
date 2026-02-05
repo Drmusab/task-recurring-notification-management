@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unified EditTask Component Wrapper
  * 
  * This component fixes the architecture problem where:
@@ -20,13 +20,13 @@ import EditTaskLegacy from "@components/common/EditTask.svelte";
 import BlockActionsEditor from "@components/common/BlockActionsEditor.svelte";
 import TagsCategoryEditor from "@components/common/TagsCategoryEditor.svelte";
 import AISuggestionsPanel from "@components/common/AISuggestionsPanel.svelte";
-import type { Task as ObsidianTask } from '@shared/utils/task/Task';
+import type { Task as ObsidianTask } from '@backend/core/models/Task';
 import type { Task as SiYuanTask } from '@backend/core/models/Task';
-import { TaskModelAdapter, type UnifiedTask } from '@backend/adapters/TaskModelAdapter';
+import { TaskModelAdapter, type UnifiedTask } from '@backend/services/TaskAdapterService';
 import type { Status } from '@shared/types/Status';
 import type { TaskSuggestion } from '@backend/core/ai/SmartSuggestionEngine';
 import type { BlockLinkedAction } from '@backend/core/block-actions/BlockActionTypes';
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 export interface EditTaskUnifiedProps {
   task: SiYuanTask | ObsidianTask;

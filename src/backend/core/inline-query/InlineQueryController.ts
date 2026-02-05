@@ -1,4 +1,4 @@
-import type { Plugin } from "siyuan";
+﻿import type { Plugin } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import type { SettingsService } from "@backend/core/settings/SettingsService";
@@ -7,7 +7,7 @@ import { QueryParser } from "@backend/core/query/QueryParser";
 import { QueryComposer } from "@backend/core/query/QueryComposer";
 import { GlobalQuery } from "@backend/core/query/GlobalQuery";
 import { pluginEventBus } from "@backend/core/events/PluginEventBus";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 import {
   InlineQueryBlockParser,
   type InlineQueryBlock,

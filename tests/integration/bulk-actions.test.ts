@@ -5,14 +5,14 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
-import { bulkSelectionStore, selectedCount } from '@/stores/bulkSelectionStore';
+import { bulkSelectionStore, selectedCount } from '@stores/bulk-selection.store';
 import { 
   bulkComplete, 
   bulkSetPriority, 
   bulkReschedule, 
   bulkDelete,
   bulkCancel 
-} from '@shared/utils/misc/bulkOperations';
+} from '@backend/blocks/bulk-operations';
 import type { Task } from '@backend/core/models/Task';
 import { createTask } from '@backend/core/models/Task';
 import type { Frequency } from '@backend/core/models/Frequency';

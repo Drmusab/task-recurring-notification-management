@@ -1,6 +1,6 @@
-import { MenuItem, Notice } from '@shared/utils/misc/siyuan-compat';
+﻿import { MenuItem, Notice } from "@shared/utils/compat/siyuan-compat";
 import type { Moment, unitOfTime } from 'moment/moment';
-import type { Task } from "@shared/utils/task/Task";
+import type { Task } from "@backend/core/models/Task";
 import {
     createFixedDateTask,
     createPostponedTask,
@@ -10,8 +10,8 @@ import {
     postponeMenuItemTitle,
     postponementSuccessMessage,
     removeDateMenuItemTitle,
-} from "@shared/utils/dateTime/Postponer";
-import type { HappensDate } from "@shared/utils/dateTime/DateFieldTypes";
+} from "@shared/utils/dateTime/postponer";
+import type { HappensDate } from "@shared/utils/dateTime/date-field-types";
 import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/common/Menus/TaskEditingMenu";
 
 type NamingFunction = (task: Task, amount: number, timeUnit: unitOfTime.DurationConstructor) => string;

@@ -1,10 +1,10 @@
 <script lang="ts">
-    import type { TasksDate } from "@shared/utils/dateTime/TasksDate";
+    import type { TasksDate } from "@shared/utils/dateTime/tasks-date";
     import type { Status } from "@shared/types/Status";
     import type { Task } from "@shared/utils/task/Task";
     import type { EditableTask } from "@components/common/EditableTask";
     import { labelContentWithAccessKey } from "@components/common/EditTaskHelpers";
-    import { t } from '@stores/i18nStore';
+    import { t } from '@stores/i18n.store';
 
     export let task: Task;
     export let editableTask: EditableTask;

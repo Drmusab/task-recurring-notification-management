@@ -255,7 +255,7 @@ The `NaturalLanguageInput` component provides:
 #### Programmatic Usage
 
 ```typescript
-import { NaturalLanguageParser } from '@/core/parsers/NaturalLanguageParser';
+import { NaturalLanguageParser } from '@backend/core/parsers/NaturalLanguageParser';
 
 const parser = new NaturalLanguageParser();
 const result = parser.parse('every weekday at 9am');

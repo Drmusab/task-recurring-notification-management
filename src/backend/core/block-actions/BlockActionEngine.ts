@@ -1,9 +1,9 @@
-import type { RecurrenceEngineRRULE } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
+﻿import type { RecurrenceEngineRRULE } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import type { Task } from "@backend/core/models/Task";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import { CompletionHandler } from "@backend/core/actions/CompletionHandler";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 import {
   type BlockActionExecutionResult,
   type BlockActionTaskContext,

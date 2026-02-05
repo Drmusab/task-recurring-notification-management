@@ -5,7 +5,7 @@
   import CalendarView from "@components/reminders/ui/Calendar.svelte";
   import TimePicker from "@components/reminders/ui/TimePicker.svelte";
   import ReminderListByDate from "@components/reminders/ui/ReminderListByDate.svelte";
-  import { t } from '@stores/i18nStore';
+  import { t } from '@stores/i18n.store';
 
   export let date = moment();
   export let reminders: Reminders;

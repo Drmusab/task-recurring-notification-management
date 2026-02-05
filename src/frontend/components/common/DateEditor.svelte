@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { doAutocomplete } from "@shared/utils/dateTime/DateAbbreviations";
-    import { parseTypedDateForDisplayUsingFutureDate } from "@shared/utils/dateTime/DateTools";
+    import { doAutocomplete } from "@shared/utils/dateTime/date-abbreviations";
+    import { parseTypedDateForDisplayUsingFutureDate } from "@shared/utils/dateTime/date-tools";
     import { labelContentWithAccessKey } from "@components/common/EditTaskHelpers";
-    import { t, getTranslation } from '@stores/i18nStore';
+    import { t, getTranslation } from '@stores/i18n.store';
 
     export let id: 'start' | 'scheduled' | 'due' | 'done' | 'created' | 'cancelled';
     export let dateSymbol: string;

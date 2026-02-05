@@ -1,10 +1,10 @@
-import type {
+﻿import type {
   BlockActionTaskContext,
   BlockEvent,
   BlockTrigger,
   ConditionExpr,
 } from "@backend/core/block-actions/BlockActionTypes";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

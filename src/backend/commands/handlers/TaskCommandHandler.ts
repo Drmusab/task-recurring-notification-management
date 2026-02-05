@@ -1,6 +1,6 @@
 // Add to existing TaskCommandHandler
 
-import { OutboundWebhookEmitter } from "@backend/events/OutboundWebhookEmitter";
+import { OutboundWebhookEmitter } from "@backend/webhooks/outbound/OutboundWebhookEmitter";
 import { TaskCreatedEvent, TaskCompletedEvent } from "@backend/events/types/EventTypes";
 
 export class TaskCommandHandler extends BaseCommandHandler {

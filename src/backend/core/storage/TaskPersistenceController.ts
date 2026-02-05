@@ -1,5 +1,5 @@
-import type { Task } from "@backend/core/models/Task";
-import * as logger from "@shared/utils/misc/logger";
+﻿import type { Task } from "@backend/core/models/Task";
+import * as logger from "@backend/logging/logger";
 
 export interface TaskState {
   tasks: Task[];

@@ -1,10 +1,10 @@
-import { QuerySyntaxError } from "@backend/core/query/QueryError";
+﻿import { QuerySyntaxError } from "@backend/core/query/QueryError";
 import { StatusType } from '@backend/core/models/Status';
 import type { DateField, DateComparator } from "@backend/core/query/filters/DateFilter";
 import type { PriorityLevel } from "@backend/core/query/filters/PriorityFilter";
 import { DateParser } from '@backend/core/parsers/DateParser';
 import { RegexMatcher, type RegexSpec } from "@backend/core/query/utils/RegexMatcher";
-import { placeholderResolver, type QueryContext } from '@shared/utils/misc/PlaceholderResolver';
+import { placeholderResolver, type QueryContext } from "@shared/utils/string/placeholder-resolver";
 
 /**
  * Parse query string to Abstract Syntax Tree (AST)

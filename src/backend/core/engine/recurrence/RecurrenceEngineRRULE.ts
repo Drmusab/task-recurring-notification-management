@@ -1,9 +1,9 @@
-import type { Task } from "@backend/core/models/Task";
+﻿import type { Task } from "@backend/core/models/Task";
 import type { Frequency } from "@backend/core/models/Frequency";
 import { RRule, RRuleSet, rrulestr } from "rrule";
-import { getUserTimezone } from "@shared/utils/misc/timezone";
-import * as logger from "@shared/utils/misc/logger";
-import { MAX_RECOVERY_ITERATIONS } from "@shared/utils/misc/constants";
+import { getUserTimezone } from "@shared/utils/date/timezone";
+import * as logger from "@backend/logging/logger";
+import { MAX_RECOVERY_ITERATIONS } from "@shared/constants/misc-constants";
 
 /**
  * RecurrenceEngine using RFC 5545-compliant RRULE as single source of truth

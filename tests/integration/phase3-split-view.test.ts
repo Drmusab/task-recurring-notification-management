@@ -73,7 +73,7 @@ describe('Phase 3: Split-View Dashboard Settings', () => {
 
 describe('Debounce Utility', () => {
   it('should debounce function calls', async () => {
-    const { debounce } = await import('@/utils/debounce');
+    const { debounce } = await import('@shared/utils/function/debounce');
     
     let callCount = 0;
     const increment = () => callCount++;

@@ -1,4 +1,4 @@
-import * as logger from "@shared/utils/misc/logger";
+﻿import * as logger from "@backend/logging/logger";
 
 export type SiYuanCapability = "setBlockAttrs" | "dataDir";
 

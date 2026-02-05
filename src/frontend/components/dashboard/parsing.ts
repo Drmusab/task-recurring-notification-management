@@ -1,4 +1,4 @@
-import Tracker from "@components/dashboard/main";
+﻿import Tracker from "@components/dashboard/main";
 import {
     SearchType,
     BarInfo,
@@ -18,7 +18,7 @@ import {
     AspectRatio,
     ThresholdType
 } from "@components/dashboard/data";
-import { TFolder, normalizePath, parseYaml } from "@shared/utils/misc/siyuan-compat";
+import { TFolder, normalizePath, parseYaml } from "@shared/utils/compat/siyuan-compat";
 import * as helper from "@components/dashboard/helper";
 
 function strToBool(str: string): boolean | null {

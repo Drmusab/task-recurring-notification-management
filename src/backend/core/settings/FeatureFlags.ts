@@ -1,8 +1,8 @@
-/**
+﻿/**
  * Feature flags system for gradual rollout of new features
  */
 
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 export interface FeatureFlag {
   key: string;

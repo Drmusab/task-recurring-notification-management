@@ -1,5 +1,5 @@
-import type { Plugin } from "siyuan";
-import * as logger from "@shared/utils/misc/logger";
+﻿import type { Plugin } from "siyuan";
+import * as logger from "@backend/logging/logger";
 
 const PATTERN_LEARNER_STORAGE_KEY = "pattern_learner_history";
 

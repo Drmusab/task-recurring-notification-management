@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Optimistic Update Manager
  * 
  * Handles optimistic UI updates with automatic rollback on failure.
@@ -22,7 +22,7 @@
  * ```
  */
 
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 export interface OptimisticUpdate<T = any> {
   /** Unique ID for this update operation */

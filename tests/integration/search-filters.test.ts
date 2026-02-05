@@ -5,8 +5,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
-import { searchStore, applySmartFilters, calculateFilterCounts } from '@/stores/searchStore';
-import { fuzzySearchTasks, simpleSearchTasks } from '@shared/utils/misc/fuzzySearch';
+import { searchStore, applySmartFilters, calculateFilterCounts } from '@stores/search.store';
+import { fuzzySearchTasks, simpleSearchTasks } from '@shared/utils/search/fuzzy-search';
 import type { Task } from '@backend/core/models/Task';
 import { createTask } from '@backend/core/models/Task';
 import type { Frequency } from '@backend/core/models/Frequency';

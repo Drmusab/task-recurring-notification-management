@@ -1,11 +1,11 @@
-/**
+﻿/**
  * OptionsModal - Settings modal for TaskEditorModal
  * 
  * Allows users to configure display options for the task editor.
  * WHY: TaskModal references this but it was missing from the codebase.
  */
 
-import { App, Modal, Setting } from '@shared/utils/misc/siyuan-compat';
+import { App, Modal, Setting } from "@shared/utils/compat/siyuan-compat";
 import { getSettings, updateSettings } from "@shared/config/Settings";
 
 export interface OptionsModalParams {

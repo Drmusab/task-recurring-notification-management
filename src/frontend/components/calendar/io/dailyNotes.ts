@@ -1,9 +1,9 @@
-import type { Moment } from "moment";
-import type { TFile } from "@shared/utils/misc/siyuan-compat";
+﻿import type { Moment } from "moment";
+import type { TFile } from "@shared/utils/compat/siyuan-compat";
 import {
   createDailyNote,
   getDailyNoteSettings,
-} from "@shared/utils/misc/daily-notes-compat";
+} from "@shared/utils/compat/daily-notes-compat";
 
 import type { ISettings } from "src/settings";
 import { createConfirmationDialog } from "src/ui/modal";

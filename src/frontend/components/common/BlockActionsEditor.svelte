@@ -11,7 +11,7 @@
   
   import type { BlockLinkedAction, BlockTrigger, TaskAction, ConditionExpr } from '@backend/core/block-actions/BlockActionTypes';
   import type { TaskPriority } from '@backend/core/models/Task';
-  import { t } from '@stores/i18nStore';
+  import { t } from '@stores/i18n.store';
   
   export let actions: BlockLinkedAction[] = [];
   export let onChange: (actions: BlockLinkedAction[]) => void;

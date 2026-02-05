@@ -1,5 +1,5 @@
-import { type FuzzyMatch, prepareSimpleSearch } from '@shared/utils/misc/siyuan-compat';
-import type { Task } from "@shared/utils/task/Task";
+﻿import { type FuzzyMatch, prepareSimpleSearch } from "@shared/utils/compat/siyuan-compat";
+import type { Task } from "@backend/core/models/Task";
 import { GlobalFilter } from "@shared/config/GlobalFilter";
 
 const MAX_SEARCH_RESULTS = 20;

@@ -1,5 +1,5 @@
 import type { Moment } from 'moment/moment';
-import { compareByDate } from "@shared/utils/DateTime/DateTools";
+import { compareByDate } from "@shared/utils/dateTime/date-tools";
 import { getSettings } from "@shared/config/Settings";
 
 /**

@@ -1,8 +1,8 @@
-import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
+﻿import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import type { BlockActionEngine } from "@backend/core/block-actions/BlockActionEngine";
 import type { BlockEvent } from "@backend/core/block-actions/BlockActionTypes";
 import type { BlockActionSettings } from "@backend/core/settings/PluginSettings";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 interface BlockEventWatcherOptions {
   engine: BlockActionEngine;

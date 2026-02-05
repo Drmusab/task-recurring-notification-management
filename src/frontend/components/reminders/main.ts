@@ -1,4 +1,4 @@
-import {
+﻿import {
   NotificationWorker,
   PluginData,
   ReminderPluginFileSystem,
@@ -6,7 +6,7 @@ import {
 } from "plugin";
 import { Reminders } from "model/reminder";
 import { DATE_TIME_FORMATTER } from "model/time";
-import { App, Plugin } from "@shared/utils/misc/siyuan-compat";
+import { App, Plugin } from "@shared/utils/compat/siyuan-compat";
 
 export default class ReminderPlugin extends Plugin {
   _data: PluginData;

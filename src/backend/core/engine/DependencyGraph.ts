@@ -1,5 +1,5 @@
-import type { Task } from '@backend/core/models/Task';
-import { warn } from '@shared/utils/misc/logger';
+﻿import type { Task } from '@backend/core/models/Task';
+import { warn } from "@backend/logging/logger";
 
 /**
  * DependencyGraph manages task dependencies and blocking relationships

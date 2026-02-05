@@ -1,4 +1,4 @@
-import type { Plugin } from "siyuan";
+﻿import type { Plugin } from "siyuan";
 import { TaskStorage } from "@backend/core/storage/TaskStorage";
 import { TaskRepository, type TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import { Scheduler } from "@backend/core/engine/Scheduler";
@@ -6,8 +6,8 @@ import { EventService } from "@backend/services/EventService";
 import { SettingsService } from "@backend/core/settings/SettingsService";
 import { GlobalFilter } from "@backend/core/filtering/GlobalFilter";
 import { GlobalQuery } from "@backend/core/query/GlobalQuery";
-import { SCHEDULER_INTERVAL_MS } from "@shared/utils/misc/constants";
-import * as logger from "@shared/utils/misc/logger";
+import { SCHEDULER_INTERVAL_MS } from "@shared/constants/misc-constants";
+import * as logger from "@backend/logging/logger";
 import { PatternLearner } from "@backend/core/ml/PatternLearner";
 import { PatternLearnerStore } from "@backend/core/ml/PatternLearnerStore";
 

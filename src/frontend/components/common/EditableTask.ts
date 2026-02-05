@@ -1,14 +1,14 @@
 import { GlobalFilter } from "@shared/config/GlobalFilter";
-import { parseTypedDateForSaving } from "@shared/utils/dateTime/DateTools";
-import { PriorityTools } from "@shared/utils/lib/PriorityTools";
+import { parseTypedDateForSaving } from "@shared/utils/dateTime/date-tools";
+import { PriorityTools } from "@shared/utils/lib/priority-tools";
 import { replaceTaskWithTasks } from "@backend/core/file/File";
 import type { Status } from "@shared/types/Status";
-import type { OnCompletion } from "@shared/utils/task/OnCompletion";
-import { Occurrence } from "@shared/utils/task/Occurrence";
-import { Priority } from "@shared/utils/task/Priority";
-import { Recurrence } from "@shared/utils/task/Recurrence";
-import { Task } from "@shared/utils/task/Task";
-import { addDependencyToParent, ensureTaskHasId, generateUniqueId, removeDependency } from "@shared/utils/task/TaskDependency";
+import type { OnCompletion } from "@shared/utils/task/on-completion";
+import { Occurrence } from "@shared/utils/task/occurrence";
+import { Priority } from "@shared/utils/task/priority";
+import { Recurrence } from "@shared/utils/task/recurrence";
+import type { Task } from "@backend/core/models/Task";
+import { addDependencyToParent, ensureTaskHasId, generateUniqueId, removeDependency } from "@shared/utils/task/task-dependency";
 import { StatusType } from "@shared/constants/statuses/StatusConfiguration";
 
 /**
@@ -191,7 +191,7 @@ export class EditableTask {
         }
 
         // First create an updated task, with all edits except Status:
-        const updatedTask = new Task({
+        const updatedTask: Task = {
             // NEW_TASK_FIELD_EDIT_REQUIRED
             ...task,
             description,
@@ -207,7 +207,7 @@ export class EditableTask {
             cancelledDate,
             dependsOn: blockedByWithIds.map((task) => task.id),
             id,
-        });
+        };
 
         for (const blocking of removedBlocking) {
             const newParent = removeDependency(blocking, updatedTask);

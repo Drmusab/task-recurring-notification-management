@@ -1,7 +1,7 @@
 import flatpickr from 'flatpickr';
-import type { Task } from "@shared/utils/task/Task";
+import type { Task } from "@backend/core/models/Task";
 import { RemoveTaskDate, SetTaskDate } from "@components/common/EditInstructions/DateInstructions";
-import type { AllTaskDateFields } from "@shared/utils/dateTime/DateFieldTypes";
+import type { AllTaskDateFields } from "@shared/utils/dateTime/date-field-types";
 import type { TaskSaver } from "@components/common/Menus/TaskEditingMenu";
 
 /**

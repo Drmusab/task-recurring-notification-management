@@ -1,18 +1,18 @@
-import type { Plugin } from "siyuan";
+﻿import type { Plugin } from "siyuan";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import type { RecurrenceEngineRRULE as RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import { TaskCommands } from "@backend/commands/TaskCommands";
-import { SettingUtils } from "@shared/utils/misc/SettingUtils";
-import { toast } from "@shared/utils/misc/notifications";
-import * as logger from "@shared/utils/misc/logger";
+import { SettingUtils } from "@shared/config/setting-utils";
+import { toast } from "@frontend/utils/notifications";
+import * as logger from "@backend/logging/logger";
 import {
   DEFAULT_SHORTCUT_SETTINGS,
   SHORTCUT_DEFINITIONS,
   type ShortcutDefinition,
   type ShortcutId,
   type ShortcutSettings,
-} from "@shared/utils/misc/shortcuts";
+} from "@frontend/utils/shortcuts";
 import { extractTaskName, extractTimeFromContent } from "@/plugin/menus";
 
 export interface ShortcutDisplay {

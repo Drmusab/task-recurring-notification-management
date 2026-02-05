@@ -20,7 +20,15 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@backend/*": ["./src/backend/*"],
+      "@frontend/*": ["./src/frontend/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@components/*": ["./src/frontend/components/*"],
+      "@stores/*": ["./src/frontend/stores/*"],
+      "@hooks/*": ["./src/frontend/hooks/*"],
+      "@modals/*": ["./src/frontend/modals/*"],
+      "@views/*": ["./src/frontend/views/*"]
     }
   },
   "include": ["src/**/*"],

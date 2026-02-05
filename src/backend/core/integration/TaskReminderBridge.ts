@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Task-Reminder Bridge Service
  * 
  * Synchronizes reminder state with task changes.
@@ -17,7 +17,7 @@
 import type { Task } from '@backend/core/models/Task';
 import type ReminderPlugin from '@components/reminders/main';
 import type { Reminder } from '@components/reminders/model/reminder';
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 export interface TaskReminderSyncOptions {
   /** Auto-create reminders for tasks with due dates */

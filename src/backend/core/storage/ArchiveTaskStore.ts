@@ -1,7 +1,7 @@
-import type { Plugin } from "siyuan";
+﻿import type { Plugin } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
-import { STORAGE_ARCHIVE_KEY } from "@shared/utils/misc/constants";
-import * as logger from "@shared/utils/misc/logger";
+import { STORAGE_ARCHIVE_KEY } from "@shared/constants/misc-constants";
+import * as logger from "@backend/logging/logger";
 
 export interface ArchiveQuery {
   from?: string;

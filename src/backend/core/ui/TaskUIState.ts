@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Task UI State Manager
  * 
  * Manages UI state for tasks with optimistic updates.
@@ -12,7 +12,7 @@
 
 import type { Task } from '@backend/core/models/Task';
 import { OptimisticUpdateManager } from "@backend/core/ui/OptimisticUpdateManager";
-import * as logger from '@shared/utils/misc/logger';
+import * as logger from "@backend/logging/logger";
 
 /**
  * UI-specific task state

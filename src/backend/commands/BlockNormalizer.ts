@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Block Normalizer - Converts saved tasks back to canonical inline format
  */
 
@@ -7,8 +7,8 @@ import type { ParsedTask } from "@backend/parsers/InlineTaskParser";
 import { normalizeTask } from "@backend/parsers/InlineTaskParser";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import type { SiYuanBlockAPI } from "@backend/core/api/SiYuanApiAdapter";
-import * as logger from "@shared/utils/misc/logger";
-import { toast } from "@shared/utils/misc/notifications";
+import * as logger from "@backend/logging/logger";
+import { toast } from "@frontend/utils/notifications";
 
 /**
  * Save task and normalize the associated block content

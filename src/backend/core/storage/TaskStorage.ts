@@ -1,4 +1,4 @@
-import type { Task } from "@backend/core/models/Task";
+﻿import type { Task } from "@backend/core/models/Task";
 import type { Plugin } from "siyuan";
 import {
   BLOCK_ATTR_TASK_ID,
@@ -11,10 +11,10 @@ import {
   MAX_SYNC_RETRIES,
   RETRY_DELAYS,
   SYNC_RETRY_PROCESSOR_INTERVAL,
-} from "@shared/utils/misc/constants";
+} from "@shared/constants/misc-constants";
 import { ActiveTaskStore } from "@backend/core/storage/ActiveTaskStore";
 import { ArchiveTaskStore, type ArchiveQuery } from "@backend/core/storage/ArchiveTaskStore";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 import { TaskPersistenceController } from "@backend/core/storage/TaskPersistenceController";
 import {
   SiYuanApiAdapter,

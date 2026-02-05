@@ -1,6 +1,6 @@
-import { App, PluginSettingTab, Setting } from "@shared/utils/misc/siyuan-compat";
-import { appHasDailyNotesPluginLoaded } from "@shared/utils/misc/daily-notes-compat";
-import type { ILocaleOverride, IWeekStartOption } from "@shared/utils/misc/daily-notes-compat";
+﻿import { App, PluginSettingTab, Setting } from "@shared/utils/compat/siyuan-compat";
+import { appHasDailyNotesPluginLoaded } from "@shared/utils/compat/daily-notes-compat";
+import type { ILocaleOverride, IWeekStartOption } from "@shared/utils/compat/daily-notes-compat";
 
 import { DEFAULT_WEEK_FORMAT, DEFAULT_WORDS_PER_DOT } from "src/constants";
 

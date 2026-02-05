@@ -1,8 +1,8 @@
-/**
+﻿/**
  * Timezone-aware date and time handling
  */
 
-import { parseTime } from "@shared/utils/misc/date";
+import { parseTime } from "@shared/utils/date/date";
 
 export class TimezoneHandler {
   /**

@@ -1,4 +1,4 @@
-import type { Task } from "@shared/utils/task/Task";
+import type { Task } from "@backend/core/models/Task";
 
 export class Urgency {
     private static readonly dueCoefficient = 12.0;

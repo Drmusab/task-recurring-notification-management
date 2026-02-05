@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Create Task from Block - Main command handler for inline task creation
  */
 
@@ -13,8 +13,8 @@ import { saveAndNormalizeBlock } from "@backend/commands/BlockNormalizer";
 import { showParseErrorHint } from "@components/common/InlineErrorHints";
 import { createTask } from "@backend/core/models/Task";
 import { createDefaultFrequency } from "@backend/core/models/Frequency";
-import { toast } from "@shared/utils/misc/notifications";
-import * as logger from "@shared/utils/misc/logger";
+import { toast } from "@frontend/utils/notifications";
+import * as logger from "@backend/logging/logger";
 
 export interface CreateTaskFromBlockDependencies {
   repository: TaskRepositoryProvider;

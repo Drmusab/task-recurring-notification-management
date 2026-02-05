@@ -8,7 +8,7 @@
   
   import type { Frequency } from '@backend/core/models/Frequency';
   import moment from 'moment';
-  import { t, getTranslation } from '@stores/i18nStore';
+  import { t, getTranslation } from '@stores/i18n.store';
   
   export let frequency: Frequency | null = null;
   export let startDate: string | null = null;

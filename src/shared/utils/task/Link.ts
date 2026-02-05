@@ -1,6 +1,6 @@
-import type { Reference } from '@shared/utils/misc/siyuan-compat';
+﻿import type { Reference } from "@shared/utils/compat/siyuan-compat";
 import type { TasksFile } from "@shared/utils/Scripting/TasksFile";
-import { LinkResolver } from "@shared/utils/task/LinkResolver";
+import { LinkResolver } from "@shared/utils/task/link-resolver";
 
 export class Link {
     private readonly rawLink: Reference;

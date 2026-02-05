@@ -1,5 +1,5 @@
-import type { Task, OnCompletionAction as TaskOnCompletionAction } from "@backend/core/models/Task";
-import * as logger from "@shared/utils/misc/logger";
+﻿import type { Task, OnCompletionAction as TaskOnCompletionAction } from "@backend/core/models/Task";
+import * as logger from "@backend/logging/logger";
 
 export type OnCompletionAction = 'keep' | 'delete' | 'archive' | 'customTransition';
 

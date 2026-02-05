@@ -31,4 +31,4 @@ export type {
   MissedOccurrenceOptions,
   CacheEntry,
   CacheStats
-} from './types';
+} from './recurrence.types';

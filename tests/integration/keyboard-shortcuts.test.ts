@@ -5,8 +5,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { keyboardShortcutsStore, DEFAULT_SHORTCUTS } from '@/stores/keyboardShortcutsStore';
-import { formatKeyCombo, extractKeys, shouldIgnoreKeyEvent } from '@shared/utils/misc/keyboardHandler';
+import { keyboardShortcutsStore, DEFAULT_SHORTCUTS } from '@stores/keyboard-shortcuts.store';
+import { formatKeyCombo, extractKeys, shouldIgnoreKeyEvent } from '@frontend/utils/keyboard';
 
 describe('Keyboard Shortcuts Store', () => {
   beforeEach(() => {

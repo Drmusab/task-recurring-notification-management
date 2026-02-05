@@ -7,9 +7,9 @@ import {
   BulkOperationResult,
 } from "@backend/commands/types/BulkCommandTypes";
 import { ITaskManager } from "@backend/commands/handlers/TaskCommandHandler";
-import { BulkExecutor } from "@backend/bulk/BulkExecutor";
-import { PartialResultCollector } from "@backend/bulk/PartialResultCollector";
-import { DEFAULT_BATCH_CONFIGS } from "@backend/bulk/BatchConfig";
+import { BulkExecutor } from "@backend/services/BulkExecutorService";
+import { PartialResultCollector } from "@backend/services/PartialResultCollectorService";
+import { DEFAULT_BATCH_CONFIGS } from "@backend/services/batch-config";
 import { WebhookError } from "@backend/webhook/types/Error";
 
 /**

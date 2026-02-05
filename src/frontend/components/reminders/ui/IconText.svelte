@@ -1,5 +1,5 @@
-<script lang="typescript">
-  import { setIcon } from "@shared/utils/misc/siyuan-compat";
+﻿<script lang="typescript">
+  import { setIcon } from "@shared/utils/compat/siyuan-compat";
   import { onMount } from "svelte";
   export let icon = "";
   export let text = "";

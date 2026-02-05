@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Incremental task index for fast queries
  * Listens to block changes and updates only affected entries
  */
 
 import type { Task } from "@backend/core/models/Task";
 import type { StatusType } from "@backend/core/models/Status";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 export interface Filter {
   type: "status" | "due" | "scheduled" | "tag" | "path";

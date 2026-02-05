@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Data schema migration manager
  */
 
 import type { Plugin } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
-import { CURRENT_SCHEMA_VERSION } from "@shared/utils/misc/constants";
-import * as logger from "@shared/utils/misc/logger";
+import { CURRENT_SCHEMA_VERSION } from "@shared/constants/misc-constants";
+import * as logger from "@backend/logging/logger";
 import { migrateAllTasksToRRule } from "@backend/core/storage/migrations/RRuleMigration";
 
 export interface MigrationResult {

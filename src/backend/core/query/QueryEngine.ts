@@ -51,7 +51,7 @@ export interface QueryResult {
   explanation?: string;
 }
 
-export interface TaskIndex {
+export interface TaskQueryIndex {
   getAllTasks(): Task[];
   getTasksByStatus?(statusType: string): Task[];
   getTasksByDateRange?(field: string, start: Date, end: Date): Task[];
@@ -66,7 +66,7 @@ export class QueryEngine {
   private attentionEngine = new AttentionEngine();
 
   constructor(
-    private taskIndex: TaskIndex,
+    private taskIndex: TaskQueryIndex,
     options: { urgencySettings?: UrgencySettings; escalationSettings?: EscalationSettings; attentionSettings?: AttentionSettings } = {}
   ) {
     this.urgencySettings = options.urgencySettings ?? DEFAULT_URGENCY_SETTINGS;

@@ -1,10 +1,10 @@
-import type { Plugin } from "siyuan";
+﻿import type { Plugin } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
 import type { TaskDueEvent } from "@backend/core/engine/SchedulerEvents";
 import type { Scheduler } from "@backend/core/engine/Scheduler";
 import { NotificationState } from "@backend/core/engine/NotificationState";
-import type { NotificationConfig, TaskEventPayload, TaskEventType, QueueItem } from "@backend/services/types";
-import { createTaskSnapshot } from "@backend/services/types";
+import type { NotificationConfig, TaskEventPayload, TaskEventType, QueueItem } from "@backend/services/event-service.types";
+import { createTaskSnapshot } from "@backend/services/event-service.types";
 import {
   DEFAULT_NOTIFICATION_CONFIG,
   EVENT_DEDUPE_LIMIT,
@@ -14,7 +14,7 @@ import {
   PLUGIN_EVENT_VERSION,
   NOTIFICATION_STATE_KEY,
   SETTINGS_KEY,
-} from "@shared/utils/misc/constants";
+} from "@shared/constants/misc-constants";
 
 const RETRY_BASE_DELAY_MS = 30 * 1000;
 const RETRY_MAX_DELAY_MS = 30 * 60 * 1000;

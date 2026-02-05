@@ -96,8 +96,8 @@ sort priority
 ### Via Code
 
 ```typescript
-import { PresetManager } from '@/core/query/PresetManager';
-import { createQueryPreset } from '@/core/query/QueryPreset';
+import { PresetManager } from '@backend/core/query/PresetManager';
+import { createQueryPreset } from '@backend/core/query/QueryPreset';
 
 // Create a preset manager
 const presetManager = new PresetManager(plugin);

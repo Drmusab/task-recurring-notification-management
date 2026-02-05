@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { t } from '@stores/i18nStore';
+    import { t } from '@stores/i18n.store';
     import { defaultEditModalShowSettings } from "@shared/config/EditModalShowSettings";
 
     import { TASK_FORMATS, getSettings } from "@shared/config/Settings";

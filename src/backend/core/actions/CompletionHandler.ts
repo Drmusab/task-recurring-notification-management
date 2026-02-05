@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Completion Handler for orchestrating task completion flow
  * Handles: date tracking, recurrence generation, placement, and onCompletion actions
  */
@@ -7,7 +7,7 @@ import type { Task } from "@backend/core/models/Task";
 import type { RecurrenceEngineRRULE as RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import { duplicateTask } from "@backend/core/models/Task";
-import * as logger from "@shared/utils/misc/logger";
+import * as logger from "@backend/logging/logger";
 
 export interface CompletionResult {
   success: boolean;

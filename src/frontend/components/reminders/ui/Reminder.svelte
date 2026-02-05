@@ -4,7 +4,7 @@
   import type { DateTime, Later } from "@components/reminders/model/time";
   import IconText from "@components/reminders/ui/IconText.svelte";
   import Markdown from "@components/reminders/ui/Markdown.svelte";
-  import { t } from '@stores/i18nStore';
+  import { t } from '@stores/i18n.store';
 
   export let reminder: Reminder;
   export let onRemindMeLater: (time: DateTime) => void;
