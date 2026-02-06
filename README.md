@@ -110,6 +110,13 @@ npm test
 npm run type-check
 ```
 
+**Important**: After building, the plugin files are automatically copied from `dist/` to the plugin root directory. This is required because SiYuan loads plugins from their root, not from subdirectories. The `npm run build` command automatically handles this via the `copy-dist` script.
+
+If you need to manually copy files (e.g., after modifying build output):
+```bash
+npm run copy-dist
+```
+
 ### Project Structure
 ```
 src/

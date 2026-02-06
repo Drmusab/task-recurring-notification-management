@@ -183,18 +183,20 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
    */
   private toggleDock(): void {
     try {
-      const docks = document.querySelectorAll(
-        `[data-type="${DOCK_TYPE}"]`
-      );
+      // Use stored reference first, fall back to DOM query if needed
+      let dock = this.dockEl;
 
-      if (docks.length === 0) {
-        console.warn(`[${this.name}] Dock element not found`);
-        this.safeShowMessage("Dock not available", "info");
-        return;
+      if (!dock) {
+        const docks = document.querySelectorAll(
+          `[data-type="${DOCK_TYPE}"]`
+        );
+        dock = docks.length > 0 ? (docks[0] as HTMLElement) : null;
       }
 
-      const dock = docks[0] as HTMLElement;
-      if (!dock) return;
+      if (!dock) {
+        // Dock not yet initialized - this is normal during early plugin lifecycle
+        return;
+      }
 
       const isVisible = dock.style.display !== "none" && dock.offsetParent !== null;
 

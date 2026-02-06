@@ -71,6 +71,7 @@ export default defineConfig({
       "@hooks": resolve(__dirname, "src/frontend/hooks"),
       "@modals": resolve(__dirname, "src/frontend/modals"),
       "@views": resolve(__dirname, "src/frontend/views"),
+      "path": "path-browserify",
       ...(isTest
         ? {
             siyuan: resolve(__dirname, "src/__tests__/siyuan-stub.ts"),
@@ -91,9 +92,12 @@ export default defineConfig({
       formats: ["cjs"],
     },
     rollupOptions: {
-      external: ["siyuan", "express", "http", "https", "net", "tls", "fs", "path", "os", "crypto"],
+      external: ["siyuan", "express", "http", "https", "net", "tls", "fs", "os", "crypto"],
       output: {
         entryFileNames: "index.js",
+        format: "cjs",
+        exports: "default",
+        footer: "if (typeof module !== 'undefined' && module.exports) { module.exports = module.exports.default || module.exports; }",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name === "style.css") {
             return "index.css";
