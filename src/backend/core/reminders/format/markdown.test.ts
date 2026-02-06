@@ -1,4 +1,4 @@
-import { MarkdownDocument, Todo } from "@components/reminders/model/format/markdown";
+import { MarkdownDocument, Todo } from "@backend/core/reminders/format/markdown";
 
 describe("MarkdownDocument", (): void => {
   test("getTodos()", (): void => {

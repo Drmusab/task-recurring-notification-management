@@ -1,9 +1,9 @@
-import { DateTime } from "model/time";
+import { DateTime } from "@backend/core/reminders/time";
 import moment from "moment";
-import type { Todo } from "@components/reminders/model/format/markdown";
-import { TodoBasedReminderFormat } from "@components/reminders/model/format/reminder-base";
-import type { ReminderModel } from "@components/reminders/model/format/reminder-base";
-import { escapeRegExpChars } from "@components/reminders/model/format/util";
+import type { Todo } from "@backend/core/reminders/format/markdown";
+import { TodoBasedReminderFormat } from "@backend/core/reminders/format/reminder-base";
+import type { ReminderModel } from "@backend/core/reminders/format/reminder-base";
+import { escapeRegExpChars } from "@backend/core/reminders/format/util";
 
 type KanbanSettingType = {
   dateTrigger: string;

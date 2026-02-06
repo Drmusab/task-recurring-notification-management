@@ -1,6 +1,4 @@
-/**
- * Inline error hints component for displaying validation errors
- */
+import * as logger from '@backend/logging/logger';
 
 export interface ErrorHint {
   message: string;
@@ -12,13 +10,11 @@ export interface ErrorHint {
  * Display inline error hints for task creation/editing
  */
 export function showInlineError(hint: ErrorHint): void {
-  // Simple console-based error display for now  
-  // Can be enhanced with UI tooltips/notifications
   if (!hint || !hint.type) {
-    console.error('[ERROR] Invalid error hint:', hint);
+    logger.error('Invalid error hint:', hint);
     return;
   }
-  console.error(`[${hint.type.toUpperCase()}] ${hint.field ? `${hint.field}: ` : ''}${hint.message}`);
+  logger.error(`[${hint.type.toUpperCase()}] ${hint.field ? `${hint.field}: ` : ''}${hint.message}`);
 }
 
 /**

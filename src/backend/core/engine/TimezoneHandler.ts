@@ -13,13 +13,47 @@ export class TimezoneHandler {
   }
 
   /**
-   * Convert UTC date to local time
-   * Note: This is a simplified implementation. For production use,
-   * consider using a library like date-fns-tz for proper timezone conversion.
+   * Convert a date to display in a specific timezone.
+   * Uses Intl.DateTimeFormat for proper timezone conversion.
+   * @param date The input date
+   * @param timezone IANA timezone name (e.g., "America/New_York"). If omitted, returns local time.
+   */
+  toTimezone(date: Date, timezone?: string): Date {
+    if (!timezone) {
+      return new Date(date);
+    }
+    try {
+      // Use Intl formatter to get the date parts in the target timezone
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(date);
+      const get = (type: Intl.DateTimeFormatPartTypes) =>
+        parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+      return new Date(
+        get("year"), get("month") - 1, get("day"),
+        get("hour"), get("minute"), get("second")
+      );
+    } catch {
+      // Invalid timezone — fall back to local
+      return new Date(date);
+    }
+  }
+
+  /**
+   * Convert UTC date to local time.
+   * Note: JavaScript Date objects are already timezone-aware and display in
+   * the local timezone. This method exists for API symmetry. For cross-timezone
+   * conversion, use toTimezone() instead.
    */
   toLocal(utcDate: Date): Date {
-    // Return the date as-is since JavaScript Date objects are already timezone-aware
-    // and will display in the local timezone when formatted
     return new Date(utcDate);
   }
 

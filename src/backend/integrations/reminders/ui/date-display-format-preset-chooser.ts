@@ -1,9 +1,9 @@
 ﻿import {
   type DateDisplayFormatPreset,
   dateDisplayFormatPresets,
-} from "model/reminder";
+} from "@backend/core/reminders/reminder";
 import { App, SuggestModal } from "@shared/utils/compat/siyuan-compat";
-import { DateTime } from "model/time";
+import { DateTime } from "@backend/core/reminders/time";
 
 export class DateDisplayFormatPresetModal extends SuggestModal<DateDisplayFormatPreset> {
   constructor(

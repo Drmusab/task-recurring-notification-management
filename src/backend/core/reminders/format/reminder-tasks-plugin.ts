@@ -1,14 +1,14 @@
-import type { MarkdownDocument, Todo } from "model/format/markdown";
-import { DATE_TIME_FORMATTER, DateTime } from "model/time";
+import type { MarkdownDocument, Todo } from "@backend/core/reminders/format/markdown";
+import { DATE_TIME_FORMATTER, DateTime } from "@backend/core/reminders/time";
 import moment from "moment";
 import type { Moment } from "moment";
 import { RRule } from "rrule";
 import {
   ReminderFormatParameterKey,
   TodoBasedReminderFormat,
-} from "@components/reminders/model/format/reminder-base";
-import type { ReminderEdit, ReminderModel } from "@components/reminders/model/format/reminder-base";
-import { Symbol, Tokens, splitBySymbol } from "@components/reminders/model/format/splitter";
+} from "@backend/core/reminders/format/reminder-base";
+import type { ReminderEdit, ReminderModel } from "@backend/core/reminders/format/reminder-base";
+import { Symbol, Tokens, splitBySymbol } from "@backend/core/reminders/format/splitter";
 
 function removeTags(text: string): string {
   return text.replace(/#\w+/g, "");

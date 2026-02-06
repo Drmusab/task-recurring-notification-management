@@ -1,5 +1,5 @@
 ﻿import type { Editor } from "@shared/utils/compat/siyuan-compat";
-import type { ReminderPluginUI } from "plugin/ui";
+import type { ReminderPluginUI } from "@backend/integrations/reminders/ui";
 
 export function showDateChooser(
   checking: boolean,

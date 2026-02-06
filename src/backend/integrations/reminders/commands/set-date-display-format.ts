@@ -1,5 +1,5 @@
-import type ReminderPlugin from "main";
-import { DateDisplayFormatPresetModal } from "plugin/ui/date-display-format-preset-chooser";
+import type ReminderPlugin from "@frontend/components/reminders/main";
+import { DateDisplayFormatPresetModal } from "@backend/integrations/reminders/ui/date-display-format-preset-chooser";
 
 export function setDateDisplayFormat(
   checking: boolean,

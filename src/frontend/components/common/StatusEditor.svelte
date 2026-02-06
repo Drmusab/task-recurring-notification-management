@@ -35,7 +35,7 @@
         if (selectedStatus) {
             editableTask.status = selectedStatus;
         } else {
-            console.log(`Error in EditTask: cannot find status with symbol ${statusSymbol}`);
+            // Status not found — this shouldn't happen but is recoverable
             return;
         }
 

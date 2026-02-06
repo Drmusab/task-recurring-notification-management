@@ -6,6 +6,7 @@ import type { Plugin } from "siyuan";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import { DEFAULT_SETTINGS, mergeSettings } from "@backend/core/settings/PluginSettings";
 import { pluginEventBus } from "@backend/core/events/PluginEventBus";
+import * as logger from "@backend/logging/logger";
 
 const PLUGIN_SETTINGS_KEY = "plugin-settings";
 
@@ -31,7 +32,7 @@ export class SettingsService {
         this.settings = mergeSettings(data as Partial<PluginSettings>);
       }
     } catch (err) {
-      console.error("Failed to load plugin settings:", err);
+      logger.error("Failed to load plugin settings", err);
     }
   }
 

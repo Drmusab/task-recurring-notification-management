@@ -1,4 +1,4 @@
-import { Reminder } from "@components/reminders/model/reminder";
+import { Reminder } from "@backend/core/reminders/reminder";
 
 describe("Reminder", (): void => {
   test("extractFileName()", (): void => {

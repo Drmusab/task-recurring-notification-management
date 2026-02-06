@@ -11,6 +11,7 @@
   import type { UnifiedTask } from '@backend/services/TaskAdapterService';
   import { TaskModelAdapter } from '@backend/services/TaskAdapterService';
   import { t } from '@stores/i18n.store';
+  import { showMessage } from 'siyuan';
   
   export let task: UnifiedTask;
   export let allTasks: UnifiedTask[] = [];
@@ -28,13 +29,14 @@
   let frequencySuggestion: TaskSuggestion | null = null;
   let consolidationSuggestions: TaskSuggestion[] = [];
   let delegationSuggestion: TaskSuggestion | null = null;
+  let pendingApply: TaskSuggestion | null = null;
   
   /**
    * Analyze all suggestions for current task
    */
   async function analyzeAll() {
     if (!TaskModelAdapter.hasAIData(task)) {
-      alert('No completion history available for AI analysis. Complete this task a few times first.');
+      showMessage('No completion history available for AI analysis. Complete this task a few times first.', 4000);
       return;
     }
     
@@ -60,7 +62,7 @@
       
     } catch (error) {
       console.error('AI Analysis failed:', error);
-      alert(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+      showMessage(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`, 5000, 'error');
     } finally {
       isAnalyzing = false;
     }
@@ -93,11 +95,11 @@
       }
       
       if (!featureSuggestion) {
-        alert('No suggestions for this feature at this time.');
+        showMessage('No suggestions for this feature at this time.', 3000);
       }
     } catch (error) {
       console.error(`${feature} analysis failed:`, error);
-      alert(`${feature} analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+      showMessage(`${feature} analysis failed: ${error instanceof Error ? error.message : String(error)}`, 5000, 'error');
     } finally {
       isAnalyzing = false;
     }
@@ -109,9 +111,15 @@
   function applySuggestion(suggestion: TaskSuggestion | null) {
     if (!suggestion) return;
     
-    if (!confirm(`Apply suggestion: ${suggestion.reason}\n\nThis will modify your task. Continue?`)) {
+    // Use pending state for confirmation instead of blocking confirm()
+    if (pendingApply !== suggestion) {
+      pendingApply = suggestion;
+      showMessage(`Click "Apply" again to confirm: ${suggestion.reason}`, 4000);
+      // Auto-clear pending state after 5 seconds
+      setTimeout(() => { if (pendingApply === suggestion) pendingApply = null; }, 5000);
       return;
     }
+    pendingApply = null;
     
     onApplySuggestion(suggestion);
     

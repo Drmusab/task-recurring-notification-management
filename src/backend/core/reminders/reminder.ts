@@ -1,5 +1,5 @@
-import type { ReadOnlyReference } from "model/ref";
-import { DateTime, Time } from "model/time";
+import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+import { DateTime, Time } from "@backend/core/reminders/time";
 
 export class Reminder {
   // To avoid duplicate notification, set this flag true before notification and set false on notification done.
@@ -335,8 +335,6 @@ export function groupReminders(
     );
     overdueGroup.isOverdue = true;
     result.splice(0, 0, new GroupedReminder(overdueGroup, overdueReminders));
-    console.log(overdueGroup);
-    console.log(result);
   }
   return result;
 }

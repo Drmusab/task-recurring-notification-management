@@ -73,11 +73,19 @@ export class Scheduler {
    * Start the scheduler
    */
   start(): void {
-    void this.ensureEmittedStateLoaded().finally(() => {
-      this.checkDueTasks(); // Check immediately
-      this.timer.start();
-      logger.info("Scheduler started");
-    });
+    void this.ensureEmittedStateLoaded().then(
+      () => {
+        this.checkDueTasks(); // Check immediately
+        this.timer.start();
+        logger.info("Scheduler started");
+      },
+      (err) => {
+        logger.error("Failed to load emitted state; starting scheduler with empty state", err);
+        this.checkDueTasks();
+        this.timer.start();
+        logger.info("Scheduler started (with empty emitted state)");
+      }
+    );
   }
 
   /**
@@ -85,6 +93,11 @@ export class Scheduler {
    */
   stop(): void {
     this.timer.stop();
+    // Clear any pending debounce timer to prevent writes after shutdown
+    if (this.persistTimeoutId !== null) {
+      globalThis.clearTimeout(this.persistTimeoutId);
+      this.persistTimeoutId = null;
+    }
     void this.persistEmittedState();
     logger.info("Scheduler stopped");
   }
@@ -240,11 +253,13 @@ export class Scheduler {
    * Mark a task as done and reschedule
    */
   async markTaskDone(taskId: string): Promise<void> {
-    const task = this.storage.getTask(taskId);
-    if (!task) {
+    const original = this.storage.getTask(taskId);
+    if (!original) {
       throw new Error(`Task not found: ${taskId}`);
     }
 
+    // Work on a deep copy to prevent in-memory state corruption if save fails
+    const task: Task = JSON.parse(JSON.stringify(original));
     const now = new Date();
     
     // Set doneAt date
@@ -285,6 +300,14 @@ export class Scheduler {
         whenDone: task.whenDone
       }
     );
+
+    if (!nextDue) {
+      // Recurrence series exhausted — disable the task
+      task.enabled = false;
+      await this.storage.saveTask(task);
+      logger.info(`Task "${task.name}" recurrence series exhausted, disabled`);
+      return;
+    }
 
     // Update task
     task.dueAt = nextDue.toISOString();
@@ -363,6 +386,13 @@ export class Scheduler {
       task.frequency
     );
 
+    if (!nextDue) {
+      task.enabled = false;
+      await this.storage.saveTask(task);
+      logger.info(`Task "${task.name}" recurrence series exhausted on skip, disabled`);
+      return;
+    }
+
     task.dueAt = nextDue.toISOString();
     await this.storage.saveTask(task);
 
@@ -384,6 +414,12 @@ export class Scheduler {
   }
 
   /**
+   * Maximum number of missed event emissions per task during recovery.
+   * Prevents flooding downstream listeners after long downtime.
+   */
+  private static readonly MAX_MISSED_EMISSIONS_PER_TASK = 50;
+
+  /**
    * Recover missed tasks from the last plugin session
    * Based on patterns from siyuan-dailynote-today (RoutineEventHandler)
    */
@@ -401,6 +437,7 @@ export class Scheduler {
 
     logger.info(`Recovering missed tasks since ${lastRunAt.toISOString()}`);
     
+    let totalEmitted = 0;
     for (const task of this.storage.getEnabledTasks()) {
       try {
         const missedOccurrences = this.recurrenceEngine.getMissedOccurrences(
@@ -410,7 +447,18 @@ export class Scheduler {
           new Date(task.createdAt)
         );
         
+        // Backpressure: cap per-task emissions to avoid flooding after long downtime
+        let emittedForTask = 0;
+        if (missedOccurrences.length > Scheduler.MAX_MISSED_EMISSIONS_PER_TASK) {
+          logger.warn(
+            `Task "${task.name}" has ${missedOccurrences.length} missed occurrences, capping to ${Scheduler.MAX_MISSED_EMISSIONS_PER_TASK}`
+          );
+        }
+
         for (const missedAt of missedOccurrences) {
+          if (emittedForTask >= Scheduler.MAX_MISSED_EMISSIONS_PER_TASK) {
+            break;
+          }
           const taskKey = this.buildOccurrenceKey(task.id, missedAt, "exact");
           if (!this.emittedMissed.has(taskKey)) {
             this.emitEvent("task:overdue", {
@@ -420,6 +468,8 @@ export class Scheduler {
               task,
             });
             this.registerEmittedKey("missed", taskKey);
+            emittedForTask++;
+            totalEmitted++;
           }
         }
         
@@ -432,7 +482,7 @@ export class Scheduler {
     
     await this.saveLastRunTimestamp(now);
     this.cleanupEmittedSets();
-    logger.info("Missed task recovery completed");
+    logger.info(`Missed task recovery completed: ${totalEmitted} overdue events emitted`);
   }
 
   /**
@@ -452,7 +502,15 @@ export class Scheduler {
     // Keep advancing until we find a future occurrence, but cap iterations to
     // avoid infinite loops for corrupt timestamps or extreme downtime.
     while (nextDue < now && iterations < MAX_RECOVERY_ITERATIONS) {
-      nextDue = this.recurrenceEngine.calculateNext(nextDue, task.frequency);
+      const computed = this.recurrenceEngine.calculateNext(nextDue, task.frequency);
+      if (!computed) {
+        // Series exhausted during recovery — disable task
+        task.enabled = false;
+        await this.storage.saveTask(task);
+        logger.info(`Task "${task.name}" recurrence series exhausted during recovery, disabled`);
+        return;
+      }
+      nextDue = computed;
       iterations++;
     }
 

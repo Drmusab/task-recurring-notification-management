@@ -1,4 +1,4 @@
-import { escapeRegExpChars } from "@components/reminders/model/format/util";
+import { escapeRegExpChars } from "@backend/core/reminders/format/util";
 
 describe("toRegExp()", (): void => {
   test("test", (): void => {

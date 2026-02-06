@@ -15,7 +15,6 @@ import {
 import * as helper from "@components/dashboard/helper";
 import * as d3 from "d3";
 
-let logToConsole = false;
 let ratioCellToText = 2.8;
 let ratioDotToText = 1.8;
 
@@ -540,10 +539,6 @@ function renderMonthDays(
     if (curDatasetId < 0) curDatasetIndex = 0;
     let threshold = monthInfo.threshold[curDatasetIndex];
     let thresholdType = monthInfo.thresholdType[curDatasetIndex];
-
-    if(logToConsole){
-        console.log(`threshold: ${threshold}, thresholdType: ${thresholdType}`);
-    }
     
     let curMonth = curMonthDate.month(); // 0~11
     let curDaysInMonth = curMonthDate.daysInMonth(); // 28~31
@@ -625,9 +620,6 @@ function renderMonthDays(
             helper.dateToStr(curDate, renderInfo.dateFormat),
             renderInfo.dateFormat
         );
-        if (curDate.format("YYYY-MM-DD") === "2021-09-13") {
-            logToConsole = false; // Change this to do dubugging
-        }
 
         const dayOfWeek = curDate.day(); // 0=Sunday, 1=Monday, etc.
         // Calculate column: shift by startDayIndex
@@ -654,11 +646,6 @@ function renderMonthDays(
         }
 
         const curValue = dataset.getValue(curDate);
-        if (logToConsole) {
-            console.log(dataset);
-            console.log(helper.dateToStr(curDate, renderInfo.dateFormat));
-            console.log(curValue);
-        }
 
 
         let showCircle = curValue != null;
@@ -675,11 +662,6 @@ function renderMonthDays(
             if (allowScaledValue && curValue !== null) {
                 scaledValue = (curValue - yMin) / (yMax - yMin);
             }
-        }
-        if (logToConsole) {
-            console.log(yMin);
-            console.log(yMax);
-            console.log(scaledValue);
         }
 
         // streakIn and streakOut
@@ -706,13 +688,6 @@ function renderMonthDays(
                 < threshold) ||  (thresholdType === ThresholdType.GreaterThan && nextValue > threshold))) {
                 streakOut = true;
             }
-        }
-        if (logToConsole) {
-            console.log(
-                `preValue: ${prevValue}, curValue: ${curValue}, nextValue: ${nextValue}`
-            );
-            console.log(monthInfo.threshold);
-            console.log(`streakIn: ${streakIn}, streakOut: ${streakOut}`);
         }
 
         let textAnnotation = "";
@@ -759,20 +734,7 @@ function renderMonthDays(
         });
 
         ind++;
-
-        // Disable logging starts at the beginning of each loop
-        if (logToConsole) {
-            logToConsole = false;
-        }
     }
-    // console.log(daysInMonthView);
-    // console.log(daysInMonthView.filter(function (d: DayInfo) {
-    //     return d.streakIn;
-    // }));
-    // console.log(daysInMonthView.filter(function (d: DayInfo) {
-    //     return d.streakOut;
-    // }));
-
     // scale
     let totalDayBlockWidth = (indCol + 1) * cellSize;
     let totalBlockHeight = (indRow + 1) * cellSize;

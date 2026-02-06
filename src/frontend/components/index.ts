@@ -1,12 +1,12 @@
 /**
  * Components Module
- * Barrel export for all UI components.
+ * 
+ * Components are imported directly from their subdirectories:
+ *   @components/common/EditableTask
+ *   @components/dashboard/main
+ *   @components/calendar/main
+ *   @components/analytics/...
+ *   @components/reminders/...
+ * 
+ * No barrel re-exports here — subdirectories don't have index.ts files.
  */
-
-// Re-export component modules when they are migrated
-export * from "@components/common";
-export * from "@components/task";
-export * from "@components/calendar";
-export * from "@components/dashboard";
-export * from "@components/analytics";
-export * from "@components/reminders";

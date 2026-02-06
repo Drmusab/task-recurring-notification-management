@@ -1,5 +1,5 @@
-import type ReminderPlugin from "main";
-import { Content } from "model/content";
+import type ReminderPlugin from "@frontend/components/reminders/main";
+import { Content } from "@backend/core/reminders/content";
 
 async function toggleCheck(
   plugin: ReminderPlugin,
@@ -21,7 +21,6 @@ async function toggleCheck(
     });
   } else {
     const todo = content.getTodos().find((t) => t.lineIndex === lineNumber);
-    console.log(todo);
     if (!todo) {
       return;
     }

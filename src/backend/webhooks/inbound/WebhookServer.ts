@@ -15,6 +15,7 @@ import { ITaskManager } from "@backend/commands/handlers/TaskCommandHandler";
 import { IStorageService } from "@backend/commands/handlers/QueryCommandHandler";
 import { WebhookError } from "@backend/webhooks/types/Error";
 import { ERROR_HTTP_STATUS } from "@backend/webhooks/types/Response";
+import * as logger from "@backend/logging/logger";
 
 /**
  * Main webhook server
@@ -119,22 +120,20 @@ export class WebhookServer {
    * Setup error handler
    */
   private setupErrorHandler(): void {
-    this.app.use(async (err: any, req: Request, res: Response, next: NextFunction) => {
-      const context = (req as any).context;
+    this.app.use(async (err: Error, req: Request, res: Response, _next: NextFunction) => {
+      const context = (req as Record<string, unknown>).context as Record<string, string> | undefined;
       const requestBody = req.body;
 
       // Log error
       if (context && requestBody) {
         await this.errorLogger.logError(
-          context.workspaceId,
-          requestBody.command || 'unknown',
-          requestBody.meta?.source || 'unknown',
-          requestBody.meta?.requestId || 'unknown',
-          err instanceof WebhookError ? err.code : 'INTERNAL_ERROR',
-          err.message,
-          requestBody.data,
+          err instanceof Error ? err : new Error(String(err)),
           {
-            stackTrace: err.stack,
+            workspaceId: context.workspaceId,
+            command: requestBody.command || 'unknown',
+            source: requestBody.meta?.source || 'unknown',
+            requestId: requestBody.meta?.requestId || 'unknown',
+            code: err instanceof WebhookError ? err.code : 'INTERNAL_ERROR',
             userAgent: context.userAgent,
             ipAddress: context.clientIp,
           }
@@ -193,10 +192,12 @@ export class WebhookServer {
         const protocol = this.config.server.enableHttp ? 'http' : 'https';
         const url = `${protocol}://${this.config.server.host}:${this.port}`;
         
-        console.log(`✅ Webhook server started`);
-        console.log(`   Port: ${this.port} (${this.config.server.port === 'auto' ? 'auto-selected' : 'manual'})`);
-        console.log(`   Local URL: ${url}/webhook/v1`);
-        console.log(`   Health: ${url}/health`);
+        logger.info(`Webhook server started`, {
+          port: this.port,
+          mode: this.config.server.port === 'auto' ? 'auto-selected' : 'manual',
+          url: `${url}/webhook/v1`,
+          health: `${url}/health`,
+        });
 
         resolve({ port: this.port!, url });
       });
@@ -217,7 +218,7 @@ export class WebhookServer {
           if (err) {
             reject(err);
           } else {
-            console.log('✅ Webhook server stopped');
+            logger.info('Webhook server stopped');
             resolve();
           }
         });

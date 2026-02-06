@@ -1,4 +1,4 @@
-import type ReminderPlugin from "main";
+import type ReminderPlugin from "@frontend/components/reminders/main";
 
 export function scanReminders(
   checking: boolean,

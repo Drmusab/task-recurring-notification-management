@@ -24,7 +24,7 @@ export interface QueryAST {
 export interface FilterNode {
   type: 'status' | 'date' | 'priority' | 'urgency' | 'escalation' | 'attention' | 'attention-lane' | 'tag' | 'path' | 'dependency' | 'recurrence' | 'boolean' | 'done' | 'description' | 'heading' | 'description-regex' | 'path-regex' | 'tag-regex';
   operator: string;
-  value: any;
+  value: string | number | boolean | Date | RegexSpec | StatusType | PriorityLevel | DateComparator | null;
   negate?: boolean;
   left?: FilterNode;
   right?: FilterNode;

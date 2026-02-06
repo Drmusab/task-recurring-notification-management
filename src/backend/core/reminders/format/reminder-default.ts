@@ -1,10 +1,10 @@
-import { DATE_TIME_FORMATTER, DateTime } from "model/time";
-import type { Todo } from "@components/reminders/model/format/markdown";
+import { DATE_TIME_FORMATTER, DateTime } from "@backend/core/reminders/time";
+import type { Todo } from "@backend/core/reminders/format/markdown";
 import {
   ReminderFormatParameterKey,
   TodoBasedReminderFormat,
-} from "@components/reminders/model/format/reminder-base";
-import type { ReminderModel } from "@components/reminders/model/format/reminder-base";
+} from "@backend/core/reminders/format/reminder-base";
+import type { ReminderModel } from "@backend/core/reminders/format/reminder-base";
 
 class DefaultReminderModel implements ReminderModel {
   public static readonly regexp =

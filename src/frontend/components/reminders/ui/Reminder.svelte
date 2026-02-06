@@ -1,9 +1,9 @@
 <script lang="typescript">
   import { onMount, tick } from "svelte";
-  import type { Reminder } from "@components/reminders/model/reminder";
-  import type { DateTime, Later } from "@components/reminders/model/time";
-  import IconText from "@components/reminders/ui/IconText.svelte";
-  import Markdown from "@components/reminders/ui/Markdown.svelte";
+  import type { Reminder } from "@backend/core/reminders/reminder";
+  import type { DateTime, Later } from "@backend/core/reminders/time";
+  import IconText from "@frontend/components/reminders/ui/IconText.svelte";
+  import Markdown from "@frontend/components/reminders/ui/Markdown.svelte";
   import { t } from '@stores/i18n.store';
 
   export let reminder: Reminder;

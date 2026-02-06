@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from "svelte";
-  import { TimedInputHandler } from "@components/reminders/ui/timed-input-handler";
+  import { TimedInputHandler } from "@frontend/components/reminders/ui/timed-input-handler";
   export let value = "00:00";
   // step in minutes
   export let step = 15;

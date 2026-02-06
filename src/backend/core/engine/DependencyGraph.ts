@@ -145,8 +145,8 @@ export class DependencyGraph {
               return true;
             }
           } else if (recursionStack.has(depId)) {
-            // Found a cycle - extract the cycle from path
-            const cycleStart = path.indexOf(depId);
+            // Found a cycle — include the closing node to show the loop
+            path.push(depId);
             return true;
           }
         }
@@ -158,8 +158,10 @@ export class DependencyGraph {
     };
 
     if (dfs(taskId)) {
-      // Return the cycle
-      return [...path];
+      // Extract only the cycle portion from the path
+      const cycleNode = path[path.length - 1];
+      const cycleStart = path.indexOf(cycleNode);
+      return path.slice(cycleStart);
     }
 
     return [];

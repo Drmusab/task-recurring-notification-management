@@ -1,14 +1,14 @@
-import type { Reminder } from "model/reminder";
-import { MarkdownDocument } from "@components/reminders/model/format/markdown";
+import type { Reminder } from "@backend/core/reminders/reminder";
+import { MarkdownDocument } from "@backend/core/reminders/format/markdown";
 import type {
   ReminderEdit,
   ReminderFormat,
   ReminderFormatConfig,
-} from "@components/reminders/model/format/reminder-base";
-import { CompositeReminderFormat } from "@components/reminders/model/format/reminder-base";
-import { DefaultReminderFormat } from "@components/reminders/model/format/reminder-default";
-import { KanbanReminderFormat } from "@components/reminders/model/format/reminder-kanban-plugin";
-import { TasksPluginFormat } from "@components/reminders/model/format/reminder-tasks-plugin";
+} from "@backend/core/reminders/format/reminder-base";
+import { CompositeReminderFormat } from "@backend/core/reminders/format/reminder-base";
+import { DefaultReminderFormat } from "@backend/core/reminders/format/reminder-default";
+import { KanbanReminderFormat } from "@backend/core/reminders/format/reminder-kanban-plugin";
+import { TasksPluginFormat } from "@backend/core/reminders/format/reminder-tasks-plugin";
 
 const REMINDER_FORMAT = new CompositeReminderFormat();
 REMINDER_FORMAT.resetFormat([DefaultReminderFormat.instance]);

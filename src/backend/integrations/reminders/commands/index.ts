@@ -1,11 +1,11 @@
-﻿import type ReminderPlugin from "main";
+﻿import type ReminderPlugin from "@frontend/components/reminders/main";
 import { MarkdownView } from "@shared/utils/compat/siyuan-compat";
-import { scanReminders } from "@components/reminders/plugin/commands/scan-reminders";
-import { showReminderList } from "@components/reminders/plugin/commands/show-reminder-list";
-import { convertReminderTimeFormat } from "@components/reminders/plugin/commands/convert-reminder-time-format";
-import { showDateChooser } from "@components/reminders/plugin/commands/show-date-chooser";
-import { toggleChecklistStatus } from "@components/reminders/plugin/commands/toggle-checklist-status";
-import { setDateDisplayFormat } from "@components/reminders/plugin/commands/set-date-display-format";
+import { scanReminders } from "@backend/integrations/reminders/commands/scan-reminders";
+import { showReminderList } from "@backend/integrations/reminders/commands/show-reminder-list";
+import { convertReminderTimeFormat } from "@backend/integrations/reminders/commands/convert-reminder-time-format";
+import { showDateChooser } from "@backend/integrations/reminders/commands/show-date-chooser";
+import { toggleChecklistStatus } from "@backend/integrations/reminders/commands/toggle-checklist-status";
+import { setDateDisplayFormat } from "@backend/integrations/reminders/commands/set-date-display-format";
 
 export function registerCommands(plugin: ReminderPlugin) {
   plugin.addCommand({

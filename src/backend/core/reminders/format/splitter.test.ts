@@ -1,4 +1,4 @@
-import { Symbol, Tokens, splitBySymbol } from "@components/reminders/model/format/splitter";
+import { Symbol, Tokens, splitBySymbol } from "@backend/core/reminders/format/splitter";
 
 describe("Symbol", (): void => {
   test("ofChar()", (): void => {

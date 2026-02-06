@@ -15,8 +15,8 @@
  */
 
 import type { Task } from '@backend/core/models/Task';
-import type ReminderPlugin from '@components/reminders/main';
-import type { Reminder } from '@components/reminders/model/reminder';
+import type ReminderPlugin from '@frontend/components/reminders/main';
+import type { Reminder } from '@backend/core/reminders/reminder';
 import * as logger from "@backend/logging/logger";
 
 export interface TaskReminderSyncOptions {

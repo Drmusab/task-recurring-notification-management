@@ -11,13 +11,20 @@ import { IRecurrenceEngine } from "@backend/core/engine/recurrence/recurrence.ty
 import { Scheduler } from "@backend/core/engine/Scheduler";
 import { WebhookError } from "@backend/webhooks/types/Error";
 
+import * as logger from "@backend/logging/logger";
+
+export interface CommandRegistryOptions {
+  recurrenceEngine?: IRecurrenceEngine;
+  scheduler?: Scheduler;
+}
+
 /**
  * Command registry - registers all command handlers
  */
 export class CommandRegistry {
   private taskHandler: TaskCommandHandler;
   private queryHandler: QueryCommandHandler;
-  private recurrenceHandler: RecurrenceCommandHandler;
+  private recurrenceHandler: RecurrenceCommandHandler | null = null;
   private previewHandler: PreviewCommandHandler;
   private bulkHandler: BulkCommandHandler;
   private searchHandler: SearchCommandHandler;
@@ -26,20 +33,25 @@ export class CommandRegistry {
     private router: Router,
     taskManager: ITaskManager,
     storage: IStorageService,
-    recurrenceEngine: IRecurrenceEngine,
-    scheduler: Scheduler,
-    recurrenceLimits: RecurrenceLimitsConfig
+    recurrenceLimits: RecurrenceLimitsConfig,
+    options?: CommandRegistryOptions
   ) {
     const validator = new TaskValidator(recurrenceLimits);
 
     this.taskHandler = new TaskCommandHandler(taskManager, validator);
     this.queryHandler = new QueryCommandHandler(storage);
-    this.recurrenceHandler = new RecurrenceCommandHandler(
-      taskManager,
-      recurrenceEngine,
-      scheduler,
-      validator
-    );
+
+    if (options?.recurrenceEngine && options?.scheduler) {
+      this.recurrenceHandler = new RecurrenceCommandHandler(
+        taskManager,
+        options.recurrenceEngine,
+        options.scheduler,
+        validator
+      );
+    } else {
+      logger.info('CommandRegistry: recurrence commands unavailable (engine/scheduler not provided)');
+    }
+
     this.previewHandler = new PreviewCommandHandler(taskManager);
     this.bulkHandler = new BulkCommandHandler(taskManager);
     this.searchHandler = new SearchCommandHandler(storage);
@@ -79,22 +91,24 @@ export class CommandRegistry {
       this.searchHandler.handleStats(data, ctx)
     ));
 
-    // Recurrence commands
-    this.router.register('v1/recurrence/pause', this.wrap((data, ctx) => 
-      this.recurrenceHandler.handlePause(data, ctx)
-    ));
-    this.router.register('v1/recurrence/resume', this.wrap((data, ctx) => 
-      this.recurrenceHandler.handleResume(data, ctx)
-    ));
-    this.router.register('v1/recurrence/skip', this.wrap((data, ctx) => 
-      this.recurrenceHandler.handleSkip(data, ctx)
-    ));
-    this.router.register('v1/recurrence/update-pattern', this.wrap((data, ctx) => 
-      this.recurrenceHandler.handleUpdatePattern(data, ctx)
-    ));
-    this.router.register('v1/recurrence/recalculate', this.wrap((data, ctx) => 
-      this.recurrenceHandler.handleRecalculate(data, ctx)
-    ));
+    // Recurrence commands (only registered when engine/scheduler are provided)
+    if (this.recurrenceHandler) {
+      this.router.register('v1/recurrence/pause', this.wrap((data, ctx) => 
+        this.recurrenceHandler!.handlePause(data, ctx)
+      ));
+      this.router.register('v1/recurrence/resume', this.wrap((data, ctx) => 
+        this.recurrenceHandler!.handleResume(data, ctx)
+      ));
+      this.router.register('v1/recurrence/skip', this.wrap((data, ctx) => 
+        this.recurrenceHandler!.handleSkip(data, ctx)
+      ));
+      this.router.register('v1/recurrence/update-pattern', this.wrap((data, ctx) => 
+        this.recurrenceHandler!.handleUpdatePattern(data, ctx)
+      ));
+      this.router.register('v1/recurrence/recalculate', this.wrap((data, ctx) => 
+        this.recurrenceHandler!.handleRecalculate(data, ctx)
+      ));
+    }
     this.router.register('v1/recurrence/preview-occurrences', this.wrap((data, ctx) => 
       this.previewHandler.handlePreview(data, ctx)
     ));
@@ -115,13 +129,13 @@ export class CommandRegistry {
    * Wrap handler to convert CommandResult to router format
    */
   private wrap(
-    handler: (data: any, context: any) => Promise<any>
-  ): (command: string, data: any, context: any) => Promise<any> {
-    return async (command: string, data: any, context: any) => {
+    handler: (data: Record<string, unknown>, context: Record<string, unknown>) => Promise<{ status: string; result?: unknown; error?: { code: string; message: string; details?: unknown } }>
+  ): (command: string, data: Record<string, unknown>, context: Record<string, unknown>) => Promise<unknown> {
+    return async (command: string, data: Record<string, unknown>, context: Record<string, unknown>) => {
       const result = await handler(data, context);
       if (result.status === 'error') {
         throw new WebhookError(
-          result.error!.code as any,
+          result.error!.code as string,
           result.error!.message,
           result.error!.details
         );

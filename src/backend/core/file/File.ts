@@ -6,20 +6,28 @@
 import type { Task } from "@backend/Task/Task";
 import type { ListItem } from "@backend/Task/ListItem";
 
+/** Minimal vault interface expected from SiYuan/Obsidian */
+interface VaultLike {
+  getAbstractFileByPath?(path: string): unknown;
+  read(file: unknown): Promise<string>;
+  modify(file: unknown, content: string): Promise<void>;
+  create(path: string, content: string): Promise<unknown>;
+}
+
 /**
  * File module state
  */
-let metadataCache: any = null;
-let vault: any = null;
-let workspace: any = null;
+let metadataCache: unknown = null;
+let vault: VaultLike | null = null;
+let workspace: unknown = null;
 
 /**
  * Configuration options for initializing the file module
  */
 export interface FileInitOptions {
-    metadataCache: any;
-    vault: any;
-    workspace: any;
+    metadataCache: unknown;
+    vault: VaultLike;
+    workspace: unknown;
 }
 
 /**
@@ -157,20 +165,20 @@ export async function writeToFile(filePath: string, content: string): Promise<bo
 /**
  * Get metadata cache
  */
-export function getMetadataCache(): any {
+export function getMetadataCache(): unknown {
     return metadataCache;
 }
 
 /**
  * Get vault instance
  */
-export function getVault(): any {
+export function getVault(): VaultLike | null {
     return vault;
 }
 
 /**
  * Get workspace instance
  */
-export function getWorkspace(): any {
+export function getWorkspace(): unknown {
     return workspace;
 }

@@ -1,9 +1,9 @@
-﻿import type { ReadOnlyReference } from "model/ref";
-import type { DateTime } from "model/time";
+﻿import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+import type { DateTime } from "@backend/core/reminders/time";
 import { App, Modal } from "@shared/utils/compat/siyuan-compat";
-import ReminderView from "ui/Reminder.svelte";
-import type { Reminder } from "@components/reminders/model/reminder";
-import type { Later } from "@components/reminders/model/time";
+import ReminderView from "@frontend/components/reminders/ui/Reminder.svelte";
+import type { Reminder } from "@backend/core/reminders/reminder";
+import type { Later } from "@backend/core/reminders/time";
 const electron = window.require ? window.require("electron") : undefined;
 
 export class ReminderModal {

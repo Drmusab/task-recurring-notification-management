@@ -10,15 +10,27 @@ export interface OnCompletionResult {
   updatedTask?: Task;
 }
 
+/** Minimal SiYuan block API surface used by OnCompletionHandler */
+interface SiYuanBlockApi {
+  deleteBlock?(params: { id: string }): Promise<unknown>;
+  updateBlock?(params: { id: string; data: string; dataType: string }): Promise<unknown>;
+  getChildBlocks?(params: { id: string }): Promise<unknown[]>;
+}
+
+/** Minimal archive storage interface */
+interface ArchiveStorage {
+  archive(task: Task): Promise<void>;
+}
+
 /**
  * Handler for task completion actions
  * Manages what happens to a task when it's completed (keep, delete, archive, or custom transition)
  */
 export class OnCompletionHandler {
-  private siyuanApi: any;
-  private archiveStorage?: any; // Storage for archived tasks
+  private siyuanApi: SiYuanBlockApi | undefined;
+  private archiveStorage?: ArchiveStorage;
 
-  constructor(siyuanApi?: any, archiveStorage?: any) {
+  constructor(siyuanApi?: SiYuanBlockApi, archiveStorage?: ArchiveStorage) {
     this.siyuanApi = siyuanApi;
     this.archiveStorage = archiveStorage;
   }

@@ -1,3 +1,6 @@
+import type { Task } from "@backend/core/models/Task";
+import * as logger from "@backend/logging/logger";
+
 type PluginEventMap = {
   'task:create': { 
     source: string;
@@ -11,15 +14,16 @@ type PluginEventMap = {
   'task:settings': { action?: string };
   'task:refresh': void;
   'task:updated': { taskId: string };
-  'task:saved': { task: any; isNew: boolean };
-  'task:edit': { task?: any };
-  'editor:open': { mode: 'create' | 'edit'; taskId?: string; prefill?: any };
+  'task:saved': { task: Task; isNew: boolean };
+  'task:edit': { task?: Task };
+  'editor:open': { mode: 'create' | 'edit'; taskId?: string; prefill?: Partial<Task> };
 };
 
 type EventHandler<T> = (data: T) => void;
 
 export class PluginEventBus {
-  private handlers: Map<string, Set<EventHandler<any>>> = new Map();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event handler storage
+  private handlers: Map<string, Set<EventHandler<unknown>>> = new Map();
 
   /**
    * Register a handler for a plugin event.
@@ -36,7 +40,13 @@ export class PluginEventBus {
    * Emit a plugin event with payload.
    */
   emit<K extends keyof PluginEventMap>(event: K, data: PluginEventMap[K]): void {
-    this.handlers.get(event)?.forEach(handler => handler(data));
+    this.handlers.get(event)?.forEach(handler => {
+      try {
+        handler(data);
+      } catch (err) {
+        logger.error(`PluginEventBus handler error for "${String(event)}"`, err);
+      }
+    });
   }
 
   /**

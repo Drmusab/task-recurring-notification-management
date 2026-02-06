@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { EventDeliveryRecord } from "@backend/events/types/EventTypes";
-import * as logger from "@backend/utils/logger";
+import * as logger from "@backend/logging/logger";
 
 /**
  * Persistent event queue

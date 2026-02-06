@@ -3,9 +3,9 @@
   PluginData,
   ReminderPluginFileSystem,
   ReminderPluginUI,
-} from "plugin";
-import { Reminders } from "model/reminder";
-import { DATE_TIME_FORMATTER } from "model/time";
+} from "@backend/integrations/reminders";
+import { Reminders } from "@backend/core/reminders/reminder";
+import { DATE_TIME_FORMATTER } from "@backend/core/reminders/time";
 import { App, Plugin } from "@shared/utils/compat/siyuan-compat";
 
 export default class ReminderPlugin extends Plugin {

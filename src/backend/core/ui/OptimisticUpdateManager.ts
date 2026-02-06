@@ -315,7 +315,7 @@ export class OptimisticUpdateManager {
   /**
    * Capture current state (placeholder - override in specific implementations)
    */
-  private captureState(): any {
+  private captureState(): { timestamp: number } {
     return {
       timestamp: Date.now(),
     };
@@ -326,8 +326,9 @@ export class OptimisticUpdateManager {
    */
   private showErrorToast(message: string): void {
     // Try to use SiYuan's showMessage if available
-    if (typeof (globalThis as any).showMessage === 'function') {
-      (globalThis as any).showMessage(message, 5000, 'error');
+    const g = globalThis as Record<string, unknown>;
+    if (typeof g.showMessage === 'function') {
+      (g.showMessage as (msg: string, timeout: number, type: string) => void)(message, 5000, 'error');
     } else {
       console.error(message);
     }

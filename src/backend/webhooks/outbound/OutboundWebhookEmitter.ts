@@ -6,6 +6,7 @@ import { RetryManager } from "@backend/webhooks/outbound/RetryManager";
 import { SignatureGenerator } from "@backend/webhooks/outbound/SignatureGenerator";
 import { WebhookEvent, EventDeliveryRecord } from "@backend/events/types/EventTypes";
 import { WebhookSubscription } from "@backend/events/types/SubscriptionTypes";
+import * as logger from "@backend/logging/logger";
 
 // TODO: Move to proper config location
 interface EventConfig {
@@ -33,6 +34,7 @@ interface EventConfig {
 export class OutboundWebhookEmitter {
   private retryManager: RetryManager;
   private processingInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private config: EventConfig,
@@ -47,25 +49,25 @@ export class OutboundWebhookEmitter {
    */
   start(): void {
     if (!this.config.enabled) {
-      console.log('ℹ️  Outbound webhooks disabled');
+      logger.info('Outbound webhooks disabled');
       return;
     }
 
     // Process queue every second
     this.processingInterval = setInterval(() => {
-      this.processQueue().catch((error) => {
-        console.error('❌ Error processing event queue:', error);
+      this.processQueue().catch((error: unknown) => {
+        logger.error('Error processing event queue:', error);
       });
     }, 1000);
 
-    // Cleanup old events daily
-    setInterval(() => {
-      this.cleanup().catch((error) => {
-        console.error('❌ Error cleaning up events:', error);
+    // Cleanup old events daily — store interval ID for proper cleanup
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup().catch((error: unknown) => {
+        logger.error('Error cleaning up events:', error);
       });
     }, 24 * 60 * 60 * 1000);
 
-    console.log('✅ Outbound webhook emitter started');
+    logger.info('Outbound webhook emitter started');
   }
 
   /**
@@ -75,8 +77,12 @@ export class OutboundWebhookEmitter {
     if (this.processingInterval) {
       clearInterval(this.processingInterval);
       this.processingInterval = null;
-      console.log('✅ Outbound webhook emitter stopped');
     }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    logger.info('Outbound webhook emitter stopped');
   }
 
   /**
@@ -88,12 +94,13 @@ export class OutboundWebhookEmitter {
     }
 
     // Find matching subscriptions
+    const payload = event.payload as Record<string, unknown>;
     const subscriptions = this.subscriptionManager.getSubscriptionsForEvent(
       event.workspaceId,
       event.event,
       {
-        tags: (event.payload as any).tags,
-        priority: (event.payload as any).priority,
+        tags: payload.tags as string[] | undefined,
+        priority: payload.priority as string | undefined,
       }
     );
 
@@ -171,8 +178,9 @@ export class OutboundWebhookEmitter {
       });
 
       await this.subscriptionManager.updateStats(subscription.id, true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Failure
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const shouldRetry = this.retryManager.shouldRetry(record.attempts);
 
       if (shouldRetry) {
@@ -183,7 +191,7 @@ export class OutboundWebhookEmitter {
           attempts: record.attempts,
           lastAttemptAt: new Date().toISOString(),
           nextRetryAt: nextRetry.toISOString(),
-          lastError: error.message,
+          lastError: errorMessage,
         });
       } else {
         // Abandon after max attempts
@@ -191,7 +199,7 @@ export class OutboundWebhookEmitter {
           status: 'abandoned',
           attempts: record.attempts,
           lastAttemptAt: new Date().toISOString(),
-          lastError: error.message,
+          lastError: errorMessage,
         });
       }
 
@@ -229,7 +237,7 @@ export class OutboundWebhookEmitter {
   private async cleanup(): Promise<void> {
     const removed = await this.queue.cleanup(this.config.queue.retentionDays);
     if (removed > 0) {
-      console.log(`🗑️  Cleaned up ${removed} old events`);
+      logger.info(`Cleaned up ${removed} old events`);
     }
   }
 

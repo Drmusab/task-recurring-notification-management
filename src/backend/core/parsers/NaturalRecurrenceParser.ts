@@ -1,5 +1,6 @@
 import { RRule, RRuleSet, rrulestr } from 'rrule';
 import type { Frequency } from '@backend/core/models/Frequency';
+import * as logger from '@backend/logging/logger';
 
 /**
  * Parse natural language recurrence strings into Frequency objects
@@ -208,7 +209,7 @@ export class NaturalRecurrenceParser {
         // Convert RRule weekday numbers (0=Monday) to our format (0=Monday, 6=Sunday)
         const weekdays = options.byweekday ? 
           (Array.isArray(options.byweekday) ? options.byweekday : [options.byweekday])
-            .map((wd: any) => {
+            .map((wd: number | { weekday: number }) => {
               // RRule weekdays can be numbers or Weekday objects
               if (typeof wd === 'number') {
                 return wd; // 0=Monday, 1=Tuesday, etc.
@@ -216,7 +217,7 @@ export class NaturalRecurrenceParser {
                 return wd.weekday;
               }
               // Log warning for unexpected weekday format
-              console.warn('Unexpected weekday format in rrule:', wd);
+              logger.warn('Unexpected weekday format in rrule', { weekday: wd });
               return null;
             })
             .filter((wd: number | null) => wd !== null && wd >= 0 && wd <= 6) 
@@ -224,7 +225,7 @@ export class NaturalRecurrenceParser {
 
         // Ensure we have at least one weekday
         if (weekdays.length === 0) {
-          console.warn('No valid weekdays found in rrule, defaulting to Monday');
+          logger.warn('No valid weekdays found in rrule, defaulting to Monday');
           weekdays.push(0); // Default to Monday
         }
 

@@ -1,9 +1,9 @@
 <script lang="typescript">
   import moment from "moment";
   import { createEventDispatcher, onMount } from "svelte";
-  import { Settings } from "plugin/settings";
-  import { Calendar } from "@components/reminders/ui/calendar";
-  import { TimedInputHandler } from "@components/reminders/ui/timed-input-handler";
+  import { Settings } from "@backend/integrations/reminders/settings";
+  import { Calendar } from "@frontend/components/reminders/ui/calendar";
+  import { TimedInputHandler } from "@frontend/components/reminders/ui/timed-input-handler";
 
   export let value: moment.Moment = moment();
   const dispatch = createEventDispatcher();

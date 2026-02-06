@@ -54,6 +54,8 @@ export class PerformanceProfiler {
     }
   }
 
+  private static readonly MAX_MEASUREMENTS_PER_OP = 1000;
+
   /**
    * Record a measurement
    */
@@ -61,7 +63,13 @@ export class PerformanceProfiler {
     if (!this.measurements.has(name)) {
       this.measurements.set(name, []);
     }
-    this.measurements.get(name)!.push(duration);
+    const arr = this.measurements.get(name)!;
+    arr.push(duration);
+    // Cap array size to prevent unbounded memory growth
+    if (arr.length > PerformanceProfiler.MAX_MEASUREMENTS_PER_OP) {
+      // Keep most recent measurements
+      this.measurements.set(name, arr.slice(-PerformanceProfiler.MAX_MEASUREMENTS_PER_OP));
+    }
   }
 
   /**

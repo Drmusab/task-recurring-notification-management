@@ -65,6 +65,7 @@ export class TaskStorage implements TaskStorageProvider {
   
   // Retry queue for failed block attribute syncs
   private syncRetryQueue: Map<string, SyncRetryEntry> = new Map();
+  private blockAttrRetryQueue: Map<string, { attrs: Record<string, string>; attempts: number }> = new Map();
   private retryProcessorInterval?: NodeJS.Timeout;
 
   constructor(plugin: Plugin, apiAdapter: SiYuanApiAdapter = new SiYuanApiAdapter()) {
@@ -393,13 +394,25 @@ export class TaskStorage implements TaskStorageProvider {
     try {
       await this.blockApi.setBlockAttrs(blockId, attrs);
     } catch (err) {
-      if (err instanceof SiYuanCapabilityError || err instanceof SiYuanApiExecutionError) {
+      if (err instanceof SiYuanCapabilityError) {
+        // Permanent capability issue — disable sync for the session
         reportSiYuanApiIssue({
           feature: err.feature,
           capability: err.capability,
           message: err.message,
           cause: err.cause,
         });
+        this.blockAttrSyncEnabled = false;
+      } else if (err instanceof SiYuanApiExecutionError) {
+        // Transient error — log but keep sync enabled for future attempts
+        reportSiYuanApiIssue({
+          feature: err.feature,
+          capability: err.capability,
+          message: err.message,
+          cause: err.cause,
+        });
+        // Queue for retry instead of permanently disabling
+        this.queueBlockAttrRetry(blockId, attrs);
       } else {
         reportSiYuanApiIssue({
           feature: "Block attribute sync",
@@ -408,9 +421,34 @@ export class TaskStorage implements TaskStorageProvider {
             "Unexpected error while syncing block attributes. Block sync disabled to keep tasks stable.",
           cause: err,
         });
+        this.blockAttrSyncEnabled = false;
       }
-      this.blockAttrSyncEnabled = false;
     }
+  }
+
+  /**
+   * Queue a failed block attr update for retry.
+   * Transient failures are retried up to 3 times, then silently dropped.
+   */
+  private queueBlockAttrRetry(blockId: string, attrs: Record<string, string>): void {
+    const existing = this.blockAttrRetryQueue.get(blockId);
+    const attempts = (existing?.attempts ?? 0) + 1;
+    if (attempts > 3) {
+      logger.warn(`Block attr sync for ${blockId} failed after 3 retries, giving up`);
+      this.blockAttrRetryQueue.delete(blockId);
+      return;
+    }
+    this.blockAttrRetryQueue.set(blockId, { attrs, attempts });
+    // Schedule retry
+    globalThis.setTimeout(() => {
+      const entry = this.blockAttrRetryQueue.get(blockId);
+      if (entry) {
+        this.blockAttrRetryQueue.delete(blockId);
+        this.updateBlockAttrs(blockId, entry.attrs).catch(() => {
+          // Will re-queue itself if still failing
+        });
+      }
+    }, 2000 * attempts);
   }
 
   /**

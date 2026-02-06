@@ -4,9 +4,9 @@ import { WebhookError } from "@backend/webhooks/types/Error";
 
 export type CommandHandler = (
   command: string,
-  data: any,
-  context: any
-) => Promise<any>;
+  data: Record<string, unknown>,
+  context: Record<string, unknown>
+) => Promise<unknown>;
 
 /**
  * Command router

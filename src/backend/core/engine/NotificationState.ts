@@ -114,7 +114,7 @@ export class NotificationState {
    * Check if a task has been notified for this occurrence
    */
   hasNotified(taskKey: string): boolean {
-    const record = this.notifications.get(taskKey);
+    const record = this.notifications.get(`due:${taskKey}`);
     return record !== undefined && record.type === "due";
   }
 
@@ -122,17 +122,19 @@ export class NotificationState {
    * Mark a task as notified
    */
   markNotified(taskKey: string): void {
-    this.notifications.set(taskKey, {
+    this.notifications.set(`due:${taskKey}`, {
       taskKey,
       notifiedAt: new Date().toISOString(),
       type: "due",
     });
     this.isDirty = true;
     
-    // Limit size
+    // Limit size — evict oldest entries by notifiedAt to preserve recent state
     if (this.notifications.size > MAX_NOTIFICATION_RECORDS) {
-      const toDelete = Array.from(this.notifications.keys()).slice(0, 100);
-      toDelete.forEach((key) => this.notifications.delete(key));
+      const sorted = Array.from(this.notifications.entries())
+        .sort((a, b) => new Date(a[1].notifiedAt).getTime() - new Date(b[1].notifiedAt).getTime());
+      const toDelete = sorted.slice(0, sorted.length - MAX_NOTIFICATION_RECORDS + 100);
+      toDelete.forEach(([key]) => this.notifications.delete(key));
     }
   }
 
@@ -140,7 +142,7 @@ export class NotificationState {
    * Check if a task has been marked as missed for this occurrence
    */
   hasMissed(taskKey: string): boolean {
-    const record = this.notifications.get(taskKey);
+    const record = this.notifications.get(`missed:${taskKey}`);
     return record !== undefined && record.type === "missed";
   }
 
@@ -148,7 +150,7 @@ export class NotificationState {
    * Mark a task as missed
    */
   markMissed(taskKey: string): void {
-    this.notifications.set(taskKey, {
+    this.notifications.set(`missed:${taskKey}`, {
       taskKey,
       notifiedAt: new Date().toISOString(),
       type: "missed",

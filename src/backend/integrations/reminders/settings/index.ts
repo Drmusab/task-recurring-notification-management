@@ -6,12 +6,12 @@ import {
   reminderPluginReminderFormat,
   setReminderFormatConfig,
   tasksPluginReminderFormat,
-} from "model/format";
+} from "@backend/core/reminders/format";
 import {
   ReminderFormatConfig,
   ReminderFormatParameterKey,
-} from "model/format/reminder-base";
-import { DateTime, Later, Time } from "model/time";
+} from "@backend/core/reminders/format/reminder-base";
+import { DateTime, Later, Time } from "@backend/core/reminders/time";
 import moment from "moment";
 import {
   LatersSerde,
@@ -19,8 +19,8 @@ import {
   ReminderFormatTypeSerde,
   SettingTabModel,
   TimeSerde,
-} from "@components/reminders/plugin/settings/helper";
-import type { SettingModel } from "@components/reminders/plugin/settings/helper";
+} from "@backend/integrations/reminders/settings/helper";
+import type { SettingModel } from "@backend/integrations/reminders/settings/helper";
 
 export const TAG_RESCAN = "re-scan";
 

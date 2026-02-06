@@ -1,6 +1,6 @@
 import { RecurrencePattern } from "@backend/commands/types/CommandTypes";
 import { RecurrenceCalculator } from "@backend/recurrence/RecurrenceCalculator";
-import { WebhookError } from "@backend/webhook/types/Error";
+import { WebhookError } from "@backend/webhooks/types/Error";
 
 /**
  * Preview future occurrences without generating tasks

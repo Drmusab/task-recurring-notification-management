@@ -1,4 +1,4 @@
-import { Calendar } from "ui/calendar";
+import { Calendar } from "@frontend/components/reminders/ui/calendar";
 import moment from "moment";
 
 describe("Calendar", (): void => {

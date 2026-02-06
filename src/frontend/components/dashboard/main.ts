@@ -42,8 +42,6 @@ export default class Tracker extends Plugin {
     settings: TrackerSettings;
 
     async onload() {
-        console.log("loading 1-tracker plugin");
-
         await this.loadSettings();
 
         this.addSettingTab(new TrackerSettingTab(this.app, this));
@@ -91,7 +89,7 @@ export default class Tracker extends Plugin {
     }
 
     onunload() {
-        console.log("unloading -tracker plugin");
+        // Tracker plugin unloaded
     }
 
     getFilesInFolder(

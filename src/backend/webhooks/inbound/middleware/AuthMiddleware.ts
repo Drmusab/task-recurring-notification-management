@@ -5,6 +5,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { createHmac } from 'crypto';
+import * as logger from "@backend/logging/logger";
 
 export interface AuthMiddlewareOptions {
   secret: string;
@@ -66,7 +67,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
       // Authentication successful
       next();
     } catch (error) {
-      console.error('Auth middleware error:', error);
+      logger.error('Auth middleware error', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   };

@@ -1,7 +1,7 @@
-﻿import type { Reminders } from "model/reminder";
-import type { DateTime } from "model/time";
+﻿import type { Reminders } from "@backend/core/reminders/reminder";
+import type { DateTime } from "@backend/core/reminders/time";
 import { App, Modal, Platform } from "@shared/utils/compat/siyuan-compat";
-import DateTimeChooser from "ui/DateTimeChooser.svelte";
+import DateTimeChooser from "@frontend/components/reminders/ui/DateTimeChooser.svelte";
 
 class DateTimeChooserModal extends Modal {
   private selected?: DateTime;

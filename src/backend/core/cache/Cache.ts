@@ -4,6 +4,7 @@
  */
 
 import type { Task } from "@backend/Task/Task";
+import * as logger from "@backend/logging/logger";
 
 /**
  * Represents the state of the cache
@@ -67,7 +68,7 @@ export class Cache {
             await this.refreshTasks();
             this.state = State.Warm;
         } catch (error) {
-            console.error('Failed to initialize cache:', error);
+            logger.error('Failed to initialize cache', error);
             this.state = State.Cold;
         }
     }

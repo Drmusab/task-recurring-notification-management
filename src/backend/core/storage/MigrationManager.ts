@@ -189,12 +189,14 @@ export class MigrationManager {
 
     // v3 -> v4: Add onCompletion field for recurring tasks
     if (fromVersion < 4) {
+      // Fields may exist on older schema versions but not typed on current Task
+      const raw = migrated as Record<string, unknown>;
       migrated = {
         ...migrated,
         version: 4,
-        onCompletion: (migrated as any).onCompletion || 'keep',
-        dependsOn: (migrated as any).dependsOn || [],
-        blockedBy: (migrated as any).blockedBy || [],
+        onCompletion: (raw.onCompletion as string) || 'keep',
+        dependsOn: (raw.dependsOn as string[]) || [],
+        blockedBy: (raw.blockedBy as string[]) || [],
       };
     }
 

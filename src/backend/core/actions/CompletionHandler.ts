@@ -173,6 +173,12 @@ export class CompletionHandler {
         }
       );
       
+      if (!nextDueDate) {
+        // Recurrence series exhausted — no next occurrence
+        logger.info(`Task "${task.name}" recurrence series exhausted after completion`);
+        return undefined;
+      }
+      
       // Create next task instance
       const nextTask = duplicateTask(task, {
         dueAt: nextDueDate.toISOString(),

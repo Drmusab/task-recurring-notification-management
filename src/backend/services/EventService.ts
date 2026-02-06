@@ -3,6 +3,7 @@ import type { Task } from "@backend/core/models/Task";
 import type { TaskDueEvent } from "@backend/core/engine/SchedulerEvents";
 import type { Scheduler } from "@backend/core/engine/Scheduler";
 import { NotificationState } from "@backend/core/engine/NotificationState";
+import * as logger from "@backend/logging/logger";
 import type { NotificationConfig, TaskEventPayload, TaskEventType, QueueItem } from "@backend/services/event-service.types";
 import { createTaskSnapshot } from "@backend/services/event-service.types";
 import {
@@ -90,7 +91,7 @@ export class EventService {
    */
   async flushQueueOnStartup(): Promise<void> {
     if (this.queue.length > 0) {
-      console.log(`Found ${this.queue.length} pending events from previous session`);
+      logger.info(`Found ${this.queue.length} pending events from previous session`);
       await this.flushQueue();
     }
   }
@@ -105,7 +106,7 @@ export class EventService {
         this.config = { ...DEFAULT_NOTIFICATION_CONFIG, ...data };
       }
     } catch (err) {
-      console.error("Failed to load event config:", err);
+      logger.error("Failed to load event config", err);
     }
   }
 
@@ -130,11 +131,11 @@ export class EventService {
         if (this.queue.length > MAX_QUEUE_SIZE) {
           const dropped = this.queue.length - MAX_QUEUE_SIZE;
           this.queue = this.queue.slice(-MAX_QUEUE_SIZE);
-          console.warn(`Event queue trimmed to ${MAX_QUEUE_SIZE} entries (dropped ${dropped}).`);
+          logger.warn(`Event queue trimmed to ${MAX_QUEUE_SIZE} entries (dropped ${dropped})`);
         }
       }
     } catch (err) {
-      console.error("Failed to load event queue:", err);
+      logger.error("Failed to load event queue", err);
       this.queue = [];
       this.dedupeKeys = new Set();
     }
@@ -159,10 +160,10 @@ export class EventService {
       return;
     }
 
-    this.flushQueue();
+    this.flushQueue().catch((e) => logger.error('Initial queue flush failed', e));
     // Cast to number for cross-environment compatibility (NodeJS.Timeout vs number)
     this.flushIntervalId = globalThis.setInterval(() => {
-      this.flushQueue();
+      this.flushQueue().catch((e) => logger.error('Periodic queue flush failed', e));
     }, EVENT_QUEUE_INTERVAL_MS) as number;
   }
 
@@ -337,10 +338,11 @@ export class EventService {
           message: `HTTP ${response.status}: ${response.statusText}` 
         };
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       return { 
         success: false, 
-        message: `Connection failed: ${err.message}` 
+        message: `Connection failed: ${message}` 
       };
     }
   }
@@ -485,7 +487,7 @@ export class EventService {
     if (this.queue.length >= MAX_QUEUE_SIZE) {
       const overflow = this.queue.length - MAX_QUEUE_SIZE + 1;
       this.queue.splice(0, overflow);
-      console.warn(
+      logger.warn(
         `Event queue capped at ${MAX_QUEUE_SIZE}. Dropped ${overflow} oldest entr${overflow === 1 ? "y" : "ies"}.`
       );
     }
@@ -531,10 +533,10 @@ export class EventService {
       }
       
       // If crypto API is not available, fail gracefully
-      console.warn("Web Crypto API not available - signature generation disabled");
+      logger.warn("Web Crypto API not available - signature generation disabled");
       return "";
     } catch (err) {
-      console.error("Failed to generate signature:", err);
+      logger.error("Failed to generate signature", err);
       return "";
     }
   }
@@ -588,7 +590,7 @@ export class EventService {
       });
 
       if (!response.ok) {
-        console.error("n8n webhook failed:", response.statusText);
+        logger.error("n8n webhook failed", { status: response.status, statusText: response.statusText });
         return false;
       }
 
@@ -599,7 +601,7 @@ export class EventService {
 
       return true;
     } catch (error) {
-      console.error("Failed to send n8n event:", error);
+      logger.error("Failed to send n8n event", error);
       return false;
     }
   }

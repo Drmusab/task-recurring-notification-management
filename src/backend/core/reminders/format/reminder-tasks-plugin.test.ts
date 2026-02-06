@@ -1,14 +1,14 @@
-import { MarkdownDocument } from "model/format/markdown";
+import { MarkdownDocument } from "@backend/core/reminders/format/markdown";
 import {
   TasksPluginFormat,
   TasksPluginReminderModel,
-} from "model/format/reminder-tasks-plugin";
-import { DateTime } from "model/time";
+} from "@backend/core/reminders/format/reminder-tasks-plugin";
+import { DateTime } from "@backend/core/reminders/time";
 import moment from "moment";
 import {
   ReminderFormatConfig,
   ReminderFormatParameterKey,
-} from "@components/reminders/model/format/reminder-base";
+} from "@backend/core/reminders/format/reminder-base";
 
 describe("TasksPluginReminderLine", (): void => {
   test("parse()", (): void => {

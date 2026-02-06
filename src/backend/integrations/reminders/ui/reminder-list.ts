@@ -1,8 +1,8 @@
 ﻿import { ItemView, TFile, View, WorkspaceLeaf } from "@shared/utils/compat/siyuan-compat";
-import ReminderListView from "ui/ReminderList.svelte";
-import type ReminderPlugin from "main";
-import { Reminder, groupReminders } from "@components/reminders/model/reminder";
-import { VIEW_TYPE_REMINDER_LIST } from "@components/reminders/plugin/ui/constants";
+import ReminderListView from "@frontend/components/reminders/ui/ReminderList.svelte";
+import type ReminderPlugin from "@frontend/components/reminders/main";
+import { Reminder, groupReminders } from "@backend/core/reminders/reminder";
+import { VIEW_TYPE_REMINDER_LIST } from "@backend/integrations/reminders/ui/constants";
 
 class ReminderListItemView extends ItemView {
   private view?: ReminderListView;

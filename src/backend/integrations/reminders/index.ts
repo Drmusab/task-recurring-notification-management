@@ -7,7 +7,7 @@
  *
  * @module plugin
  */
-export { NotificationWorker } from "@components/reminders/plugin/notification-worker";
-export { ReminderPluginUI } from "@components/reminders/plugin/ui";
-export { ReminderPluginFileSystem } from "@components/reminders/plugin/filesystem";
-export { PluginData } from "@components/reminders/plugin/data";
+export { NotificationWorker } from "@backend/integrations/reminders/notification-worker";
+export { ReminderPluginUI } from "@backend/integrations/reminders/ui";
+export { ReminderPluginFileSystem } from "@backend/integrations/reminders/filesystem";
+export { PluginData } from "@backend/integrations/reminders/data";

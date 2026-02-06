@@ -2,6 +2,8 @@
  * TasksEvents module for handling plugin-wide task events
  */
 
+import * as logger from "@backend/logging/logger";
+
 type EventCallback = (...args: unknown[]) => void;
 
 /**
@@ -70,7 +72,7 @@ export class TasksEvents {
                 try {
                     handler(...args);
                 } catch (error) {
-                    console.error(`Error in event handler for ${event}:`, error);
+                    logger.error(`Error in event handler for ${event}`, error);
                 }
             }
         }

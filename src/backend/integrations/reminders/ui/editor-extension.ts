@@ -1,9 +1,9 @@
 ﻿import { EditorSelection } from "@codemirror/state";
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
-import type { Reminders } from "model/reminder";
+import type { Reminders } from "@backend/core/reminders/reminder";
 import type { App } from "@shared/utils/compat/siyuan-compat";
-import type { Settings } from "plugin/settings";
-import { showDateTimeChooserModal } from "@components/reminders/plugin/ui/date-chooser-modal";
+import type { Settings } from "@backend/integrations/reminders/settings";
+import { showDateTimeChooserModal } from "@backend/integrations/reminders/ui/date-chooser-modal";
 
 export function buildCodeMirrorPlugin(
   app: App,

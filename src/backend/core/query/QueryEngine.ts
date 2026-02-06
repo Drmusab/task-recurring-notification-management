@@ -39,6 +39,7 @@ import type { AttentionSettings, EscalationSettings } from '@backend/core/settin
 import { DEFAULT_ATTENTION_SETTINGS, DEFAULT_ESCALATION_SETTINGS } from '@backend/core/settings/PluginSettings';
 import { AttentionEngine, type AttentionLane } from '@backend/core/attention/AttentionEngine';
 import { buildAttentionQueryFields } from '@backend/core/attention/AttentionQueryFields';
+import * as logger from '@backend/logging/logger';
 
 /**
  * Execute queries against task index
@@ -95,7 +96,7 @@ export class QueryEngine {
       const parser = new QueryParser();
       this.globalFilterAST = parser.parse(filterString);
     } catch (error) {
-      console.error('Failed to parse global filter:', error);
+      logger.error('Failed to parse global filter', error);
       this.globalFilterAST = null;
     }
   }

@@ -410,7 +410,7 @@ export class RecurrenceEngineRRULE {
     currentDue: Date, 
     frequency: Frequency,
     options?: { completionDate?: Date; whenDone?: boolean; timezone?: string }
-  ): Date {
+  ): Date | null {
     // Ensure frequency has rruleString
     const freq = { ...frequency };
     if (!freq.rruleString) {
@@ -427,11 +427,9 @@ export class RecurrenceEngineRRULE {
 
     const next = this.getNextOccurrence(tempTask, from);
     if (!next) {
-      // Fallback to adding one day if RRULE returns null
-      logger.warn("RecurrenceEngineRRULE.calculateNext: getNextOccurrence returned null, falling back");
-      const result = new Date(currentDue);
-      result.setDate(result.getDate() + 1);
-      return result;
+      // Series exhausted — propagate null so callers can handle end-of-recurrence
+      logger.info("RecurrenceEngineRRULE.calculateNext: RRULE series exhausted, no more occurrences");
+      return null;
     }
 
     return next;

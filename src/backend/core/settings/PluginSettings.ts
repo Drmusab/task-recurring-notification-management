@@ -422,8 +422,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
  */
 export function mergeSettings(userSettings: Partial<PluginSettings>): PluginSettings {
   // ========== NEW: Migrate old globalFilter format to profiles ==========
-  if (userSettings.globalFilter && !(userSettings.globalFilter as any).profiles) {
-    const legacyConfig = userSettings.globalFilter as any;
+  if (userSettings.globalFilter && !(userSettings.globalFilter as Record<string, unknown>).profiles) {
+    const legacyConfig = userSettings.globalFilter as Record<string, unknown>;
 
     const migratedProfile: GlobalFilterProfile = {
       id: 'migrated-default',
@@ -431,20 +431,20 @@ export function mergeSettings(userSettings: Partial<PluginSettings>): PluginSett
       description: 'Automatically migrated from previous version',
       includePaths: [],
       excludePaths: [
-        ...(legacyConfig.excludeFolders || []),
-        ...(legacyConfig.excludeFilePatterns || []),
+        ...((legacyConfig.excludeFolders as string[]) || []),
+        ...((legacyConfig.excludeFilePatterns as string[]) || []),
       ],
       includeTags: [],
-      excludeTags: legacyConfig.excludeTags || [],
+      excludeTags: (legacyConfig.excludeTags as string[]) || [],
       includeRegex: undefined,
       excludeRegex: undefined,
       regexTargets: ['taskText'],
-      excludeStatusTypes: legacyConfig.excludeStatusTypes || [],
+      excludeStatusTypes: (legacyConfig.excludeStatusTypes as string[]) || [],
     };
 
     userSettings.globalFilter = {
-      enabled: legacyConfig.enabled ?? false,
-      mode: legacyConfig.mode ?? 'all',
+      enabled: (legacyConfig.enabled as boolean) ?? false,
+      mode: (legacyConfig.mode as string) ?? 'all',
       activeProfileId: 'migrated-default',
       profiles: [migratedProfile],
     };

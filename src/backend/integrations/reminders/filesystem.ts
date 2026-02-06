@@ -1,6 +1,6 @@
-﻿import type ReminderPlugin from "main";
-import { Content } from "model/content";
-import type { Reminder, Reminders } from "model/reminder";
+﻿import type ReminderPlugin from "@frontend/components/reminders/main";
+import { Content } from "@backend/core/reminders/content";
+import type { Reminder, Reminders } from "@backend/core/reminders/reminder";
 import { TAbstractFile, TFile, Vault } from "@shared/utils/compat/siyuan-compat";
 
 export class ReminderPluginFileSystem {

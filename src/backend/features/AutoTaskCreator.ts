@@ -49,7 +49,9 @@ export class AutoTaskCreator {
       clearTimeout(this.debouncedCreateTimeout);
     }
     this.debouncedCreateTimeout = setTimeout(() => {
-      this.debouncedCreateInternal(blockId, text);
+      this.debouncedCreateInternal(blockId, text).catch((err) => {
+        logger.error('Debounced auto-create failed', { error: err, blockId });
+      });
       this.debouncedCreateTimeout = undefined;
     }, 500) as unknown as number;
   };

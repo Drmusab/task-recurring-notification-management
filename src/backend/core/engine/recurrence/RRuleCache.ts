@@ -125,21 +125,13 @@ export class RRuleCache {
   }
 
   /**
-   * Evict the least recently used entry
+   * Evict the least recently used entry.
+   * Map iteration order is insertion order; entries are re-inserted on access,
+   * so the first key is always the LRU entry — O(1).
    */
   private evictOldest(): void {
-    // Find the entry with the oldest lastAccess time
-    let oldestKey: string | null = null;
-    let oldestTime = Infinity;
-
-    for (const [key, entry] of this.cache.entries()) {
-      if (entry.lastAccess < oldestTime) {
-        oldestTime = entry.lastAccess;
-        oldestKey = key;
-      }
-    }
-
-    if (oldestKey) {
+    const oldestKey = this.cache.keys().next().value;
+    if (oldestKey !== undefined) {
       this.cache.delete(oldestKey);
     }
   }

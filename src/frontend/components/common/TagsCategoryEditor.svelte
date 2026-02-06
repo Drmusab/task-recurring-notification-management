@@ -7,6 +7,7 @@
    * - Set task category for grouping
    */
   import { t } from '@stores/i18n.store';
+  import { showMessage } from 'siyuan';
   
   export let tags: string[] = [];
   export let category: string = '';
@@ -24,7 +25,7 @@
     if (!trimmed) return;
     
     if (tags.includes(trimmed)) {
-      alert('Tag already exists');
+      showMessage('Tag already exists', 2000);
       return;
     }
     

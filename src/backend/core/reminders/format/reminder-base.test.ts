@@ -1,4 +1,4 @@
-import { ReminderFormatConfig } from "@components/reminders/model/format/reminder-base";
+import { ReminderFormatConfig } from "@backend/core/reminders/format/reminder-base";
 import { MarkdownDocument } from ".";
 import type { ReminderEdit, ReminderFormat } from ".";
 

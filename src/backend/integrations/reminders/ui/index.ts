@@ -1,7 +1,7 @@
-﻿import type ReminderPlugin from "main";
-import type { ReadOnlyReference } from "model/ref";
-import type { DateTime } from "model/time";
-import type { Reminder } from "model/reminder";
+﻿import type ReminderPlugin from "@frontend/components/reminders/main";
+import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+import type { DateTime } from "@backend/core/reminders/time";
+import type { Reminder } from "@backend/core/reminders/reminder";
 import {
   App,
   MarkdownView,
@@ -10,13 +10,13 @@ import {
   TFile,
   WorkspaceLeaf,
 } from "@shared/utils/compat/siyuan-compat";
-import { registerCommands } from "plugin/commands";
-import { VIEW_TYPE_REMINDER_LIST } from "@components/reminders/plugin/ui/constants";
-import { ReminderListItemViewProxy } from "@components/reminders/plugin/ui/reminder-list";
-import { AutoComplete } from "@components/reminders/plugin/ui/autocomplete";
-import type { AutoCompletableEditor } from "@components/reminders/plugin/ui/autocomplete";
-import { buildCodeMirrorPlugin } from "@components/reminders/plugin/ui/editor-extension";
-import { ReminderModal } from "@components/reminders/plugin/ui/reminder";
+import { registerCommands } from "@backend/integrations/reminders/commands";
+import { VIEW_TYPE_REMINDER_LIST } from "@backend/integrations/reminders/ui/constants";
+import { ReminderListItemViewProxy } from "@backend/integrations/reminders/ui/reminder-list";
+import { AutoComplete } from "@backend/integrations/reminders/ui/autocomplete";
+import type { AutoCompletableEditor } from "@backend/integrations/reminders/ui/autocomplete";
+import { buildCodeMirrorPlugin } from "@backend/integrations/reminders/ui/editor-extension";
+import { ReminderModal } from "@backend/integrations/reminders/ui/reminder";
 
 export class ReminderPluginUI {
   private autoComplete: AutoComplete;

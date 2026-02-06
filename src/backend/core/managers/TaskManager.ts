@@ -3,6 +3,7 @@ import { TaskStorage } from "@backend/core/storage/TaskStorage";
 import { TaskRepository, type TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import { Scheduler } from "@backend/core/engine/Scheduler";
 import { EventService } from "@backend/services/EventService";
+import type { Task } from "@backend/core/models/Task";
 import { SettingsService } from "@backend/core/settings/SettingsService";
 import { GlobalFilter } from "@backend/core/filtering/GlobalFilter";
 import { GlobalQuery } from "@backend/core/query/GlobalQuery";
@@ -10,6 +11,7 @@ import { SCHEDULER_INTERVAL_MS } from "@shared/constants/misc-constants";
 import * as logger from "@backend/logging/logger";
 import { PatternLearner } from "@backend/core/ml/PatternLearner";
 import { PatternLearnerStore } from "@backend/core/ml/PatternLearnerStore";
+import { pluginEventBus } from "@backend/core/events/PluginEventBus";
 
 /**
  * TaskManager is a singleton that manages the lifecycle of all task-related services.
@@ -27,6 +29,7 @@ export class TaskManager {
   private eventService!: EventService;
   private settingsService!: SettingsService;
   private patternLearner!: PatternLearner;
+  private schedulerUnsubscribers: Array<() => void> = [];
 
   private constructor(plugin: Plugin) {
     this.plugin = plugin;
@@ -138,19 +141,21 @@ export class TaskManager {
    * Start the scheduler and recovery process
    */
   public async start(
-    onTaskDue?: (task: any) => void,
-    onTaskMissed?: (task: any) => void
+    onTaskDue?: (task: Task) => void,
+    onTaskMissed?: (task: Task) => void
   ): Promise<void> {
     if (!this.isInitialized) {
       throw new Error("TaskManager must be initialized before starting");
     }
 
-    // Start scheduler
+    // Start scheduler — store unsubscribe handles for cleanup
     if (onTaskDue) {
-      this.scheduler.on("task:due", ({ task }) => onTaskDue(task));
+      const unsub = this.scheduler.on("task:due", ({ task }) => onTaskDue(task));
+      this.schedulerUnsubscribers.push(unsub);
     }
     if (onTaskMissed) {
-      this.scheduler.on("task:overdue", ({ task }) => onTaskMissed(task));
+      const unsub = this.scheduler.on("task:overdue", ({ task }) => onTaskMissed(task));
+      this.schedulerUnsubscribers.push(unsub);
     }
     this.scheduler.start();
     
@@ -175,6 +180,12 @@ export class TaskManager {
    * Cleanup resources (used for both destroy and partial initialization failure)
    */
   private async cleanup(): Promise<void> {
+    // Unsubscribe scheduler listeners first
+    for (const unsub of this.schedulerUnsubscribers) {
+      try { unsub(); } catch { /* ignore */ }
+    }
+    this.schedulerUnsubscribers = [];
+
     try {
       if (this.scheduler) {
         this.scheduler.stop();
@@ -194,9 +205,17 @@ export class TaskManager {
     try {
       if (this.storage) {
         await this.storage.flush();
+        this.storage.stopSyncRetryProcessor();
       }
     } catch (err) {
       logger.error("Failed to flush storage during cleanup", err);
+    }
+
+    // Clear global event bus to prevent stale handler references
+    try {
+      pluginEventBus.clear();
+    } catch (err) {
+      logger.error("Failed to clear plugin event bus during cleanup", err);
     }
   }
 

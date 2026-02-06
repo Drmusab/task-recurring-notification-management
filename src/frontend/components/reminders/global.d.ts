@@ -1,11 +1,12 @@
-import type ReminderPlugin from "main";
+import type ReminderPlugin from "@frontend/components/reminders/main";
 
 declare global {
   interface Window {
-    app: ;
+    app: Record<string, unknown>;
   }
 }
-declare module "" {
+
+declare module "siyuan" {
   interface App {
     plugins: {
       plugins: {

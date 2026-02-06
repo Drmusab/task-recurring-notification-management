@@ -1,8 +1,8 @@
-﻿import { Reference } from "model/ref";
-import type { ReadOnlyReference } from "model/ref";
-import { Later, Time, parseLaters } from "model/time";
+﻿import { Reference } from "@backend/core/reminders/ref";
+import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+import { Later, Time, parseLaters } from "@backend/core/reminders/time";
 import { AbstractTextComponent, Setting } from "@shared/utils/compat/siyuan-compat";
-import { ReminderFormatType, ReminderFormatTypes } from "model/format";
+import { ReminderFormatType, ReminderFormatTypes } from "@backend/core/reminders/format";
 
 class SettingRegistry {
   private settingContexts: Array<SettingContext> = [];

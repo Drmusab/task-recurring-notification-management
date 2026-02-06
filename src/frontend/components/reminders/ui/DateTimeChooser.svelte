@@ -1,10 +1,10 @@
 <script lang="typescript">
   import moment from "moment";
-  import type { Reminders } from "@components/reminders/model/reminder";
-  import { DateTime } from "@components/reminders/model/time";
-  import CalendarView from "@components/reminders/ui/Calendar.svelte";
-  import TimePicker from "@components/reminders/ui/TimePicker.svelte";
-  import ReminderListByDate from "@components/reminders/ui/ReminderListByDate.svelte";
+  import type { Reminders } from "@backend/core/reminders/reminder";
+  import { DateTime } from "@backend/core/reminders/time";
+  import CalendarView from "@frontend/components/reminders/ui/Calendar.svelte";
+  import TimePicker from "@frontend/components/reminders/ui/TimePicker.svelte";
+  import ReminderListByDate from "@frontend/components/reminders/ui/ReminderListByDate.svelte";
   import { t } from '@stores/i18n.store';
 
   export let date = moment();

@@ -18,7 +18,11 @@
     // Extract frequency from recurrence rule for preview
     $: {
         if (editableTask.recurrenceRule && isRecurrenceValid) {
-            parsedFrequency = parseRecurrenceToFrequency(editableTask.recurrenceRule);
+            try {
+                parsedFrequency = parseRecurrenceToFrequency(editableTask.recurrenceRule);
+            } catch {
+                parsedFrequency = null;
+            }
         } else {
             parsedFrequency = null;
         }

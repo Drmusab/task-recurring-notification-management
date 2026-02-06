@@ -1,8 +1,8 @@
-import { DateTime } from "model/time";
+import { DateTime } from "@backend/core/reminders/time";
 import moment from "moment";
-import { ReminderFormatParameterKey } from "@components/reminders/model/format/reminder-base";
-import { ReminderFormatTestUtil } from "@components/reminders/model/format/reminder-base.test";
-import { DefaultReminderFormat } from "@components/reminders/model/format/reminder-default";
+import { ReminderFormatParameterKey } from "@backend/core/reminders/format/reminder-base";
+import { ReminderFormatTestUtil } from "@backend/core/reminders/format/reminder-base.test";
+import { DefaultReminderFormat } from "@backend/core/reminders/format/reminder-default";
 
 describe("DefaultReminderFormat", (): void => {
   const util = new ReminderFormatTestUtil(() => new DefaultReminderFormat());

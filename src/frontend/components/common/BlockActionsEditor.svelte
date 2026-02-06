@@ -12,6 +12,7 @@
   import type { BlockLinkedAction, BlockTrigger, TaskAction, ConditionExpr } from '@backend/core/block-actions/BlockActionTypes';
   import type { TaskPriority } from '@backend/core/models/Task';
   import { t } from '@stores/i18n.store';
+  import { showMessage } from 'siyuan';
   
   export let actions: BlockLinkedAction[] = [];
   export let onChange: (actions: BlockLinkedAction[]) => void;
@@ -32,11 +33,61 @@
   let newActionUrl = '';
   let newActionMessage = '';
   let newActionEnabled = true;
+  let pendingRemoveId: string | null = null;
+  
+  /**
+   * Validate inputs before adding action
+   */
+  function validateInputs(): string | null {
+    // Validate trigger inputs
+    if (newTriggerType === 'contentMatches' || newTriggerType === 'contentNotMatches') {
+      if (!newTriggerRegex.trim()) {
+        return 'Regex pattern cannot be empty.';
+      }
+      try {
+        new RegExp(newTriggerRegex);
+      } catch {
+        return `Invalid regex pattern: "${newTriggerRegex}"`;
+      }
+    }
+    if (newTriggerType === 'contentHasTag' && !newTriggerTag.trim()) {
+      return 'Tag cannot be empty.';
+    }
+    if (newTriggerType === 'contentHasKeyword' && !newTriggerKeyword.trim()) {
+      return 'Keyword cannot be empty.';
+    }
+
+    // Validate action inputs
+    if (newActionType === 'sendWebhook') {
+      if (!newActionUrl.trim()) {
+        return 'Webhook URL cannot be empty.';
+      }
+      try {
+        new URL(newActionUrl);
+      } catch {
+        return `Invalid URL: "${newActionUrl}"`;
+      }
+    }
+    if (newActionType === 'addTag' || newActionType === 'removeTag') {
+      if (!newActionTag.trim()) {
+        return 'Tag cannot be empty.';
+      }
+    }
+    if (newActionType === 'notify' && !newActionMessage.trim()) {
+      return 'Notification message cannot be empty.';
+    }
+    return null;
+  }
   
   /**
    * Add new action
    */
   function addAction() {
+    const error = validateInputs();
+    if (error) {
+      showMessage(error, 4000, 'error');
+      return;
+    }
     const trigger = buildTrigger();
     const action = buildAction();
     
@@ -59,7 +110,14 @@
    * Remove action
    */
   function removeAction(id: string) {
-    if (!confirm('Remove this block action?')) return;
+    // Double-click confirmation pattern: first click sets pending, second confirms
+    if (pendingRemoveId !== id) {
+      pendingRemoveId = id;
+      showMessage('Click remove again to confirm', 3000);
+      setTimeout(() => { if (pendingRemoveId === id) pendingRemoveId = null; }, 3000);
+      return;
+    }
+    pendingRemoveId = null;
     
     actions = actions.filter(a => a.id !== id);
     onChange(actions);

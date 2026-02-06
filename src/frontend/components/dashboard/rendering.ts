@@ -34,7 +34,6 @@ function getXTickValues(
     // The input interval could be null,
     // generate tick values even if interval is null
 
-    // console.log(interval);
 
     let tickValues: Array<Date> = [];
     let tickInterval = null;
@@ -115,8 +114,6 @@ function getYTickValues(
     // The input interval could be null,
     // generate tick values for time values even if interval is null
 
-    // console.log(interval);
-    // console.log(isTimeValue);
 
     const absExtent = Math.abs(yUpper - yLower);
     let tickValues: Array<number> = [];
@@ -193,8 +190,6 @@ function getYTickLabelFormat(
                 let dayStart = window.moment("00:00", "HH:mm", true);
                 let tickTime = dayStart.add(value, "seconds");
                 let format = tickTime.format("HH:mm");
-                // console.log(`yLower/yUpper: ${yLower}/${yUpper}`)
-                // console.log(`value/extent/inter:${value}/${absExtent}/${(value-yLower)/3600}`);
 
                 // auto interleave if extent over 12 hours
                 if (absExtent > 12 * 60 * 60) {
@@ -216,8 +211,6 @@ function getYTickLabelFormat(
 }
 
 export function render(canvas: HTMLElement, renderInfo: RenderInfo) {
-    // console.log("render");
-    // console.log(renderInfo.datasets);
 
     // Data preprocessing
     for (let dataset of renderInfo.datasets) {
@@ -301,7 +294,6 @@ function renderXAxis(
     renderInfo: RenderInfo,
     chartInfo: CommonChartInfo
 ) {
-    // console.log("renderXAxis");
 
     if (!renderInfo || !chartInfo) return;
 
@@ -318,7 +310,6 @@ function renderXAxis(
             ];
         }
     }
-    // console.log(xDomain);
     let xScale = d3
         .scaleTime()
         .domain(xDomain)
@@ -409,10 +400,6 @@ function renderYAxis(
     yAxisLocation: string,
     datasetIds: Array<number>
 ) {
-    // console.log("renderYAxis")
-    // console.log(datasets);
-    // console.log(renderInfo);
-    // console.log(datasetIds);
 
     if (!renderInfo || !chartInfo) return;
 
@@ -448,8 +435,6 @@ function renderYAxis(
             }
         }
     }
-    // console.log(yMinOfDatasets);
-    // console.log(yMaxOfDatasets);
 
     let yMin = null;
     if (yAxisLocation === "left") {
@@ -631,7 +616,6 @@ function renderYAxis(
     // Get max tick label width
     let maxTickLabelWidth = 0;
     for (let label of yAxisTickLabels) {
-        // console.log(label.textContent);
         if (label.textContent) {
             let labelSize = helper.measureTextSize(
                 label.textContent,
@@ -642,7 +626,6 @@ function renderYAxis(
             }
         }
     }
-    // console.log(maxTickLabelWidth);
 
     if (yAxisUnitText !== "") {
         yAxisLabelText += " (" + yAxisUnitText + ")";
@@ -696,8 +679,6 @@ function renderLine(
     dataset: Dataset,
     yAxisLocation: string
 ) {
-    // console.log(dataset);
-    // console.log(renderInfo);
 
     if (!renderInfo || !lineInfo) return;
 
@@ -749,8 +730,6 @@ function renderPoints(
     dataset: Dataset,
     yAxisLocation: string
 ) {
-    // console.log(lineInfo);
-    // console.log(dataset);
 
     if (!renderInfo || !lineInfo) return;
 
@@ -926,9 +905,6 @@ function renderBar(
     currBarSet: number,
     totalNumOfBarSets: number
 ) {
-    // console.log(dataset);
-    // console.log(barInfo);
-    // console.log("%d/%d", currBarSet, totalNumOfBarSets);
 
     if (!renderInfo || !barInfo) return;
 
@@ -1024,8 +1000,6 @@ function renderLegend(
     renderInfo: RenderInfo,
     chartInfo: CommonChartInfo
 ) {
-    // console.log(chartInfo.legendPosition);
-    // console.log(chartInfo.legendOrientation);
 
     // Get chart elements
     let svg = chartElements.svg;
@@ -1053,7 +1027,6 @@ function renderLegend(
     // Get datasets
     let datasets = renderInfo.datasets;
     let xDatasetIds = datasets.getXDatasetIds();
-    // console.log(xDatasetIds);
 
     // Get names and their dimension
     let names = datasets.getNames(); // xDataset name included
@@ -1094,11 +1067,7 @@ function renderLegend(
             });
         legendHeight = ySpacing + nameHeight;
     }
-    // console.log(
-    //     `maxName: ${maxName}, characterWidth: ${characterWidth}, maxNameWidth: ${maxNameWidth}`
     // );
-    // console.log(`xSpacing:${xSpacing}, numNames: ${numNames}, markerWidth: ${markerWidth}`);
-    // console.log(`legendWidth: ${legendWidth}, legendHeight: ${legendHeight}`);
 
     // Calcualte lengendX and legendY
     let legendX = 0.0; // relative to graphArea
@@ -1152,13 +1121,11 @@ function renderLegend(
     } else {
         return;
     }
-    // console.log(`legendX: ${legendX}, legendY: ${legendY}`);
 
     let legend = chartElements.graphArea
         .append("g")
         .attr("id", "legend")
         .attr("transform", "translate(" + legendX + "," + legendY + ")");
-    // console.log('legendX: %d, legendY: %d', legendX, legendY);
 
     let legendBg = legend
         .append("rect")
@@ -1440,7 +1407,6 @@ function renderTitle(
     renderInfo: RenderInfo,
     chartInfo: CommonChartInfo
 ) {
-    // console.log("renderTitle")
     // under graphArea
 
     if (!renderInfo || !chartInfo) return;
@@ -1562,8 +1528,6 @@ function renderLineChart(
     renderInfo: RenderInfo,
     lineInfo: LineInfo
 ) {
-    // console.log("renderLineChart");
-    // console.log(renderInfo);
 
     if (!renderInfo || !lineInfo) return;
 
@@ -1572,8 +1536,6 @@ function renderLineChart(
     renderTitle(chartElements, renderInfo, lineInfo);
 
     renderXAxis(chartElements, renderInfo, lineInfo);
-    // console.log(chartElements.xAxis);
-    // console.log(chartElements.xScale);
 
     let datasetOnLeftYAxis = [];
     let datasetOnRightYAxis = [];
@@ -1644,8 +1606,6 @@ function renderBarChart(
     renderInfo: RenderInfo,
     barInfo: BarInfo
 ) {
-    // console.log("renderBarChart");
-    // console.log(renderInfo);
     if (!renderInfo || !barInfo) return;
 
     let chartElements = createAreas(canvas, renderInfo);

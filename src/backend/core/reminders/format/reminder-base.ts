@@ -1,8 +1,8 @@
-import type { MarkdownDocument } from "model/format/markdown";
-import type { ReadOnlyReference } from "model/ref";
-import { Reminder } from "model/reminder";
-import { DateTime } from "model/time";
-import { Todo } from "@components/reminders/model/format/markdown";
+import type { MarkdownDocument } from "@backend/core/reminders/format/markdown";
+import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+import { Reminder } from "@backend/core/reminders/reminder";
+import { DateTime } from "@backend/core/reminders/time";
+import { Todo } from "@backend/core/reminders/format/markdown";
 
 export type ReminderEdit = {
   time?: DateTime;

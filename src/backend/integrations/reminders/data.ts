@@ -1,8 +1,8 @@
-import type ReminderPlugin from "main";
-import { Reference } from "model/ref";
-import { Reminder, Reminders } from "model/reminder";
-import { DateTime } from "model/time";
-import { Settings, TAG_RESCAN } from "plugin/settings";
+import type ReminderPlugin from "@frontend/components/reminders/main";
+import { Reference } from "@backend/core/reminders/ref";
+import { Reminder, Reminders } from "@backend/core/reminders/reminder";
+import { DateTime } from "@backend/core/reminders/time";
+import { Settings, TAG_RESCAN } from "@backend/integrations/reminders/settings";
 
 interface ReminderData {
   title: string;

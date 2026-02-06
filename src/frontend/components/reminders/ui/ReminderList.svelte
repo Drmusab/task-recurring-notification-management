@@ -1,6 +1,6 @@
 <script lang="typescript">
-  import type { GroupedReminder, Reminder } from "@components/reminders/model/reminder";
-  import ReminderListByDate from "@components/reminders/ui/ReminderListByDate.svelte";
+  import type { GroupedReminder, Reminder } from "@backend/core/reminders/reminder";
+  import ReminderListByDate from "@frontend/components/reminders/ui/ReminderListByDate.svelte";
 
   export let groups: Array<GroupedReminder>;
   export let onOpenReminder: (reminder: Reminder) => void;

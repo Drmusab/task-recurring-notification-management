@@ -1,7 +1,7 @@
 <script lang="typescript">
-  import type { DateTime } from "@components/reminders/model/time";
-  import type { Reminder } from "@components/reminders/model/reminder";
-  import Markdown from "@components/reminders/ui/Markdown.svelte";
+  import type { DateTime } from "@backend/core/reminders/time";
+  import type { Reminder } from "@backend/core/reminders/reminder";
+  import Markdown from "@frontend/components/reminders/ui/Markdown.svelte";
 
   export let reminders: Array<Reminder>;
   export let onOpenReminder: (reminder: Reminder) => void = () => {};

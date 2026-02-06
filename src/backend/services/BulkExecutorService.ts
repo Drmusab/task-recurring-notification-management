@@ -70,11 +70,12 @@ export class BulkExecutor {
       );
 
       collector.recordSuccess(item, result);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Record<string, unknown>;
       collector.recordFailure(item, {
-        code: error.code || 'INTERNAL_ERROR',
-        message: error.message || 'Operation failed',
-        details: error.details,
+        code: (err?.code as string) || 'INTERNAL_ERROR',
+        message: (err?.message as string) || 'Operation failed',
+        details: err?.details,
       });
     }
   }
@@ -83,12 +84,11 @@ export class BulkExecutor {
    * Wrap promise with timeout
    */
   private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error('Operation timeout')), timeoutMs)
-      ),
-    ]);
+    let timerId: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<T>((_, reject) => {
+      timerId = setTimeout(() => reject(new Error('Operation timeout')), timeoutMs);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timerId));
   }
 
   /**

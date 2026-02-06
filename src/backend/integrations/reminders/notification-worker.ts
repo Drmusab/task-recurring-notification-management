@@ -1,5 +1,5 @@
-import type ReminderPlugin from "main";
-import type { Reminder } from "model/reminder";
+import type ReminderPlugin from "@frontend/components/reminders/main";
+import type { Reminder } from "@backend/core/reminders/reminder";
 
 export class NotificationWorker {
   constructor(private plugin: ReminderPlugin) {}

@@ -6,7 +6,7 @@ export interface LogEntry {
   timestamp: string;
   level: "debug" | "info" | "warn" | "error";
   message: string;
-  context?: any;
+  context?: unknown;
 }
 
 const MAX_LOG_ENTRIES = 500;
@@ -29,7 +29,7 @@ const DEBUG_ENABLED = (() => {
 /**
  * Add a log entry
  */
-function addLogEntry(level: LogEntry["level"], message: string, context?: any): void {
+function addLogEntry(level: LogEntry["level"], message: string, context?: unknown): void {
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
@@ -60,28 +60,28 @@ function addLogEntry(level: LogEntry["level"], message: string, context?: any): 
 /**
  * Log debug message (only if DEBUG=true)
  */
-export function debug(message: string, context?: any): void {
+export function debug(message: string, context?: unknown): void {
   addLogEntry("debug", message, context);
 }
 
 /**
  * Log info message
  */
-export function info(message: string, context?: any): void {
+export function info(message: string, context?: unknown): void {
   addLogEntry("info", message, context);
 }
 
 /**
  * Log warning message
  */
-export function warn(message: string, context?: any): void {
+export function warn(message: string, context?: unknown): void {
   addLogEntry("warn", message, context);
 }
 
 /**
  * Log error message
  */
-export function error(message: string, context?: any): void {
+export function error(message: string, context?: unknown): void {
   addLogEntry("error", message, context);
 }
 

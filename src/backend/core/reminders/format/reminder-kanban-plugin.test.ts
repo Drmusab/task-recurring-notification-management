@@ -1,12 +1,12 @@
 /**
  * @jest-environment
  */
-import { DateTime } from "model/time";
+import { DateTime } from "@backend/core/reminders/time";
 import moment from "moment";
 import {
   KanbanDateTimeFormat,
   KanbanReminderModel,
-} from "@components/reminders/model/format/reminder-kanban-plugin";
+} from "@backend/core/reminders/format/reminder-kanban-plugin";
 
 describe("KanbanDateTimeFormat", (): void => {
   test("format - no page link", (): void => {

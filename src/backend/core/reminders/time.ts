@@ -1,5 +1,5 @@
-import { ConstantReference } from "model/ref";
-import type { ReadOnlyReference } from "model/ref";
+import { ConstantReference } from "@backend/core/reminders/ref";
+import type {ReadOnlyReference } from "@backend/core/reminders/ref";
 import moment from "moment";
 
 export class DateTime {

@@ -58,7 +58,6 @@ function createAreas(
         // d3.select(chartElements[props[i]]).remove();
         delete chartElements[props[i]];
     }
-    // console.log(chartElements);
 
     // whole area for plotting, includes margins
     let svg = d3
@@ -115,7 +114,6 @@ function renderTitle(
     renderInfo: RenderInfo,
     pieInfo: PieInfo
 ) {
-    // console.log("renderTitle");
     // under graphArea
 
     if (!renderInfo || !pieInfo) return;
@@ -156,9 +154,6 @@ function renderLegend(
     renderInfo: RenderInfo,
     pieInfo: PieInfo
 ) {
-    // console.log("renderLegend");
-    // console.log(piInfo.legendPosition);
-    // console.log(piInfo.legendOrientation);
 
     // Get chart elements
     let svg = chartElements.svg;
@@ -209,11 +204,8 @@ function renderLegend(
             });
         legendHeight = ySpacing + nameHeight;
     }
-    // console.log(
     //     `maxName: ${maxName}, characterWidth: ${characterWidth}, maxNameWidth: ${maxNameWidth}`
     // );
-    // console.log(`xSpacing:${xSpacing}, numNames: ${numNames}, markerWidth: ${markerWidth}`);
-    // console.log(`legendWidth: ${legendWidth}, legendHeight: ${legendHeight}`);
 
     // Calcualte lengendX and legendY
     let legendX = 0.0; // relative to graphArea
@@ -253,13 +245,11 @@ function renderLegend(
     } else {
         return;
     }
-    // console.log(`legendX: ${legendX}, legendY: ${legendY}`);
 
     let legend = chartElements.graphArea
         .append("g")
         .attr("id", "legend")
         .attr("transform", "translate(" + legendX + "," + legendY + ")");
-    // console.log('legendX: %d, legendY: %d', legendX, legendY);
 
     let legendBg = legend
         .append("rect")
@@ -379,8 +369,6 @@ function renderPie(
     renderInfo: RenderInfo,
     pieInfo: PieInfo
 ) {
-    // console.log("renderPie");
-    // console.log(renderInfo);
     let errorMessage = "";
 
     let radius = renderInfo.dataAreaSize.width * 0.5;
@@ -401,13 +389,11 @@ function renderPie(
     if (errorMessage !== "") {
         return errorMessage;
     }
-    // console.log(values);
 
     // labels
     let labels: Array<string> = [];
     for (let strExpr of pieInfo.label) {
         let retLabel = expr.resolveTemplate(strExpr, renderInfo);
-        // console.log(retLabel);
         if (retLabel.startsWith("Error")) {
             errorMessage = retLabel;
             break;
@@ -417,7 +403,6 @@ function renderPie(
     if (errorMessage !== "") {
         return errorMessage;
     }
-    // console.log(labels);
 
     // hideLabelLessThan
     let hideLabelLessThan = pieInfo.hideLabelLessThan;
@@ -440,13 +425,11 @@ function renderPie(
     if (errorMessage !== "") {
         return errorMessage;
     }
-    // console.log(extLabels);
 
     // extLabel sizes
     let extLabelSizes = extLabels.map(function (n) {
         return helper.measureTextSize(n, "tracker-pie-label");
     });
-    // console.log(extLabelSizes);
 
     let showExtLabelOnlyIfNoLabel = pieInfo.showExtLabelOnlyIfNoLabel;
 
@@ -491,7 +474,6 @@ function renderPie(
         .attr("d", arc);
 
     function isLabelHidden(arcObj: any) {
-        // console.log(`start/end: ${arcObj.startAngle}/${arcObj.endAngle}`);
         let fraction = (arcObj.endAngle - arcObj.startAngle) / (2.0 * Math.PI);
         if (fraction < hideLabelLessThan) {
             return true;
@@ -576,7 +558,6 @@ function renderPie(
                     || prevBB.bottom < thisBB.top)) {
                     // Since y is sorted from low to high, we expect to shift this item further down
                     yshift = prevBB.bottom - thisBB.top;
-                    // console.log("has overlap", yshift);
                 }
             }
             if (yshift != 0) {
@@ -604,8 +585,6 @@ function renderPie(
         let posMiddle = hiddenArc.centroid(arcObj); // line break: we use the other arc generator that has been built only for that
         let posExtLabel = extlabelPos[i] || hiddenArc.centroid(arcObj); // Label position = almost the same as posB
         posMiddle[1] = posExtLabel[1];
-        // console.log(labels[i]);
-        // console.log(`label/middle/extLabel: ${posLabel}/${posMiddle}/${posExtLabel}`);
 
         let distMiddleToLabel = Math.sqrt(
             (posMiddle[0] - posLabel[0]) ** 2 +
@@ -637,7 +616,6 @@ function renderPie(
         );
 
         if (distMiddleToLabel > distExtLabelToLabel) {
-            // console.log("two points");
             return [posLabel, posExtLabel];
         }
         return [posLabel, posMiddle, posExtLabel];
@@ -673,8 +651,6 @@ export function renderPieChart(
     renderInfo: RenderInfo,
     pieInfo: PieInfo
 ) {
-    // console.log("renderPieChart");
-    // console.log(renderInfo);
     if (!renderInfo || !pieInfo) return;
 
     // return "Under construction";

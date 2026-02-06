@@ -1,7 +1,7 @@
-import { MarkdownDocument, modifyReminder, parseReminder } from "model/format";
-import type { ReminderEdit } from "model/format";
-import type { Reminder } from "model/reminder";
-import type { Todo } from "@components/reminders/model/format/markdown";
+import { MarkdownDocument, modifyReminder, parseReminder } from "@backend/core/reminders/format";
+import type { ReminderEdit } from "@backend/core/reminders/format";
+import type { Reminder } from "@backend/core/reminders/reminder";
+import type { Todo } from "@backend/core/reminders/format/markdown";
 
 export type ReminderTodoEdit = ReminderEdit & {
   checked?: boolean;

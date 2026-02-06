@@ -9,7 +9,7 @@ import * as logger from "@backend/logging/logger";
 
 export interface Filter {
   type: "status" | "due" | "scheduled" | "tag" | "path";
-  value: any;
+  value: string | Date;
 }
 
 export class TaskIndex {

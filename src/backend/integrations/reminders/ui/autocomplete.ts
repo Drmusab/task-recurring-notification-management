@@ -1,10 +1,10 @@
-﻿import type { ReadOnlyReference } from "model/ref";
-import type { Reminders } from "model/reminder";
-import type { DateTime } from "model/time";
+﻿import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+import type { Reminders } from "@backend/core/reminders/reminder";
+import type { DateTime } from "@backend/core/reminders/time";
 import { App, Platform, type EditorPosition } from "@shared/utils/compat/siyuan-compat";
-import type { ReminderFormatType } from "model/format";
-import { showDateTimeChooserModal } from "@components/reminders/plugin/ui/date-chooser-modal";
-import { DateTimeChooserView } from "@components/reminders/plugin/ui/datetime-chooser";
+import type { ReminderFormatType } from "@backend/core/reminders/format";
+import { showDateTimeChooserModal } from "@backend/integrations/reminders/ui/date-chooser-modal";
+import { DateTimeChooserView } from "@backend/integrations/reminders/ui/datetime-chooser";
 
 export interface AutoCompletableEditor {
   getCursor(): EditorPosition;
