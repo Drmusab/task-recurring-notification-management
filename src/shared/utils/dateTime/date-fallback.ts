@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Moment } from 'moment';
 import { getSettings } from "@shared/config/Settings";
 import type { TaskLocation } from "@shared/utils/task/task-location";

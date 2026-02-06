@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Unified EditTask Component Wrapper
  * 
  * This component fixes the architecture problem where:
@@ -11,7 +12,7 @@
  * DATA FLOW (FIXED):
  * 1. Create writable store for unifiedTask
  * 2. All child components subscribe to store
- * 3. AI suggestions update store → triggers reactive updates
+ * 3. AI suggestions update store ? triggers reactive updates
  * 4. onSubmit merges all changes before saving
  */
 

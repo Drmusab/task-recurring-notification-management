@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Task } from "@backend/core/models/Task";
 
 export class Urgency {

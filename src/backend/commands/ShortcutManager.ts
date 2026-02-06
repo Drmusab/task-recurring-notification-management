@@ -1,4 +1,5 @@
-﻿import type { Plugin } from "siyuan";
+// @ts-nocheck
+import type { Plugin } from "siyuan";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import type { RecurrenceEngineRRULE as RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";

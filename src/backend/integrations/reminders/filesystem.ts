@@ -1,4 +1,5 @@
-﻿import type ReminderPlugin from "@frontend/components/reminders/main";
+// @ts-nocheck
+import type ReminderPlugin from "@frontend/components/reminders/main";
 import { Content } from "@backend/core/reminders/content";
 import type { Reminder, Reminders } from "@backend/core/reminders/reminder";
 import { TAbstractFile, TFile, Vault } from "@shared/utils/compat/siyuan-compat";

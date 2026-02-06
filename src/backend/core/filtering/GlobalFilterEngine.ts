@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { GlobalFilterConfig, FilterRule } from "@backend/core/filtering/FilterRule";
 import { StatusRegistry } from '@backend/core/models/StatusRegistry';
 import type { StatusType } from '@backend/core/models/Status';

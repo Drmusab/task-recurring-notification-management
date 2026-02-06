@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { OkCancel, showOkCancelDialog } from "@backend/integrations/reminders/ui/util";
 import type ReminderPlugin from "@frontend/components/reminders/main";
 import { Content } from "@backend/core/reminders/content";

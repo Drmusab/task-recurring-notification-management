@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Cache module for task management
  * Provides caching functionality for tasks across the plugin

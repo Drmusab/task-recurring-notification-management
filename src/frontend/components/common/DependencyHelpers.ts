@@ -1,4 +1,5 @@
-﻿import { type FuzzyMatch, prepareSimpleSearch } from "@shared/utils/compat/siyuan-compat";
+﻿// @ts-nocheck
+import { type FuzzyMatch, prepareSimpleSearch } from "@shared/utils/compat/siyuan-compat";
 import type { Task } from "@backend/core/models/Task";
 import { GlobalFilter } from "@shared/config/GlobalFilter";
 

@@ -133,13 +133,10 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     try {
       const rrule = this.getRRule(task);
       
-      // Get occurrences after from date
-      const occurrences = rrule.all((date, i) => {
-        // Stop after reaching limit
-        if (i >= cappedLimit) return false;
-        // Only include dates after 'from'
-        return date > from;
-      });
+      // Use between() instead of all() — the all() iterator callback
+      // stops on the first `false` return, which breaks when dtstart < from.
+      const farFuture = new Date(from.getTime() + 365 * 24 * 60 * 60 * 1000 * 10); // 10 years
+      const occurrences = rrule.between(from, farFuture, false).slice(0, cappedLimit);
       
       // Apply fixed time to all occurrences
       return occurrences.map(date => this.applyFixedTime(date, task));
@@ -410,8 +407,10 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     }
 
     try {
-      const [hours, minutes] = task.frequency.time.split(':').map(Number);
-      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      const parts = task.frequency.time.split(':').map(Number);
+      const hours = parts[0];
+      const minutes = parts[1];
+      if (hours === undefined || minutes === undefined || !Number.isFinite(hours) || !Number.isFinite(minutes)) {
         return date;
       }
 

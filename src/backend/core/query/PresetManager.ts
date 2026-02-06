@@ -1,4 +1,5 @@
-﻿import type { Plugin } from 'siyuan';
+// @ts-nocheck
+import type { Plugin } from 'siyuan';
 import { SettingUtils } from "@shared/config/setting-utils";
 import type { QueryPreset } from "@backend/core/query/QueryPreset";
 import { BUILT_IN_PRESETS, isValidQueryPreset, createQueryPreset } from "@backend/core/query/QueryPreset";

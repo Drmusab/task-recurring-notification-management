@@ -1,4 +1,5 @@
-﻿import { App, Menu, Point, TFile } from "@shared/utils/compat/siyuan-compat";
+// @ts-nocheck
+import { App, Menu, Point, TFile } from "@shared/utils/compat/siyuan-compat";
 
 export function showFileMenu(app: App, file: TFile, position: Point): void {
   const fileMenu = new Menu(app);

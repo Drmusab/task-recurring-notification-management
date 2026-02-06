@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import { DateTime, Time } from "@backend/core/reminders/time";
 

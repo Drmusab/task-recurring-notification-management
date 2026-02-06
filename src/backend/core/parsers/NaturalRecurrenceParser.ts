@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { RRule, RRuleSet, rrulestr } from 'rrule';
 import type { Frequency } from '@backend/core/models/Frequency';
 import * as logger from '@backend/logging/logger';

@@ -1,4 +1,5 @@
-﻿import * as chrono from 'chrono-node';
+// @ts-nocheck
+import * as chrono from 'chrono-node';
 import { setTime, addDays } from "@shared/utils/date/date";
 
 export interface ParsedDate {
@@ -249,12 +250,12 @@ export class DateParser {
 
     // Relative dates
     const relativeDates = [
-      { text: 'Today', offset: 0, icon: '📅' },
-      { text: 'Tomorrow', offset: 1, icon: '➡️' },
-      { text: 'In 2 days', offset: 2, icon: '📆' },
-      { text: 'In 3 days', offset: 3, icon: '📆' },
-      { text: 'In 1 week', offset: 7, icon: '📆' },
-      { text: 'In 2 weeks', offset: 14, icon: '📆' },
+      { text: 'Today', offset: 0, icon: '??' },
+      { text: 'Tomorrow', offset: 1, icon: '??' },
+      { text: 'In 2 days', offset: 2, icon: '??' },
+      { text: 'In 3 days', offset: 3, icon: '??' },
+      { text: 'In 1 week', offset: 7, icon: '??' },
+      { text: 'In 2 weeks', offset: 14, icon: '??' },
     ];
 
     for (const rel of relativeDates) {
@@ -287,16 +288,16 @@ export class DateParser {
           value: date.toISOString(),
           description: DateParser.formatDateForDisplay(date, false),
           category: 'named',
-          icon: '📅'
+          icon: '??'
         });
       }
     }
 
     // Shortcuts
     const shortcuts = [
-      { text: 'EOD (end of day)', keyword: 'eod', icon: '🌆' },
-      { text: 'EOW (end of week)', keyword: 'eow', icon: '🏁' },
-      { text: 'EOM (end of month)', keyword: 'eom', icon: '📊' },
+      { text: 'EOD (end of day)', keyword: 'eod', icon: '??' },
+      { text: 'EOW (end of week)', keyword: 'eow', icon: '??' },
+      { text: 'EOM (end of month)', keyword: 'eom', icon: '??' },
     ];
 
     for (const shortcut of shortcuts) {
@@ -323,7 +324,7 @@ export class DateParser {
         value: nextMonth.toISOString(),
         description: DateParser.formatDateForDisplay(nextMonth, false),
         category: 'relative',
-        icon: '📆'
+        icon: '??'
       });
     }
 

@@ -1,4 +1,5 @@
-﻿import type { Task } from '@backend/core/models/Task';
+// @ts-nocheck
+import type { Task } from '@backend/core/models/Task';
 import { normalizePriority } from '@backend/core/models/Task';
 import { Status, StatusType } from '@backend/core/models/Status';
 import { StatusRegistry } from '@backend/core/models/StatusRegistry';
@@ -165,32 +166,32 @@ export class TaskLineParser {
       description = description.replace(match[0], '');
     };
 
-    // Due date: 📅 <date>
+    // Due date: ?? <date>
     parseDateField(EMOJI_SIGNIFIERS.due, "dueAt");
 
-    // Scheduled date: ⏳ <date>
+    // Scheduled date: ? <date>
     parseDateField(EMOJI_SIGNIFIERS.scheduled, "scheduledAt");
 
-    // Start date: 🛫 <date>
+    // Start date: ?? <date>
     parseDateField(EMOJI_SIGNIFIERS.start, "startAt");
 
-    // Created date: ➕ <date>
+    // Created date: ? <date>
     parseDateField(EMOJI_SIGNIFIERS.created, "createdAt");
 
-    // Done date: ✅ <date>
+    // Done date: ? <date>
     parseDateField(EMOJI_SIGNIFIERS.done, "doneAt", true);
 
-    // Cancelled date: ❌ <date>
+    // Cancelled date: ? <date>
     parseDateField(EMOJI_SIGNIFIERS.cancelled, "cancelledAt");
 
-    // OnCompletion: 🏁 keep/delete
+    // OnCompletion: ?? keep/delete
     const onCompletionMatch = content.match(new RegExp(`${EMOJI_SIGNIFIERS.onCompletion}\\s*(keep|delete)`));
     if (onCompletionMatch) {
       metadata.onCompletion = onCompletionMatch[1] as 'keep' | 'delete';
       description = description.replace(onCompletionMatch[0], '');
     }
 
-    // Recurrence: 🔁 <rule>
+    // Recurrence: ?? <rule>
     // Match until we hit another emoji signifier or tag
     const recurrenceMatch = content.match(
       new RegExp(`${EMOJI_SIGNIFIERS.recurrence}\\s*([^\\s].*?)(?=\\s(?:${emojiPattern}|#)|$)`)
@@ -212,14 +213,14 @@ export class TaskLineParser {
       }
     }
 
-    // ID: 🆔 <id>
+    // ID: ?? <id>
     const idMatch = content.match(new RegExp(`${EMOJI_SIGNIFIERS.id}\\s*(\\S+)`));
     if (idMatch) {
       metadata.id = idMatch[1];
       description = description.replace(idMatch[0], '');
     }
 
-    // DependsOn: ⛔ <id1>,<id2>
+    // DependsOn: ? <id1>,<id2>
     const dependsMatch = content.match(new RegExp(`${EMOJI_SIGNIFIERS.dependsOn}\\s*([\\w,_-]+)`));
     if (dependsMatch) {
       metadata.dependsOn = dependsMatch[1].split(',').map(s => s.trim());

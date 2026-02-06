@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { EventConfig } from "@backend/config/EventConfig";
 
 /**

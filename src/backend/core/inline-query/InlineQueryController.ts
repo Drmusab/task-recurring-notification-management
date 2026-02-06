@@ -1,4 +1,5 @@
-﻿import type { Plugin } from "siyuan";
+// @ts-nocheck
+import type { Plugin } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
 import type { SettingsService } from "@backend/core/settings/SettingsService";

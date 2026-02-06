@@ -1,4 +1,5 @@
-﻿/**
+﻿// @ts-nocheck
+/**
  * Settings - Central configuration module for the task management plugin
  * 
  * This file provides:

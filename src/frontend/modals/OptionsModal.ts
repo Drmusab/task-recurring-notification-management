@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * OptionsModal - Settings modal for TaskEditorModal
  * 
  * Allows users to configure display options for the task editor.

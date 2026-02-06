@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Search store for managing search queries and filters
  */

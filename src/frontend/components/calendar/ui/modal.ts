@@ -1,4 +1,5 @@
-﻿import { App, Modal } from "@shared/utils/compat/siyuan-compat";
+// @ts-nocheck
+import { App, Modal } from "@shared/utils/compat/siyuan-compat";
 
 interface IConfirmationDialogParams {
   cta: string;

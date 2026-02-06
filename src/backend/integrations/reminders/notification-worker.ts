@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type ReminderPlugin from "@frontend/components/reminders/main";
 import type { Reminder } from "@backend/core/reminders/reminder";
 

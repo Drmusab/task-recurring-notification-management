@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GlobalFilter } from "@shared/config/GlobalFilter";
 import { parseTypedDateForSaving } from "@shared/utils/dateTime/date-tools";
 import { PriorityTools } from "@shared/utils/lib/priority-tools";

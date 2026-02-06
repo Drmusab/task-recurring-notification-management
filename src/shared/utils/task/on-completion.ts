@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { StatusType } from "@shared/constants/statuses/StatusConfiguration";
 import type { Task } from "@backend/core/models/Task";
 

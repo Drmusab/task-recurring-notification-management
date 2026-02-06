@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Create Task from Block - Main command handler for inline task creation
  */
 

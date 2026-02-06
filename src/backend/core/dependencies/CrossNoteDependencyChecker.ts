@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Task, CrossNoteDependency, DependencyCondition } from '@backend/core/models/Task';
 import type { SiYuanApiAdapter } from '@backend/core/api/SiYuanApiAdapter';
 

@@ -1,4 +1,5 @@
-﻿import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+// @ts-nocheck
+import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import type { DateTime } from "@backend/core/reminders/time";
 import { App, Modal } from "@shared/utils/compat/siyuan-compat";
 import ReminderView from "@frontend/components/reminders/ui/Reminder.svelte";

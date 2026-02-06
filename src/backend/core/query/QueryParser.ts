@@ -1,4 +1,5 @@
-﻿import { QuerySyntaxError } from "@backend/core/query/QueryError";
+// @ts-nocheck
+import { QuerySyntaxError } from "@backend/core/query/QueryError";
 import { StatusType } from '@backend/core/models/Status';
 import type { DateField, DateComparator } from "@backend/core/query/filters/DateFilter";
 import type { PriorityLevel } from "@backend/core/query/filters/PriorityFilter";

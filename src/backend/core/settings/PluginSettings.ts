@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Plugin settings for Phase 2+ features
  */

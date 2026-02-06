@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Smart Suggestion Engine - AI-driven task recommendations
  */

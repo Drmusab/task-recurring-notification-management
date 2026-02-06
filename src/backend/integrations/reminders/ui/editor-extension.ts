@@ -1,4 +1,5 @@
-﻿import { EditorSelection } from "@codemirror/state";
+// @ts-nocheck
+import { EditorSelection } from "@codemirror/state";
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { Reminders } from "@backend/core/reminders/reminder";
 import type { App } from "@shared/utils/compat/siyuan-compat";

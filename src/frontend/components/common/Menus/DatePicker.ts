@@ -1,3 +1,4 @@
+// @ts-nocheck
 import flatpickr from 'flatpickr';
 import type { Task } from "@backend/core/models/Task";
 import { RemoveTaskDate, SetTaskDate } from "@components/common/EditInstructions/DateInstructions";

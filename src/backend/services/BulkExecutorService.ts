@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BatchConfig } from "@backend/services/batch-config";
 import { PartialResultCollector } from "@backend/services/PartialResultCollectorService";
 

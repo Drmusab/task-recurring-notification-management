@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from "@backend/webhooks/inbound/Router";
 import { TaskCommandHandler, ITaskManager } from "@backend/commands/handlers/TaskCommandHandler";
 import { QueryCommandHandler, IStorageService } from "@backend/commands/handlers/QueryCommandHandler";

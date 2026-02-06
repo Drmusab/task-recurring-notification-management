@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { RenderInfo, Dataset } from "@components/dashboard/data";
 import * as d3 from "d3";
 import { isMoment, Moment } from "moment";

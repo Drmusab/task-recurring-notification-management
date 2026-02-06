@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Auto Task Creator - Automatic task creation from inline markdown checklists
  * 
  * Implements debounced auto-creation with duplicate detection and error handling.

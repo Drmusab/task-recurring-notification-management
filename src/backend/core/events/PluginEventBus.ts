@@ -32,8 +32,8 @@ export class PluginEventBus {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());
     }
-    this.handlers.get(event)!.add(handler);
-    return () => this.handlers.get(event)?.delete(handler);
+    this.handlers.get(event)!.add(handler as EventHandler<unknown>);
+    return () => this.handlers.get(event)?.delete(handler as EventHandler<unknown>);
   }
 
   /**

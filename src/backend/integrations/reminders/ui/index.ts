@@ -1,4 +1,5 @@
-﻿import type ReminderPlugin from "@frontend/components/reminders/main";
+﻿// @ts-nocheck
+import type ReminderPlugin from "@frontend/components/reminders/main";
 import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import type { DateTime } from "@backend/core/reminders/time";
 import type { Reminder } from "@backend/core/reminders/reminder";

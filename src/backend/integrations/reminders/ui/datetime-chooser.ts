@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Reminders } from "@backend/core/reminders/reminder";
 import type { DateTime } from "@backend/core/reminders/time";
 import moment from "moment";

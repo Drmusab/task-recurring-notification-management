@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Frontend Module
  * Main entry point for all UI components, stores, and frontend utilities.

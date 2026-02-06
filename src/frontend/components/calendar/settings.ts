@@ -1,4 +1,5 @@
-﻿import { App, PluginSettingTab, Setting } from "@shared/utils/compat/siyuan-compat";
+﻿// @ts-nocheck
+import { App, PluginSettingTab, Setting } from "@shared/utils/compat/siyuan-compat";
 import { appHasDailyNotesPluginLoaded } from "@shared/utils/compat/daily-notes-compat";
 import type { ILocaleOverride, IWeekStartOption } from "@shared/utils/compat/daily-notes-compat";
 

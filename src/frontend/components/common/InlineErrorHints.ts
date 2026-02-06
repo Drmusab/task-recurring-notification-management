@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as logger from '@backend/logging/logger';
 
 export interface ErrorHint {

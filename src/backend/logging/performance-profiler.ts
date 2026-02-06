@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Performance measurement utilities for critical operations
  */

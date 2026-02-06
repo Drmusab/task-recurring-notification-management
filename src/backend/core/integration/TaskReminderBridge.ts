@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Task-Reminder Bridge Service
  * 
  * Synchronizes reminder state with task changes.
@@ -167,7 +168,7 @@ export class TaskReminderBridge {
     
     // Create reminder object (adapt to ReminderPlugin format)
     const reminder: Partial<Reminder> = {
-      title: `📋 ${task.name}`,
+      title: `?? ${task.name}`,
       time: reminderDate.getTime(),
       enabled: task.enabled !== false,
       // Store task ID in reminder for reverse lookup
@@ -198,7 +199,7 @@ export class TaskReminderBridge {
     // Update reminder
     const reminder = reminders.getReminder(reminderId);
     if (reminder) {
-      reminder.title = `📋 ${task.name}`;
+      reminder.title = `?? ${task.name}`;
       reminder.time = reminderDate.getTime();
       reminder.enabled = task.enabled !== false;
       

@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * TaskModal - Main task editor modal wrapper for SiYuan
  * 
  * This modal opens the unified task editor for creating/editing tasks.

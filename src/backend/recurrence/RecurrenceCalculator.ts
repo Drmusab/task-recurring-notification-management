@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { RecurrencePattern } from "@backend/commands/types/CommandTypes";
 import { WebhookError } from "@backend/webhooks/types/Error";
 

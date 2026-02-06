@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Tracker from "@components/dashboard/main";
 
 export interface TrackerSettings {

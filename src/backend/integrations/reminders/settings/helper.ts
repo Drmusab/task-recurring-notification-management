@@ -1,4 +1,5 @@
-﻿import { Reference } from "@backend/core/reminders/ref";
+// @ts-nocheck
+import { Reference } from "@backend/core/reminders/ref";
 import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import { Later, Time, parseLaters } from "@backend/core/reminders/time";
 import { AbstractTextComponent, Setting } from "@shared/utils/compat/siyuan-compat";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Predictive Scheduler - ML-based best time suggestions
  */

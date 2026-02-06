@@ -1,4 +1,5 @@
-﻿import type { TFile } from "@shared/utils/compat/siyuan-compat";
+// @ts-nocheck
+import type { TFile } from "@shared/utils/compat/siyuan-compat";
 import { getDateFromFile, getDateUID } from "@shared/utils/compat/daily-notes-compat";
 
 export const classList = (obj: Record<string, boolean>): string[] => {

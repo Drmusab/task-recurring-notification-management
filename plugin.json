@@ -1,24 +1,38 @@
 {
   "name": "task-recurring-notfication-mangmant",
   "author": "Drmusab",
-  "url": "",
-  "version": "0.0.1",
-  "minAppVersion": "2.9.0",
+  "url": "https://github.com/Drmusab/task-recurring-notification-management",
+  "version": "1.0.0",
+  "minAppVersion": "3.0.0",
   "backends": ["all"],
   "frontends": ["all"],
   "displayName": {
-    "default": "task-recurring-notfication-mangmant",
-    "zh_CN": "循环任务管理器"
+    "default": "Task Recurring Notification Management",
+    "zh_CN": "任务循环通知管理",
+    "ar_SA": "إدارة إشعارات المهام المتكررة"
   },
   "description": {
-    "default": "Advanced recurring task management with notifications via n8n, Telegram, and Gmail",
-    "zh_CN": "高级循环任务管理，支持通过 n8n、Telegram 和 Gmail 发送通知"
+    "default": "Advanced recurring task scheduling with notifications, natural language input, and intelligent suggestions.",
+    "zh_CN": "高级循环任务调度，支持通知、自然语言输入和智能建议。",
+    "ar_SA": "جدولة المهام المتكررة المتقدمة مع الإشعارات والإدخال باللغة الطبيعية والاقتراحات الذكية."
   },
   "readme": {
     "default": "README.md",
-    "zh_CN": "README.md"
+    "zh_CN": "README_zh_CN.md"
   },
   "funding": {
+    "openCollective": "",
+    "patreon": "",
+    "github": "Drmusab",
     "custom": []
-  }
+  },
+  "keywords": [
+    "tasks",
+    "recurring",
+    "notifications",
+    "productivity",
+    "scheduling",
+    "automation"
+  ],
+  "icon": "icon.png"
 }

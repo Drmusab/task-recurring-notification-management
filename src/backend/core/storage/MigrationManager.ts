@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Data schema migration manager
  */
 

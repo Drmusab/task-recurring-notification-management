@@ -16,6 +16,8 @@ export interface N8nConfig {
   webhookUrl: string;
   sharedSecret: string;
   enabled: boolean;
+  /** When true, send raw sharedSecret in X-Shehab-Note-Secret header (deprecated, prefer HMAC) */
+  useLegacyAuth?: boolean;
 }
 
 /**

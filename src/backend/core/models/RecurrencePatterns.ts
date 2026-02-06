@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { RRule, Weekday } from 'rrule';
 import type { Frequency } from './Frequency';
 

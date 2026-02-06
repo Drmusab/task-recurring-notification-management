@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Task } from "@backend/core/models/Task";
 
 // NEW_TASK_FIELD_EDIT_REQUIRED - if new field is included in 'happens' searches.

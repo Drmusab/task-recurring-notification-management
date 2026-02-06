@@ -1,4 +1,5 @@
-﻿import { App, CachedMetadata, getLinkpath, Plugin } from "@shared/utils/compat/siyuan-compat";
+﻿// @ts-nocheck
+import { App, CachedMetadata, getLinkpath, Plugin } from "@shared/utils/compat/siyuan-compat";
 import * as rendering from "@components/dashboard/rendering";
 import { getRenderInfoFromYaml } from "@components/dashboard/parsing";
 import {

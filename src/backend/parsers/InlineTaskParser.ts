@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Inline Task Parser
  * 

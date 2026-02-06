@@ -8,9 +8,6 @@ import {
   STORAGE_ARCHIVE_KEY,
   STORAGE_LEGACY_BACKUP_KEY,
   STORAGE_LEGACY_KEY,
-  MAX_SYNC_RETRIES,
-  RETRY_DELAYS,
-  SYNC_RETRY_PROCESSOR_INTERVAL,
 } from "@shared/constants/misc-constants";
 import { ActiveTaskStore } from "@backend/core/storage/ActiveTaskStore";
 import { ArchiveTaskStore, type ArchiveQuery } from "@backend/core/storage/ArchiveTaskStore";
@@ -24,15 +21,6 @@ import {
   reportSiYuanApiIssue,
 } from "@backend/core/api/SiYuanApiAdapter";
 import { GlobalFilter } from '@backend/core/filtering/GlobalFilter'; // Add this import
-
-/**
- * Retry queue entry for failed block attribute syncs
- */
-interface SyncRetryEntry {
-  task: Task;
-  attempts: number;
-  nextRetry: number;
-}
 
 /**
  * TaskStorage manages task persistence using SiYuan storage API.
@@ -63,10 +51,9 @@ export class TaskStorage implements TaskStorageProvider {
   private blockApi: SiYuanBlockAPI;
   private apiAdapter: SiYuanApiAdapter;
   
-  // Retry queue for failed block attribute syncs
-  private syncRetryQueue: Map<string, SyncRetryEntry> = new Map();
+  // Retry queue for failed block attribute syncs (timeout-based, managed per blockId)
   private blockAttrRetryQueue: Map<string, { attrs: Record<string, string>; attempts: number }> = new Map();
-  private retryProcessorInterval?: NodeJS.Timeout;
+  private blockAttrRetryTimeouts: Map<string, number> = new Map(); // Track setTimeout IDs for cleanup
 
   constructor(plugin: Plugin, apiAdapter: SiYuanApiAdapter = new SiYuanApiAdapter()) {
     this.plugin = plugin;
@@ -98,7 +85,6 @@ export class TaskStorage implements TaskStorageProvider {
     logger.info(`Loaded ${this.activeTasks.size} active tasks from storage (after global filter)`);
     this.rebuildBlockIndex();
     this.rebuildDueIndex();
-    this.startSyncRetryProcessor();
   }
 
   /**
@@ -400,7 +386,6 @@ export class TaskStorage implements TaskStorageProvider {
           feature: err.feature,
           capability: err.capability,
           message: err.message,
-          cause: err.cause,
         });
         this.blockAttrSyncEnabled = false;
       } else if (err instanceof SiYuanApiExecutionError) {
@@ -436,11 +421,20 @@ export class TaskStorage implements TaskStorageProvider {
     if (attempts > 3) {
       logger.warn(`Block attr sync for ${blockId} failed after 3 retries, giving up`);
       this.blockAttrRetryQueue.delete(blockId);
+      this.blockAttrRetryTimeouts.delete(blockId);
       return;
     }
     this.blockAttrRetryQueue.set(blockId, { attrs, attempts });
-    // Schedule retry
-    globalThis.setTimeout(() => {
+
+    // Clear any previously scheduled retry for this block
+    const existingTimeout = this.blockAttrRetryTimeouts.get(blockId);
+    if (existingTimeout !== undefined) {
+      globalThis.clearTimeout(existingTimeout);
+    }
+
+    // Schedule retry and track the timeout ID
+    const timeoutId = globalThis.setTimeout(() => {
+      this.blockAttrRetryTimeouts.delete(blockId);
       const entry = this.blockAttrRetryQueue.get(blockId);
       if (entry) {
         this.blockAttrRetryQueue.delete(blockId);
@@ -448,7 +442,8 @@ export class TaskStorage implements TaskStorageProvider {
           // Will re-queue itself if still failing
         });
       }
-    }, 2000 * attempts);
+    }, 2000 * attempts) as unknown as number;
+    this.blockAttrRetryTimeouts.set(blockId, timeoutId);
   }
 
   /**
@@ -551,7 +546,7 @@ export class TaskStorage implements TaskStorageProvider {
       return;
     }
 
-    const legacyTasks = Array.isArray(legacyData.tasks) ? legacyData.tasks : Array.isArray(legacyData) ? legacyData : [];
+    const legacyTasks: Task[] = Array.isArray(legacyData.tasks) ? legacyData.tasks as Task[] : Array.isArray(legacyData) ? legacyData as Task[] : [];
     if (legacyTasks.length === 0) {
       return;
     }
@@ -580,108 +575,32 @@ export class TaskStorage implements TaskStorageProvider {
   }
 
   /**
-   * Sync task data to block attributes with retry support
+   * Sync task data to block attributes with retry support.
+   * On transient failure, updateBlockAttrs() internally queues a retry
+   * via queueBlockAttrRetry(), so no second retry layer is needed.
    */
   private async syncTaskToBlockAttrsWithRetry(task: Task): Promise<void> {
     try {
       await this.syncTaskToBlockAttrs(task);
-      
-      // If successful, remove from retry queue if it was there
-      this.syncRetryQueue.delete(task.id);
     } catch (err) {
-      // Add to retry queue
-      const retryEntry = this.syncRetryQueue.get(task.id) || {
-        task,
-        attempts: 0,
-        nextRetry: Date.now(),
-      };
-      
-      if (retryEntry.attempts < MAX_SYNC_RETRIES) {
-        retryEntry.attempts++;
-        retryEntry.nextRetry = Date.now() + RETRY_DELAYS[retryEntry.attempts - 1];
-        retryEntry.task = task; // Update with latest task data
-        this.syncRetryQueue.set(task.id, retryEntry);
-        
-        logger.warn(`Block sync failed for task ${task.id}, added to retry queue`, {
-          taskId: task.id,
-          attempts: retryEntry.attempts,
-          nextRetry: new Date(retryEntry.nextRetry).toISOString(),
-          error: err instanceof Error ? err.message : String(err),
-        });
-      } else {
-        // Max retries exceeded
-        logger.error(`Block sync failed for task ${task.id} after ${MAX_SYNC_RETRIES} attempts`, {
-          taskId: task.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        this.syncRetryQueue.delete(task.id);
-      }
+      // updateBlockAttrs already handles retries for transient errors.
+      // Log the top-level failure for observability.
+      logger.warn(`Initial block sync failed for task ${task.id}, retry queued if transient`, {
+        taskId: task.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
-  }
-
-  /**
-   * Start background processor for retry queue
-   */
-  private startSyncRetryProcessor(): void {
-    if (this.retryProcessorInterval) {
-      clearInterval(this.retryProcessorInterval);
-    }
-    
-    this.retryProcessorInterval = setInterval(async () => {
-      const now = Date.now();
-      const toRetry: Array<{ id: string; entry: { task: Task; attempts: number; nextRetry: number } }> = [];
-      
-      // Collect entries ready for retry
-      for (const [id, entry] of this.syncRetryQueue.entries()) {
-        if (entry.nextRetry <= now) {
-          toRetry.push({ id, entry });
-        }
-      }
-      
-      // Process retries
-      for (const { id, entry } of toRetry) {
-        try {
-          await this.syncTaskToBlockAttrs(entry.task);
-          
-          // Success - remove from queue
-          this.syncRetryQueue.delete(id);
-          logger.info(`Block sync retry succeeded for task ${id}`, {
-            taskId: id,
-            attempts: entry.attempts,
-          });
-        } catch (err) {
-          // Failed again - update retry info
-          if (entry.attempts < MAX_SYNC_RETRIES) {
-            entry.attempts++;
-            entry.nextRetry = Date.now() + RETRY_DELAYS[entry.attempts - 1];
-            this.syncRetryQueue.set(id, entry);
-            
-            logger.warn(`Block sync retry failed for task ${id}`, {
-              taskId: id,
-              attempts: entry.attempts,
-              nextRetry: new Date(entry.nextRetry).toISOString(),
-              error: err instanceof Error ? err.message : String(err),
-            });
-          } else {
-            // Max retries exceeded
-            logger.error(`Block sync retry exhausted for task ${id} after ${MAX_SYNC_RETRIES} attempts`, {
-              taskId: id,
-              error: err instanceof Error ? err.message : String(err),
-            });
-            this.syncRetryQueue.delete(id);
-          }
-        }
-      }
-    }, SYNC_RETRY_PROCESSOR_INTERVAL);
   }
 
   /**
    * Stop the retry processor (call on plugin unload)
    */
   stopSyncRetryProcessor(): void {
-    if (this.retryProcessorInterval) {
-      clearInterval(this.retryProcessorInterval);
-      this.retryProcessorInterval = undefined;
+    // Clear all pending block attr retry timeouts to prevent orphaned callbacks
+    for (const timeoutId of this.blockAttrRetryTimeouts.values()) {
+      globalThis.clearTimeout(timeoutId);
     }
+    this.blockAttrRetryTimeouts.clear();
+    this.blockAttrRetryQueue.clear();
   }
 }

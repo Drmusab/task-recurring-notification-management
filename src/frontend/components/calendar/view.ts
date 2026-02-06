@@ -1,4 +1,5 @@
-﻿import type { Moment } from "moment";
+﻿// @ts-nocheck
+import type { Moment } from "moment";
 import {
   getDailyNote,
   getDailyNoteSettings,

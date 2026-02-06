@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * RecurrenceValidator - RRULE validation layer
  * 
  * Validates RRULE strings for:

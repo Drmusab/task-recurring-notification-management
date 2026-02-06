@@ -132,17 +132,17 @@ export class RecurrenceEngineRRULE {
       // Try to parse the RRULE - can return RRule or RRuleSet
       const parsed = rrulestr(normalized);
       
-      // Extract options from parsed rule
+      // Extract options from parsed rule (check RRuleSet first since it extends RRule)
       let options;
-      if (parsed instanceof RRule) {
-        options = { ...parsed.origOptions };
-      } else if (parsed instanceof RRuleSet) {
+      if (parsed instanceof RRuleSet) {
         const rrules = parsed.rrules();
         if (rrules && rrules.length > 0) {
-          options = { ...rrules[0].origOptions };
+          options = { ...rrules[0]!.origOptions };
         } else {
           return { valid: false, error: 'RRuleSet has no rrules' };
         }
+      } else if (parsed instanceof RRule) {
+        options = { ...parsed.origOptions };
       } else {
         return { valid: false, error: 'Unexpected parsed rule type' };
       }
@@ -192,18 +192,18 @@ export class RecurrenceEngineRRULE {
       const normalized = rruleString.startsWith('RRULE:') ? rruleString : `RRULE:${rruleString}`;
       const parsed = rrulestr(normalized);
       
-      // Extract options from parsed rule
+      // Extract options from parsed rule (check RRuleSet first since it extends RRule)
       let options;
-      if (parsed instanceof RRule) {
-        options = parsed.origOptions;
-      } else if (parsed instanceof RRuleSet) {
+      if (parsed instanceof RRuleSet) {
         // It's an RRuleSet, get the first rrule
         const rrules = parsed.rrules();
         if (rrules && rrules.length > 0) {
-          options = rrules[0].origOptions;
+          options = rrules[0]!.origOptions;
         } else {
           return rruleString;
         }
+      } else if (parsed instanceof RRule) {
+        options = parsed.origOptions;
       } else {
         return rruleString;
       }
@@ -242,18 +242,18 @@ export class RecurrenceEngineRRULE {
     // Parse the RRULE string - rrulestr can return RRule or RRuleSet
     const parsed = rrulestr(normalized);
     
-    // Extract options from parsed rule
+    // Extract options from parsed rule (check RRuleSet first since it extends RRule)
     let options;
-    if (parsed instanceof RRule) {
-      options = { ...parsed.origOptions };
-    } else if (parsed instanceof RRuleSet) {
+    if (parsed instanceof RRuleSet) {
       // Extract first rrule from the set
       const rrules = parsed.rrules();
       if (rrules && rrules.length > 0) {
-        options = { ...rrules[0].origOptions };
+        options = { ...rrules[0]!.origOptions };
       } else {
         throw new Error('RRuleSet has no rrules');
       }
+    } else if (parsed instanceof RRule) {
+      options = { ...parsed.origOptions };
     } else {
       throw new Error('Unexpected parsed rule type');
     }
@@ -301,8 +301,10 @@ export class RecurrenceEngineRRULE {
     }
 
     try {
-      const [hours, minutes] = frequency.time.split(':').map(Number);
-      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      const parts = frequency.time.split(':').map(Number);
+      const hours = parts[0];
+      const minutes = parts[1];
+      if (hours == null || minutes == null || !Number.isFinite(hours) || !Number.isFinite(minutes)) {
         return date;
       }
 
@@ -355,10 +357,16 @@ export class RecurrenceEngineRRULE {
     }
 
     if (frequency.type === 'monthly' && frequency.dayOfMonth) {
-      // If day is 29, 30, or 31, use BYMONTHDAY=-1 for last day of month
-      // to match the old RecurrenceEngine behavior of clamping to month end
-      if (frequency.dayOfMonth >= 29) {
+      // Handle end-of-month edge cases:
+      //   31 → always last day (-1)
+      //   30 → 30th, or last day if month has < 30 days (Feb)
+      //   29 → 29th, or last day if month has < 29 days (Feb non-leap)
+      if (frequency.dayOfMonth === 31) {
         parts.push(`BYMONTHDAY=-1`);
+      } else if (frequency.dayOfMonth === 30) {
+        parts.push(`BYMONTHDAY=30,-1`);
+      } else if (frequency.dayOfMonth === 29) {
+        parts.push(`BYMONTHDAY=29,-1`);
       } else {
         parts.push(`BYMONTHDAY=${frequency.dayOfMonth}`);
       }
@@ -369,9 +377,12 @@ export class RecurrenceEngineRRULE {
         parts.push(`BYMONTH=${frequency.month + 1}`); // RRule months are 1-indexed
       }
       if (frequency.dayOfMonth) {
-        // Same logic for yearly - use last day of month for 29-31
-        if (frequency.dayOfMonth >= 29) {
+        if (frequency.dayOfMonth === 31) {
           parts.push(`BYMONTHDAY=-1`);
+        } else if (frequency.dayOfMonth === 30) {
+          parts.push(`BYMONTHDAY=30,-1`);
+        } else if (frequency.dayOfMonth === 29) {
+          parts.push(`BYMONTHDAY=29,-1`);
         } else {
           parts.push(`BYMONTHDAY=${frequency.dayOfMonth}`);
         }

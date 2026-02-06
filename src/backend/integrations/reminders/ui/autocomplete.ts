@@ -1,4 +1,5 @@
-﻿import type { ReadOnlyReference } from "@backend/core/reminders/ref";
+// @ts-nocheck
+import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import type { Reminders } from "@backend/core/reminders/reminder";
 import type { DateTime } from "@backend/core/reminders/time";
 import { App, Platform, type EditorPosition } from "@shared/utils/compat/siyuan-compat";

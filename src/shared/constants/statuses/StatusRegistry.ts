@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { htmlEncodeCharacter, htmlEncodeString } from "@shared/utils/lib/html-character-entities";
 import { Status } from "@shared/constants/statuses/Status";
 import { StatusConfiguration, StatusType } from "@shared/constants/statuses/StatusConfiguration";

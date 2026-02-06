@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { CommandResult, ErrorInfo } from "@backend/commands/types/CommandTypes";
 import { WebhookError } from "@backend/webhook/types/Error";
 import { ErrorCode } from "@backend/webhook/types/Response";

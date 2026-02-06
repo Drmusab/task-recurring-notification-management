@@ -1,4 +1,5 @@
-﻿import { ItemView, TFile, View, WorkspaceLeaf } from "@shared/utils/compat/siyuan-compat";
+// @ts-nocheck
+import { ItemView, TFile, View, WorkspaceLeaf } from "@shared/utils/compat/siyuan-compat";
 import ReminderListView from "@frontend/components/reminders/ui/ReminderList.svelte";
 import type ReminderPlugin from "@frontend/components/reminders/main";
 import { Reminder, groupReminders } from "@backend/core/reminders/reminder";

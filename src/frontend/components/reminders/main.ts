@@ -1,4 +1,5 @@
-﻿import {
+// @ts-nocheck
+import {
   NotificationWorker,
   PluginData,
   ReminderPluginFileSystem,

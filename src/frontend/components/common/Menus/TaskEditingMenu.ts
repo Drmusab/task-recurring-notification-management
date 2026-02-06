@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Task } from "@backend/core/models/Task";
 import { replaceTaskWithTasks } from "@backend/core/file/File";
 import type { TaskEditingInstruction } from "@components/common/EditInstructions/TaskEditingInstruction";

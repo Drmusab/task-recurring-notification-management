@@ -16,6 +16,12 @@ export default mergeConfig(
         'src/features/**/*.test.ts',
         'tests/**/*.test.ts',
       ],
+      exclude: [
+        // These skipped test suites depend on 'axios' which is not installed.
+        // They are integration/security stubs with describe.skip — exclude to avoid import errors.
+        'tests/integration/webhook-server.test.ts',
+        'tests/security/replay-attack.test.ts',
+      ],
     },
     resolve: {
       alias: {

@@ -53,7 +53,7 @@ export class Scheduler {
   ) {
     this.storage = storage;
     this.recurrenceEngine = new RecurrenceEngine();
-    this.onCompletionHandler = new OnCompletionHandler(plugin);
+    this.onCompletionHandler = new OnCompletionHandler(plugin as never);
     this.timezoneHandler = new TimezoneHandler();
     this.plugin = plugin || null;
     this.timer = new SchedulerTimer(intervalMs, () => {
@@ -89,16 +89,21 @@ export class Scheduler {
   }
 
   /**
-   * Stop the scheduler
+   * Stop the scheduler and persist emitted state.
+   * Returns a promise so callers can await final persistence before teardown.
    */
-  stop(): void {
+  async stop(): Promise<void> {
     this.timer.stop();
     // Clear any pending debounce timer to prevent writes after shutdown
     if (this.persistTimeoutId !== null) {
       globalThis.clearTimeout(this.persistTimeoutId);
       this.persistTimeoutId = null;
     }
-    void this.persistEmittedState();
+    try {
+      await this.persistEmittedState();
+    } catch (err) {
+      logger.error("Failed to persist emitted state during stop", err);
+    }
     logger.info("Scheduler stopped");
   }
 
@@ -269,7 +274,15 @@ export class Scheduler {
     recordCompletion(task);
 
     const completionSnapshot = JSON.parse(JSON.stringify(task));
-    await this.storage.archiveTask(completionSnapshot);
+    try {
+      await this.storage.archiveTask(completionSnapshot);
+    } catch (archiveErr) {
+      // Archive is non-critical — log and continue with rescheduling
+      logger.error(`Failed to archive task "${task.name}"`, {
+        taskId: task.id,
+        error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
+      });
+    }
 
     // Execute onCompletion action if specified
     const onCompletionAction = task.onCompletion || 'keep';
@@ -650,7 +663,7 @@ export class Scheduler {
     this.persistTimeoutId = globalThis.setTimeout(() => {
       this.persistTimeoutId = null;
       void this.persistEmittedState();
-    }, this.EMITTED_SAVE_DEBOUNCE_MS) as number;
+    }, this.EMITTED_SAVE_DEBOUNCE_MS) as unknown as number;
   }
 
   private async persistEmittedState(): Promise<void> {

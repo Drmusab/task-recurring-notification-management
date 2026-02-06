@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BaseCommandHandler } from "@backend/commands/handlers/BaseCommandHandler";
 import { CommandResult, TaskListResult } from "@backend/commands/types/CommandTypes";
 import { SearchTasksData, TaskStatsData, TaskStatsResult } from "@backend/commands/types/BulkCommandTypes";

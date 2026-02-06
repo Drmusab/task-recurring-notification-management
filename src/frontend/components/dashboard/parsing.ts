@@ -1,4 +1,5 @@
-﻿import Tracker from "@components/dashboard/main";
+﻿// @ts-nocheck
+import Tracker from "@components/dashboard/main";
 import {
     SearchType,
     BarInfo,

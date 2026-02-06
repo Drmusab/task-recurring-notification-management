@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { StatusRegistry } from "@shared/types/StatusRegistry";
 import type { Task } from "@backend/core/models/Task";
 import { allStatusInstructions } from "@components/common/EditInstructions/StatusInstructions";

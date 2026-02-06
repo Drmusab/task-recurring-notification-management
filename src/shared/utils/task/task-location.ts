@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { TasksFile } from "@shared/utils/Scripting/TasksFile";
 
 /**

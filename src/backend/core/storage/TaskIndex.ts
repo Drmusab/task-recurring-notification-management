@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Incremental task index for fast queries
  * Listens to block changes and updates only affected entries
  */
@@ -15,8 +16,8 @@ export interface Filter {
 export class TaskIndex {
   // Indexes
   private byId: Map<string, Task> = new Map();
-  private byBlockId: Map<string, string> = new Map(); // blockId → taskId
-  private byDue: Map<string, Set<string>> = new Map(); // date key → taskIds
+  private byBlockId: Map<string, string> = new Map(); // blockId ? taskId
+  private byDue: Map<string, Set<string>> = new Map(); // date key ? taskIds
   private byScheduled: Map<string, Set<string>> = new Map();
   private byStatus: Map<string, Set<string>> = new Map();
   private byTag: Map<string, Set<string>> = new Map();

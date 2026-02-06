@@ -520,5 +520,25 @@
     "taskDelayed": "Task delayed to tomorrow",
     "saveFailed": "Failed to save task",
     "loadFailed": "Failed to load tasks"
-  }
+  },
+
+  "displayName": "Task Recurring Notification Management",
+  "description": "Advanced recurring task scheduling with notifications",
+  "dockTitle": "Recurring Tasks",
+  "topBarTitle": "Recurring Tasks - Click to toggle",
+  "newTask": "New Task",
+  "editTask": "Edit Task",
+  "deleteTask": "Delete Task",
+  "completeTask": "Complete Task",
+  "pauseTask": "Pause Task",
+  "resumeTask": "Resume Task",
+  "today": "Today",
+  "upcoming": "Upcoming",
+  "completed": "Completed",
+  "overdue": "Overdue",
+  "all": "All Tasks",
+  "settings": "Settings",
+  "notifications": "Notifications",
+  "filters": "Filters",
+  "suggestions": "AI Suggestions"
 }

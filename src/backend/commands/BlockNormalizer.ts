@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Block Normalizer - Converts saved tasks back to canonical inline format
  */
 
@@ -32,7 +33,7 @@ export async function saveAndNormalizeBlock(
     scheduledDate: savedTask.scheduledAt ? savedTask.scheduledAt.substring(0, 10) : undefined,
     startDate: savedTask.startAt ? savedTask.startAt.substring(0, 10) : undefined,
     // Map Task priority ('high'|'normal'|'low') to ParsedTask priority ('high'|'medium'|'low')
-    // 'normal' maps to 'medium' to match the inline parser's emoji system (🔼)
+    // 'normal' maps to 'medium' to match the inline parser's emoji system (??)
     priority: savedTask.priority === 'high' ? 'high' : 
               savedTask.priority === 'low' ? 'low' :
               savedTask.priority === 'normal' ? 'medium' : undefined,

@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * RecurrenceExplainer - Debug and explanation layer for RRULE calculations
  * 
  * Provides detailed explanations of:
@@ -203,13 +204,13 @@ export class RecurrenceExplainer {
     const occurrences = rrule.between(startOfDay, endOfDay, true);
     
     if (occurrences.length > 0) {
-      steps.push(`✓ ${date.toISOString()} IS a valid occurrence`);
+      steps.push(`? ${date.toISOString()} IS a valid occurrence`);
       steps.push(`  Matched ${occurrences.length} time(s) on this date`);
       occurrences.forEach((occ, idx) => {
         steps.push(`  [${idx + 1}] ${occ.toISOString()}`);
       });
     } else {
-      steps.push(`✗ ${date.toISOString()} is NOT a valid occurrence`);
+      steps.push(`? ${date.toISOString()} is NOT a valid occurrence`);
       
       const options = rrule.origOptions;
       

@@ -1,4 +1,5 @@
-﻿import { App, FuzzySuggestModal } from "@shared/utils/compat/siyuan-compat";
+// @ts-nocheck
+import { App, FuzzySuggestModal } from "@shared/utils/compat/siyuan-compat";
 
 class DateTimeFormatModal extends FuzzySuggestModal<string> {
   constructor(

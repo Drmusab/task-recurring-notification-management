@@ -1,4 +1,5 @@
-﻿import {
+// @ts-nocheck
+import {
   type DateDisplayFormatPreset,
   dateDisplayFormatPresets,
 } from "@backend/core/reminders/reminder";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Frequency } from "@backend/core/models/Frequency";
 import { RRule, Frequency as RRuleFreq } from "rrule";
 

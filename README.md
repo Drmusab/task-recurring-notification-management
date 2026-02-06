@@ -1,275 +1,172 @@
-﻿# Shehab-Note Recurring Task Manager
+﻿# Task Recurring Notification Management
 
-A powerful recurring task management plugin for Shehab-Note (SiYuan fork) with advanced scheduling, multi-channel notifications, visual timeline planning, and **inline task creation**.
+Advanced recurring task scheduling plugin for SiYuan Note with intelligent notifications, natural language processing, and AI-powered suggestions.
 
-## Features
+## ✨ Features
 
-### ✨ Inline Task Creation (NEW)
-
-Create tasks directly in your notes using natural markdown syntax with emoji-based metadata:
-
-```markdown
-- [ ] Buy groceries 📅 tomorrow #personal
-- [ ] Weekly report 📅 next friday 🔁 every week 🔼 #work
-- [ ] Deploy app 🆔 deploy-v2 ⛔ tests-pass 🔺 #release
-```
-
-**🎯 Auto-Creation (Phase 3):**
-- ⚡ **Automatic task creation** - Press Enter or blur to auto-create tasks
-- 🛡️ **Duplicate prevention** - Won't create multiple tasks for the same checklist
-- 💡 **Visual error hints** - See parse errors inline without corrupting text
-- ⚙️ **Flexible settings** - Control when and how tasks are created
-
-[📖 Auto-Creation Guide](./docs/AUTO_CREATION.md) | [📖 Inline Syntax Reference](./docs/InlineTaskSyntax.md)
-
-**Supported metadata:**
-- 📅 **Due dates:** ISO dates or natural language (today, tomorrow, next week, etc.)
-- ⏳ **Scheduled dates:** When to start working
-- 🛫 **Start dates:** Earliest start date
-- 🔁 **Recurrence:** `every day/week/month/year`, `when done`, custom patterns
-- 🔺🔼🔽 **Priority:** High, Medium, Low
-- 🆔 **Task IDs:** Unique identifiers
-- ⛔ **Dependencies:** Link tasks together
-- #️⃣ **Tags:** Categorize and filter
-
-### 🔁 Advanced Recurrence Rules
-- **Daily, Weekly, Monthly scheduling** with customizable intervals
-- **Fixed-time scheduling** (e.g., every day at 09:00)
-- **Weekday-specific rules** for weekly tasks
-- **Intelligent rescheduling** after task completion
-
-### 📋 Task Management
-- **Today & Overdue View** - Quick access to tasks requiring attention
-- **All Tasks View** - Comprehensive task management with enable/disable toggles
-- **Timeline View** - Visual calendar showing upcoming tasks for the next 30 days
-
-### 📅 Natural Language Date Parsing (NEW)
-Create tasks faster by typing dates naturally:
-
-- **Relative dates**: `tomorrow`, `in 3 days`, `next week`, `next month`
-- **Named days**: `Monday`, `next Friday`, `last Tuesday`  
-- **Specific dates**: `Jan 15`, `2024-01-15`, `March 3rd`
-- **Times**: `at 9am`, `2:30pm`, `14:00`
-- **Combined**: `tomorrow at 3pm`, `next Friday at 9am`
-- **Shortcuts**: `eod` (end of day), `eow` (end of week), `eom` (end of month)
-
-**Features:**
-- 🎯 **Smart autocomplete** - Intelligent suggestions as you type
-- ⌨️ **Keyboard shortcuts** - Quick date entry (Ctrl/Cmd+T for today, Ctrl/Cmd+M for tomorrow)
-- ✓ **Real-time validation** - Visual feedback shows parsed dates instantly
-- 🔄 **Fallback date picker** - Traditional date/time picker always available
-
-See [Natural Language Dates Documentation](docs/NATURAL_LANGUAGE_DATES.md) for complete reference.
-
-### 🤖 AI-Driven Features (NEW)
-- **Smart Suggestions** - AI-powered recommendations based on completion patterns
-  - Abandonment detection for never-completed tasks
-  - Reschedule suggestions based on when you actually complete tasks
-  - Urgency alerts for frequently missed tasks
-  - Frequency optimization for tasks you complete more often than scheduled
-  - Consolidation suggestions for similar tasks
-  - Delegation recommendations based on delay patterns
-- **Predictive Scheduling** - ML-based time slot scoring
-  - Analyzes historical success rates
-  - Considers workload balance and task density
-  - Respects user preferences and energy levels
-  - Minimizes context switching
-- **Keyboard Navigation** - Vim-like shortcuts for power users
-  - Full keyboard control (j/k navigation, dd delete, yy duplicate)
-  - Multiple modes: Normal, Insert, Visual, Command
-  - Command palette for advanced operations
-  - Customizable keybindings
-
-See [AI Features Documentation](docs/AI_FEATURES.md) for detailed information.
-
-### 🏗️ Dashboard Architecture (NEW)
-
-The plugin features a modern, well-architected dashboard system with clear separation of concerns:
-
-- **Adapter Layer** - Type-safe data transformation between UI and business logic
-- **Validation Layer** - Robust input validation before persistence
-- **Persistent Dashboard** - Always-available sidebar interface for quick task creation
-- **Comprehensive Testing** - 59 unit and integration tests for adapters, validators, and dashboard
-
-**Documentation:**
-- [Architecture Diagram](docs/integration/architecture-diagram.md) - System architecture overview
-- [Data Flow](docs/integration/data-flow.md) - How data moves through the system
-- [Field Mapping](docs/integration/field-mapping.md) - Complete field reference
-- [Migration Guide](docs/integration/migration-guide.md) - Upgrade guide for users
+### 📅 Flexible Recurrence Rules
+- **Preset patterns**: Daily, weekly, monthly, yearly
+- **Custom intervals**: "Every 3 days", "Every 2 weeks"
+- **Recurrence modes**: 
+  - **From due date**: Next occurrence calculated from original due date
+  - **When done**: Next occurrence calculated from completion date
 
 ### 🔔 Multi-Channel Notifications
-- **n8n** - Webhook integration for workflow automation
-- **Telegram** - Direct messaging via Telegram Bot API
-- **Gmail** - Email notifications via Gmail API
-- Send custom payloads including notes, media URLs, and links
+- **Browser Notifications**: Native desktop notifications
+- **Telegram Bot**: Send task reminders via Telegram
+- **Gmail Integration**: Email notifications with OAuth
+- **n8n Webhooks**: Trigger custom automation workflows
 
-### 🎯 Task Actions
-- **✅ Done** - Mark task complete and automatically schedule next occurrence
-- **🕒 Delay** - Postpone task to tomorrow without affecting recurrence pattern
-- **✏️ Edit** - Modify task details, frequency, and notification settings
-- **🗑️ Delete** - Remove tasks permanently
+### 🗣️ Natural Language Input
+Powered by `chrono-node` for intelligent date parsing:
+- "tomorrow at 3pm"
+- "next Monday"
+- "in 3 days"
+- "February 14th at 9am"
 
-## Installation
+### 🤖 AI-Powered Suggestions
+- Pattern recognition based on your task history
+- Smart recurrence recommendations
+- Predictive task scheduling
 
-1. Download the latest release from the [releases page](https://github.com/Drmusab/plugin-sample-shehab-note/releases)
-2. Extract the `package.zip` to your Shehab-Note plugins directory
-3. Restart Shehab-Note or reload plugins
-4. Open the "Recurring Tasks" dock panel from the right sidebar
+### 📊 Advanced Filtering
+- **Regex support**: Filter tasks by title/description patterns
+- **Tag filtering**: Multiple tag selection with AND/OR logic
+- **Priority filtering**: Filter by low/medium/high/urgent
+- **Date range filtering**: Custom date ranges
 
-## Development
+### 🔗 SiYuan Integration
+- **Block linking**: Associate tasks with document blocks
+- **Inline task creation**: Use `[[task::...]]` syntax in notes
+- **Bidirectional sync**: Tasks update when blocks change (if supported by SiYuan version)
+
+### 🌍 Multi-Language Support
+- English (en_US)
+- Simplified Chinese (zh_CN)
+- Arabic (ar_SA) - Coming soon
+
+## 📦 Installation
+
+### From SiYuan Marketplace
+1. Open SiYuan → Settings → Marketplace → Plugins
+2. Search for "Task Recurring Notification Management"
+3. Click Install
+4. Restart SiYuan
+
+### Manual Installation
+```bash
+cd /path/to/siyuan/data/plugins
+git clone https://github.com/Drmusab/task-recurring-notification-management.git task-recurring-notfication-mangmant
+cd task-recurring-notfication-mangmant
+npm install
+npm run build
+```
+
+## 🚀 Usage
+
+### Quick Start
+1. Click the calendar icon in the top bar
+2. Click "New Task" to create your first task
+3. Enter task details and set recurrence
+4. Configure notifications in Settings
+
+### Inline Task Creation
+In any SiYuan document, type:
+```
+[[task::Buy groceries every Monday at 9am]]
+```
+
+The plugin will automatically create a task linked to that block.
+
+### Keyboard Shortcuts
+- `⌘⇧N` (Mac) / `Ctrl+Shift+N` (Windows): Create new task
+- `⌘⌥T` (Mac) / `Ctrl+Alt+T` (Windows): Toggle task panel
+
+## 🔧 Development
 
 ### Prerequisites
-- Node.js 16+ and npm
-- Shehab-Note or SiYuan installation
+- Node.js 18+
+- npm or pnpm
 
 ### Setup
-
 ```bash
+# Clone repository
+git clone https://github.com/Drmusab/task-recurring-notification-management.git
+cd task-recurring-notification-management
+
 # Install dependencies
 npm install
 
-# Build the plugin
-npm run build
-
-# Development mode with auto-rebuild
+# Development (watch mode)
 npm run dev
 
-# Create symbolic link to your workspace (optional)
-npm run make-link -- --workspace=/path/to/shehab-note/workspace
+# Build for production
+npm run build
+
+# Run tests
+npm test
+
+# Type checking
+npm run type-check
 ```
 
 ### Project Structure
-
-The plugin follows a **clean 3-layer architecture** with strict separation of concerns:
-
 ```
 src/
- backend/                  # Business logic and data management
-    api/, blocks/, commands/, core/, events/, features/
-    integrations/, logging/, services/, webhooks/
- frontend/                 # UI components and presentation
-    components/, hooks/, modals/, stores/, styles/, views/
- shared/                   # Shared utilities and types
-     assets/, config/, constants/, utils/
+├── index.ts                    # Plugin entry point
+├── core/
+│   ├── api/                    # SiYuan API adapters
+│   ├── models/                 # Data models (Task, Frequency)
+│   ├── engine/                 # Recurrence & scheduling engines
+│   ├── storage/                # TaskStorage with migration support
+│   ├── ai/                     # Smart suggestions engine
+│   ├── ml/                     # Pattern learning
+│   ├── filtering/              # GlobalFilter system
+│   ├── events/                 # Event bus for component communication
+│   └── parsers/                # Natural language parsing
+├── services/                   # Notification services
+├── components/                 # Svelte 5 UI components
+│   ├── dashboard/              # Main dashboard
+│   ├── cards/                  # Task editor overlays
+│   ├── ui/                     # Reusable inputs
+│   └── settings/               # Settings panels
+├── features/                   # AutoTaskCreator
+└── commands/                   # Keyboard shortcuts
 ```
 
-**Architecture Highlights:**
--  **3-Layer Separation**: Backend (business logic)  Shared (utilities/types)  Frontend (UI)
--  **Path Aliases**: Clean imports (`@backend`, `@frontend`, `@shared`)
--  **No Business Logic in Frontend**: All domain logic in backend layer
--  **Event-Driven**: Scheduler emits events, services react
--  **Singleton Managers**: TaskManager, Scheduler use getInstance() pattern
--  **Storage Abstraction**: Repository pattern decouples from SiYuan API
+## 🤝 Contributing
 
-See detailed documentation:
-- [Backend README](src/backend/README.md) - Business logic architecture
-- [Frontend README](src/frontend/README.md) - UI component structure
-- [Shared README](src/shared/README.md) - Shared utilities guide
-- [Architectural Decisions](docs/ARCHITECTURAL_DECISIONS.md) - Key design decisions
-## Usage
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Creating a Task
+### Coding Guidelines
+- Use TypeScript with strict mode
+- Follow Svelte 5 Runes API (not legacy reactivity)
+- Write tests for new features
+- Update i18n files for new strings
+- Use SiYuan CSS variables for theming
 
-#### Method 1: From Block Menu (NEW)
+## 📝 License
 
-1. Right-click on any block icon in your document
-2. Select "Create Recurring Task" from the context menu
-3. The task form opens with pre-filled details from the block:
-   - Task name extracted from first line of block
-   - Time extracted if present (e.g., "09:00", "2:30 PM")
-   - Block automatically linked for quick access
-4. Complete the task details and click "Save Task"
+MIT License - see [LICENSE](LICENSE) file for details.
 
-**Quick Actions for Linked Blocks:**
-- If a block already has a task, the menu shows:
-  - ✅ Complete Task - Mark task done and reschedule
-  - 🕒 Snooze Task - Delay task (15 min, 1 hour, or tomorrow)
+## 🙏 Acknowledgments
 
-#### Method 2: From Dashboard
+- [SiYuan Note](https://github.com/siyuan-note/siyuan) - Amazing note-taking platform
+- [chrono-node](https://github.com/wanasit/chrono) - Natural language date parsing
+- [rrule](https://github.com/jakubroztocil/rrule) - Recurrence rule handling
+- Svelte 5 team - Fantastic reactive framework
 
-1. Open the "Recurring Tasks" dock panel
-2. Navigate to the "All Tasks" tab
-3. Click "Create New Task"
-4. Fill in task details:
-   - Task name
-   - Due date & time
-   - Frequency (daily/weekly/monthly)
-   - Interval (e.g., every 2 weeks)
-   - Optional: Link to a block, add tags, set priority
-5. Click "Save Task"
+## 📧 Contact
 
-### Configuring Notifications
+**Author**: Drmusab  
+**Repository**: https://github.com/Drmusab/task-recurring-notification-management  
+**Issues**: https://github.com/Drmusab/task-recurring-notification-management/issues
 
-1. Click the ⚙️ Settings button in the dashboard header
-2. Enable desired notification channels
-3. Configure each channel:
-   - **n8n**: Enter your webhook URL
-   - **Telegram**: Enter bot token and chat ID
-   - **Gmail**: Configure OAuth credentials and recipient email
-4. Test each channel before saving
-5. Click "Save Settings"
+---
 
-### Managing Tasks
-
-- **Today & Overdue Tab**: View and complete tasks due today or earlier
-- **All Tasks Tab**: View all recurring tasks, edit, delete, or toggle enabled/disabled
-- **Timeline Tab**: Visual calendar view of upcoming tasks
-- **Block Context Menu**: Right-click any block with a linked task for quick actions
-
-### Missed Task Recovery (NEW)
-
-The plugin now automatically recovers missed tasks after being offline:
-
-- When the plugin restarts, it checks for tasks that were due while offline
-- All missed occurrences are detected and notifications are sent
-- Overdue tasks are automatically advanced to their next future occurrence
-- No manual intervention needed - recovery happens automatically
-
-**Example:** If your plugin was offline for 3 days and a daily task was due at 9 AM each day:
-- You'll receive notifications for all 3 missed days
-- The task will be rescheduled to tomorrow at 9 AM
-
-## Configuration
-
-### n8n Webhook
-
-Get your webhook URL from your n8n workflow and paste it in the settings.
-
-### Telegram Bot
-
-1. Create a bot via [@BotFather](https://t.me/botfather)
-2. Get your bot token
-3. Get your chat ID by messaging [@userinfobot](https://t.me/userinfobot)
-4. Enter both in the settings
-
-### Gmail API
-
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
-2. Enable Gmail API
-3. Create OAuth 2.0 credentials
-4. Get your client ID, client secret, and refresh token
-5. Enter in the settings along with recipient email
-
-## API
-
-The plugin exposes the following main classes:
-
-- `TaskStorage` - Manages task persistence
-- `Scheduler` - Handles task scheduling and notifications
-- `RecurrenceEngine` - Calculates next occurrence dates
-- `NotificationService` - Orchestrates multi-channel notifications
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues, questions, or feature requests, please [open an issue](https://github.com/Drmusab/plugin-sample-shehab-note/issues) on GitHub.
-
-
-git pull
+Made with ❤️ for the SiYuan community

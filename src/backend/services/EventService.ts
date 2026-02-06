@@ -160,11 +160,12 @@ export class EventService {
       return;
     }
 
-    this.flushQueue().catch((e) => logger.error('Initial queue flush failed', e));
+    // Note: flushQueueOnStartup() already handles pending events from init().
+    // No redundant initial flush here — the periodic worker handles the rest.
     // Cast to number for cross-environment compatibility (NodeJS.Timeout vs number)
     this.flushIntervalId = globalThis.setInterval(() => {
       this.flushQueue().catch((e) => logger.error('Periodic queue flush failed', e));
-    }, EVENT_QUEUE_INTERVAL_MS) as number;
+    }, EVENT_QUEUE_INTERVAL_MS) as unknown as number;
   }
 
   /**
@@ -567,8 +568,9 @@ export class EventService {
       headers["X-Shehab-Signature"] = signature;
     }
 
-    // Legacy header for backward compatibility
-    if (this.config.n8n.sharedSecret) {
+    // Legacy header gated behind explicit opt-in to avoid leaking the raw secret.
+    // The HMAC signature (X-Shehab-Signature) is the recommended auth mechanism.
+    if (this.config.n8n.useLegacyAuth && this.config.n8n.sharedSecret) {
       headers["X-Shehab-Note-Secret"] = this.config.n8n.sharedSecret;
     }
 

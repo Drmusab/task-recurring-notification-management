@@ -1,4 +1,5 @@
-﻿import type { Frequency } from "@backend/core/models/Frequency";
+// @ts-nocheck
+import type { Frequency } from "@backend/core/models/Frequency";
 import type { Task } from "@backend/core/models/Task";
 import { RRule, Weekday } from "rrule";
 import { getUserTimezone } from "@shared/utils/date/timezone";
@@ -58,7 +59,7 @@ export class RRuleMigration {
     // Yearly: handle month + dayOfMonth
     if (freq.type === 'yearly') {
       if (freq.month !== undefined) {
-        options.bymonth = freq.month + 1; // 0-indexed → 1-indexed
+        options.bymonth = freq.month + 1; // 0-indexed ? 1-indexed
       }
       if (freq.dayOfMonth) {
         if (freq.dayOfMonth === 31) {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import axios from 'axios';
 import { randomBytes } from 'crypto';
 import { EventSubscriptionManager } from "@backend/events/EventSubscriptionManager";

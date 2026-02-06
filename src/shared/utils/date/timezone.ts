@@ -33,12 +33,12 @@ export function toUTC(date: Date, timezone: string): Date {
   
   // Create UTC date from timezone-specific values
   return new Date(Date.UTC(
-    parseInt(year),
-    parseInt(month) - 1,
-    parseInt(day),
-    parseInt(hour),
-    parseInt(minute),
-    parseInt(second)
+    parseInt(year ?? "0"),
+    parseInt(month ?? "1") - 1,
+    parseInt(day ?? "1"),
+    parseInt(hour ?? "0"),
+    parseInt(minute ?? "0"),
+    parseInt(second ?? "0")
   ));
 }
 

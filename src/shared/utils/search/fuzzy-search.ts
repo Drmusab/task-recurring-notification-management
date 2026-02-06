@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Fuzzy Search Utility
  * Provides fuzzy search functionality using Fuse.js

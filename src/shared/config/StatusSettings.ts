@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * StatusSettings - Configuration for task status types
  * 

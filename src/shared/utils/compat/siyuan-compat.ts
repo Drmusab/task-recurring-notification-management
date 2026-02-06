@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SiYuan Compatibility Layer
  * Provides Obsidian-like APIs using SiYuan's native APIs

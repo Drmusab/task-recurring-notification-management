@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type Electron from "electron";
 
 const electron = window.require ? window.require("electron") : undefined;

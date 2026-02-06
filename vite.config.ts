@@ -45,6 +45,7 @@ export default defineConfig({
         { src: "README.md", dest: "./" },
         { src: "icon.png", dest: "./" },
         { src: "preview.png", dest: "./" },
+        { src: "i18n", dest: "./" },
         { src: "assets", dest: "./" },
         { src: "src/assets/icons", dest: "./assets" },
       ],

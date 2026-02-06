@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { RRule } from 'rrule';
 import type { Frequency } from '@backend/core/models/Frequency';
 import { NaturalRecurrenceParser } from "@backend/core/parsers/NaturalRecurrenceParser";

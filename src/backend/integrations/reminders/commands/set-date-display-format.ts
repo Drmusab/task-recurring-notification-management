@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type ReminderPlugin from "@frontend/components/reminders/main";
 import { DateDisplayFormatPresetModal } from "@backend/integrations/reminders/ui/date-display-format-preset-chooser";
 

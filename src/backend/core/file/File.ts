@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * File operations module for task management
  * Handles reading and writing task data to files

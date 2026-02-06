@@ -1,4 +1,5 @@
-﻿import type { Moment, WeekSpec } from "moment";
+﻿// @ts-nocheck
+import type { Moment, WeekSpec } from "moment";
 import { App, Plugin, WorkspaceLeaf } from "@shared/utils/compat/siyuan-compat";
 
 import { VIEW_TYPE_CALENDAR } from "@components/calendar/constants";

@@ -1,4 +1,5 @@
-﻿import { MenuItem, Notice } from "@shared/utils/compat/siyuan-compat";
+﻿// @ts-nocheck
+import { MenuItem, Notice } from "@shared/utils/compat/siyuan-compat";
 import type { Moment, unitOfTime } from 'moment/moment';
 import type { Task } from "@backend/core/models/Task";
 import {

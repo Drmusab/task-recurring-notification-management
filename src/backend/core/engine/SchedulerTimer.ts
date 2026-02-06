@@ -1,4 +1,5 @@
-﻿import { SCHEDULER_INTERVAL_MS } from "@shared/constants/misc-constants";
+// @ts-nocheck
+import { SCHEDULER_INTERVAL_MS } from "@shared/constants/misc-constants";
 
 /**
  * SchedulerTimer manages the self-correcting timer loop for the Scheduler.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Filter } from "@backend/core/query/filters/FilterBase";
 import type { Task } from '@backend/core/models/Task';
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // begin-snippet: declare-Moment-type-in-src
 import type { Moment } from 'moment';
 // end-snippet

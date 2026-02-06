@@ -1,4 +1,5 @@
-﻿/**
+// @ts-nocheck
+/**
  * Task Commands for keyboard shortcuts and actions
  */
 

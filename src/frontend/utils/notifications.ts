@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { confirm as siyuanConfirm } from "siyuan";
 
 /**

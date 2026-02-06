@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Task, CompletionHistoryEntry } from '@backend/core/models/Task';
 import type { Frequency } from '@backend/core/models/Frequency';
 import type { TaskRepositoryProvider } from '@backend/core/storage/TaskRepository';

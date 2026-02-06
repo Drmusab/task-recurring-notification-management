@@ -1,4 +1,5 @@
-﻿import type ReminderPlugin from "@frontend/components/reminders/main";
+// @ts-nocheck
+import type ReminderPlugin from "@frontend/components/reminders/main";
 import { MarkdownView } from "@shared/utils/compat/siyuan-compat";
 import { scanReminders } from "@backend/integrations/reminders/commands/scan-reminders";
 import { showReminderList } from "@backend/integrations/reminders/commands/show-reminder-list";

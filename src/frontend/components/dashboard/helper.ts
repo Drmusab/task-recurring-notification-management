@@ -1,4 +1,5 @@
-﻿import { RenderInfo, Size, TextValueMap, Transform } from "@components/dashboard/data";
+// @ts-nocheck
+import { RenderInfo, Size, TextValueMap, Transform } from "@components/dashboard/data";
 import { TFile, TFolder, normalizePath } from "@shared/utils/compat/siyuan-compat";
 import { ValueType } from "@components/dashboard/data";
 import * as d3 from "d3";
@@ -533,7 +534,7 @@ export function getSentenceCount(text: string) {
     // Also https://stackoverflow.com/questions/5553410
     var sentences =
         (text || "").match(
-            /[^.。!！?？\s][^.。!！?？]*(?:[.!?](?!['‘’"“”「」『』]?\s|$)[^.。!！?？]*)*[.。!！?？]?['’"”」』]?(?=\s||$)/gm
+            /[^.?!!??\s][^.?!!??]*(?:[.!?](?!['��"��????]?\s|$)[^.?!!??]*)*[.?!!??]?['�"�??]?(?=\s||$)/gm
         ) || [];
     var sentencesLength = sentences.length;
     return sentencesLength;

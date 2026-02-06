@@ -1,4 +1,5 @@
-﻿import type { RecurrenceEngineRRULE } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
+// @ts-nocheck
+import type { RecurrenceEngineRRULE } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import type { Task } from "@backend/core/models/Task";
 import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";

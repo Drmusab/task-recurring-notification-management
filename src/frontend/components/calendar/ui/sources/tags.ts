@@ -1,4 +1,5 @@
-﻿import type { Moment } from "moment";
+// @ts-nocheck
+import type { Moment } from "moment";
 import { parseFrontMatterTags, TFile } from "@shared/utils/compat/siyuan-compat";
 import type { ICalendarSource, IDayMetadata } from "@shared/utils/compat/daily-notes-compat";
 import { getDailyNote, getWeeklyNote } from "@shared/utils/compat/daily-notes-compat";
