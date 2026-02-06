@@ -1,5 +1,5 @@
 {
-  "name": "task-management",
+  "name": "task-recurring-notfication-mangmant",
   "author": "Drmusab",
   "url": "",
   "version": "0.0.1",
@@ -7,7 +7,7 @@
   "backends": ["all"],
   "frontends": ["all"],
   "displayName": {
-    "default": "Task Manager",
+    "default": "task-recurring-notfication-mangmant",
     "zh_CN": "循环任务管理器"
   },
   "description": {
