@@ -1,0 +1,5 @@
+/**
+ * Re-export Task from backend canonical location.
+ * Shim for @components/shared/Task/Task import path.
+ */
+export { type Task } from "@backend/core/models/Task";

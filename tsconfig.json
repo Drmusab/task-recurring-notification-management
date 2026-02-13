@@ -1,0 +1,77 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+
+    /* Svelte 5 */
+    "jsx": "preserve",
+    "allowJs": true,
+    "checkJs": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+
+    /* Override @tsconfig/svelte verbatimModuleSyntax to reduce TS1484 noise */
+    "verbatimModuleSyntax": false,
+
+    /* Path resolution */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@backend/*": ["src/backend/*"],
+      "@frontend/*": ["src/frontend/*"],
+      "@shared/*": ["src/shared/*"],
+      "@infrastructure/*": ["src/infrastructure/*"],
+      "@components/*": ["src/frontend/components/*"],
+      "@stores/*": ["src/frontend/stores/*"],
+      "@hooks/*": ["src/frontend/hooks/*"],
+      "@modals/*": ["src/frontend/modals/*"],
+      "@views/*": ["src/frontend/views/*"]
+    },
+
+    /* SiYuan plugin compatibility */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.svelte"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/frontend/components/analytics/**",
+    "src/frontend/components/dashboard/parsing.ts",
+    "src/frontend/components/dashboard/expr.ts",
+    "src/frontend/components/dashboard/main.ts",
+    "src/frontend/components/dashboard/rendering.ts",
+    "src/frontend/components/dashboard/data.ts",
+    "src/frontend/components/dashboard/collecting.ts",
+    "src/frontend/components/dashboard/month.ts",
+    "src/frontend/components/dashboard/pie.ts",
+    "src/frontend/components/calendar/**",
+    "src/shared/config/Settings.ts",
+    "src/backend/webhooks/inbound/WebhookServer.ts"
+  ]
+}

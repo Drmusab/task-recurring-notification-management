@@ -1,0 +1,179 @@
+### Variables
+@baseUrl = http://localhost:8080/webhook/v1
+@apiKey = rtm_default_your_api_key_here
+
+### Health Check
+GET http://localhost:8080/health
+
+### Create Task (Simple)
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/create",
+  "data": {
+    "title": "Buy groceries",
+    "description": "Milk, bread, eggs",
+    "tags": ["personal", "shopping"],
+    "priority": "medium",
+    "dueDate": "2026-01-25T18:00:00Z"
+  },
+  "meta": {
+    "requestId": "req_create_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Create Recurring Task (Weekly)
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/create",
+  "data": {
+    "title": "Weekly team standup",
+    "description": "Prepare agenda",
+    "recurrencePattern": {
+      "type": "weekly",
+      "daysOfWeek": ["monday"],
+      "startDate": "2026-01-27T09:00:00Z"
+    },
+    "tags": ["work", "meetings"],
+    "priority": "high"
+  },
+  "meta": {
+    "requestId": "req_create_002",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Create Recurring Task (Every 3 Days)
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/create",
+  "data": {
+    "title": "Water plants",
+    "recurrencePattern": {
+      "type": "interval",
+      "interval": 3,
+      "unit": "days",
+      "startDate": "2026-01-25T08:00:00Z"
+    },
+    "tags": ["home", "plants"],
+    "priority": "low"
+  },
+  "meta": {
+    "requestId": "req_create_003",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Get Task
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/get",
+  "data": {
+    "taskId": "task_xyz789"
+  },
+  "meta": {
+    "requestId": "req_get_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Update Task
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/update",
+  "data": {
+    "taskId": "task_xyz789",
+    "title": "Updated: Weekly team standup",
+    "priority": "medium"
+  },
+  "meta": {
+    "requestId": "req_update_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Complete Task
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/complete",
+  "data": {
+    "taskId": "task_xyz789",
+    "completionTimestamp": "2026-01-24T14:30:00Z",
+    "notes": "Completed successfully"
+  },
+  "meta": {
+    "requestId": "req_complete_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Delete Task
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/delete",
+  "data": {
+    "taskId": "task_xyz789",
+    "deleteHistory": false
+  },
+  "meta": {
+    "requestId": "req_delete_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### List Tasks (with filters)
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/query/list",
+  "data": {
+    "filters": {
+      "status": ["active", "due"],
+      "tags": ["work"],
+      "priority": ["high", "medium"]
+    },
+    "sort": {
+      "field": "dueDate",
+      "order": "asc"
+    },
+    "pagination": {
+      "limit": 20,
+      "offset": 0
+    }
+  },
+  "meta": {
+    "requestId": "req_list_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}

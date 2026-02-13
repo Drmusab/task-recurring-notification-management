@@ -1,0 +1,21 @@
+{
+  "displayName": "任务循环通知管理",
+  "description": "高级循环任务调度与通知",
+  "dockTitle": "循环任务",
+  "topBarTitle": "循环任务 - 点击切换",
+  "newTask": "新建任务",
+  "editTask": "编辑任务",
+  "deleteTask": "删除任务",
+  "completeTask": "完成任务",
+  "pauseTask": "暂停任务",
+  "resumeTask": "恢复任务",
+  "today": "今天",
+  "upcoming": "即将到来",
+  "completed": "已完成",
+  "overdue": "逾期",
+  "all": "全部任务",
+  "settings": "设置",
+  "notifications": "通知",
+  "filters": "过滤器",
+  "suggestions": "智能建议"
+}

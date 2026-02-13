@@ -1,0 +1,247 @@
+/**
+ * Optimistic UI Update Styles
+ * Visual feedback for task updates with optimistic rendering
+ */
+
+.task-item {
+  transition: all 0.2s ease;
+  position: relative;
+
+  // Loading state - task is being updated
+  &--updating {
+    opacity: 0.7;
+    pointer-events: none;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      width: 16px;
+      height: 16px;
+      margin-top: -8px;
+      border: 2px solid var(--b3-theme-primary);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: task-spinner 0.6s linear infinite;
+    }
+  }
+
+  // Failed state - update failed, needs retry
+  &--failed {
+    border-left: 3px solid var(--b3-theme-error);
+    background-color: var(--b3-theme-error-lighter, rgba(255, 0, 0, 0.05));
+    animation: task-shake 0.4s ease;
+    
+    .task-item-content {
+      opacity: 0.8;
+    }
+    
+    // Error indicator
+    &::before {
+      content: '⚠️';
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+    }
+  }
+
+  // Optimistic state - locally updated, pending server confirm
+  &--optimistic {
+    border-left: 2px solid var(--b3-theme-primary-lighter, rgba(66, 133, 244, 0.3));
+    
+    input[type="checkbox"] {
+      opacity: 0.6;
+    }
+  }
+
+  // Success flash - update confirmed
+  &--success {
+    animation: task-flash-success 0.5s ease;
+  }
+}
+
+// Spinner animation for loading state
+@keyframes task-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Shake animation for error state
+@keyframes task-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+// Success flash animation
+@keyframes task-flash-success {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: var(--b3-theme-success-lighter, rgba(0, 200, 0, 0.1));
+  }
+}
+
+// Calendar cell optimistic states
+.calendar-task {
+  transition: opacity 0.2s ease;
+  
+  &--updating {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  
+  &--failed {
+    text-decoration: line-through;
+    opacity: 0.6;
+    color: var(--b3-theme-error);
+  }
+}
+
+// AI Suggestions Panel optimistic states
+.ai-suggestion {
+  &--applying {
+    opacity: 0.6;
+    pointer-events: none;
+    
+    .ai-suggestion__apply-btn {
+      &::after {
+        content: '';
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-left: 8px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: task-spinner 0.6s linear infinite;
+      }
+    }
+  }
+  
+  &--applied {
+    animation: task-flash-success 0.5s ease;
+  }
+}
+
+// Modal form optimistic feedback
+.task-modal {
+  .b3-button {
+    position: relative;
+    
+    &--loading {
+      pointer-events: none;
+      opacity: 0.7;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        margin-top: -7px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: task-spinner 0.6s linear infinite;
+      }
+    }
+  }
+}
+
+// Error toast styling
+.b3-snackbar {
+  &--optimistic-error {
+    background-color: var(--b3-theme-error);
+    
+    .b3-snackbar__content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      &::before {
+        content: '⚠️';
+        font-size: 16px;
+      }
+    }
+  }
+}
+
+// Rollback indicator
+.task-rollback-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  background-color: var(--b3-theme-error);
+  color: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: slide-in-right 0.3s ease;
+  z-index: 1000;
+  
+  &__message {
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  
+  &__retry {
+    font-size: 12px;
+    opacity: 0.9;
+    cursor: pointer;
+    text-decoration: underline;
+    
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// Optimistic checkbox animation
+input[type="checkbox"].task-checkbox {
+  transition: transform 0.15s ease;
+  
+  &:active {
+    transform: scale(1.1);
+  }
+  
+  &.optimistic-pending {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+// Dependency tree optimistic states
+.dependency-item {
+  &--blocked-optimistic {
+    opacity: 0.5;
+    background-color: var(--b3-theme-background-light);
+    border-left: 2px dashed var(--b3-theme-primary);
+  }
+}

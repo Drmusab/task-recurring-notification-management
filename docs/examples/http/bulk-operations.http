@@ -1,0 +1,136 @@
+@baseUrl = http://localhost:8080/webhook/v1
+@apiKey = rtm_default_your_api_key_here
+
+### Bulk Complete Tasks
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/bulk-complete",
+  "data": {
+    "taskIds": ["task_001", "task_002", "task_003"],
+    "completionTimestamp": "2026-01-24T14:30:00Z",
+    "notes": "Batch completed",
+    "continueOnError": true
+  },
+  "meta": {
+    "requestId": "req_bulk_complete_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Bulk Reschedule (Absolute)
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/bulk-reschedule",
+  "data": {
+    "taskIds": ["task_004", "task_005"],
+    "dueDate": "2026-02-01T09:00:00Z",
+    "continueOnError": true
+  },
+  "meta": {
+    "requestId": "req_bulk_reschedule_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Bulk Reschedule (Relative Offset)
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/bulk-reschedule",
+  "data": {
+    "taskIds": ["task_006", "task_007", "task_008"],
+    "offset": {
+      "amount": 3,
+      "unit": "days",
+      "direction": "forward"
+    },
+    "continueOnError": true
+  },
+  "meta": {
+    "requestId": "req_bulk_reschedule_002",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Bulk Delete Tasks
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/tasks/bulk-delete",
+  "data": {
+    "taskIds": ["task_009", "task_010"],
+    "deleteHistory": false,
+    "continueOnError": true
+  },
+  "meta": {
+    "requestId": "req_bulk_delete_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Advanced Search
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/query/search",
+  "data": {
+    "query": "meeting",
+    "searchFields": ["title", "description"],
+    "filters": {
+      "status": ["active", "due"],
+      "priority": ["high"],
+      "hasRecurrence": true,
+      "dueBefore": "2026-02-01T00:00:00Z"
+    },
+    "sort": {
+      "field": "dueDate",
+      "order": "asc"
+    },
+    "pagination": {
+      "limit": 20,
+      "offset": 0
+    }
+  },
+  "meta": {
+    "requestId": "req_search_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
+
+### Get Statistics
+POST {{baseUrl}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "command": "v1/query/stats",
+  "data": {
+    "timeRange": {
+      "start": "2026-01-01T00:00:00Z",
+      "end": "2026-01-31T23:59:59Z"
+    },
+    "includeTrends": true
+  },
+  "meta": {
+    "requestId": "req_stats_001",
+    "timestamp": "2026-01-24T14:30:00Z",
+    "source": "rest-client"
+  }
+}
