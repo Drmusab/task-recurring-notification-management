@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Shared utilities for RRULE parsing
  */

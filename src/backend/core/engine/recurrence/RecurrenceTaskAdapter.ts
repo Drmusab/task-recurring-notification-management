@@ -7,8 +7,8 @@
  * - RecurrenceEngine's expectations
  */
 
-import type { Task } from '../../../../domain/models/Task';
-import type { Recurrence } from '../../../../domain/models/Recurrence';
+import type { Task } from '@domain/models/Task';
+import type { Recurrence } from '@domain/models/Recurrence';
 
 /**
  * Extended frequency interface that RecurrenceEngine uses internally

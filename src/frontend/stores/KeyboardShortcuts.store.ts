@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Keyboard shortcuts store for managing custom keybindings
  */

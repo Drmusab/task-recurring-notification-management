@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DependencyGraph, type DependencyGraphOptions } from '../DependencyGraph';
 import { CycleDetector } from '../CycleDetector';
 import { DependencyIndex } from '../DependencyIndex';
-import type { Task } from '../../models/Task';
+import type { Task } from '@backend/core/models/Task';
 
 describe('DependencyGraph', () => {
   function createTask(id: string, name: string, dependsOn: string[] = []): Task {

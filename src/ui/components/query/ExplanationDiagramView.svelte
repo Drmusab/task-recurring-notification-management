@@ -1,26 +1,44 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import mermaid from "mermaid";
   import { ExplanationDiagramGenerator } from "@backend/core/query/ExplanationDiagramGenerator";
   import type { QueryAST } from "@backend/core/query/QueryParser";
-  import type { Explanation } from "@backend/core/query/QueryExplainer";
+  import type { Explanation } from "@backend/core/query/QueryExplanation";
   import type { DiagramOptions, DiagramResult } from "@backend/core/query/ExplanationDiagramGenerator";
 
-  // Initialize Mermaid on mount
-  onMount(() => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "default",
-      securityLevel: "loose",
-      fontFamily: "var(--font-ui-medium)",
-    });
+  // Lazy-loaded mermaid module (loaded only when component mounts)
+  let mermaidModule: any = null;
+
+  // Initialize Mermaid on mount (lazy load)
+  onMount(async () => {
+    if (!mermaidModule) {
+      const mermaid = await import('mermaid');
+      mermaidModule = mermaid.default;
+      mermaidModule.initialize({
+        startOnLoad: false,
+        theme: "default",
+        securityLevel: "loose",
+        fontFamily: "var(--font-ui-medium)",
+      });
+    }
   });
 
   // Render Mermaid diagram to SVG
   async function renderMermaidDiagram(syntax: string): Promise<string> {
     try {
+      // Ensure mermaid is loaded
+      if (!mermaidModule) {
+        const mermaid = await import('mermaid');
+        mermaidModule = mermaid.default;
+        mermaidModule.initialize({
+          startOnLoad: false,
+          theme: "default",
+          securityLevel: "loose",
+          fontFamily: "var(--font-ui-medium)",
+        });
+      }
+
       const id = `mermaid-diagram-${Date.now()}`;
-      const { svg } = await mermaid.render(id, syntax);
+      const { svg } = await mermaidModule.render(id, syntax);
       return svg;
     } catch (error) {
       console.error("Mermaid rendering error:", error);

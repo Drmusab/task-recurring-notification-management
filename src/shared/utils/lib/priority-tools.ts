@@ -1,4 +1,4 @@
-import { Priority } from "@shared/utils/task/priority";
+import { Priority } from "@backend/utils/task/priority";
 
 /**
  * Maps priority names using 'None' for the default priority level.

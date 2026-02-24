@@ -9,6 +9,7 @@
 // Accessibility-compliant utility components
 export { default as Icon } from "./Icon.svelte";
 export { default as Button } from "./Button.svelte";
+export { default as Modal } from "./Modal.svelte";
 export { default as Tooltip } from "./Tooltip.svelte";
 export { default as Dropdown } from "./Dropdown.svelte";
 export { default as ContextMenu } from "./ContextMenu.svelte";
@@ -22,5 +23,4 @@ export { default as TaskTemplateManager } from "./TaskTemplateManager.svelte";
 export { default as TaskListItem } from "./TaskListItem.svelte";
 export { default as TaskListView } from "./TaskListView.svelte";
 export { default as TrackerDashboard } from "./TrackerDashboard.svelte";
-export { default as UrgencyIndicator } from "../../ui/components/shared/UrgencyIndicator.svelte";
-export { default as DependencyGraphView } from "../../ui/components/shared/DependencyGraphView.svelte";
+

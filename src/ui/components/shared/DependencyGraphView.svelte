@@ -574,12 +574,12 @@
     position: absolute;
     top: 4.5rem;
     right: 1rem;
-    width: 320px;
+    width: min(320px, calc(100% - 2rem));
     max-height: 500px;
     overflow-y: auto;
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    background: var(--b3-theme-surface, white);
+    border: 1px solid var(--b3-border-color, #e0e0e0);
+    border-radius: var(--b3-border-radius, 8px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 10;
   }

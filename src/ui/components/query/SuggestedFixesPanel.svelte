@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { SuggestedFixGenerator } from "@backend/core/query/SuggestedFixGenerator";
-  import type { TaskExplanation } from "@backend/core/query/QueryExplainer";
-  import type { SuggestedFix, FixGroup } from "@backend/core/query/SuggestedFixGenerator";
+  import { SuggestedFixGenerator } from "@backend/core/query/QuerySuggestions";
+  import type { TaskExplanation } from "@backend/core/query/QueryExplanation";
+  import type { SuggestedFix, FixGroup } from "@backend/core/query/QuerySuggestions";
 
   // Props
   export let taskExplanations: TaskExplanation[] = [];

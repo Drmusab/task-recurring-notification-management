@@ -9,7 +9,7 @@
  */
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
-import type { Task } from '../../../../domain/models/Task';
+import type { Task } from '@domain/models/Task';
 import type { RecurrenceExplanation, ExplanationStep, RecurrenceMode } from './recurrence.types';
 import { getUserTimezone } from "@shared/utils/date/timezone";
 import * as logger from "@backend/logging/logger";

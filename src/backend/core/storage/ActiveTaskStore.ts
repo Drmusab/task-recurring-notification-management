@@ -2,13 +2,38 @@
 import type { Task } from "@backend/core/models/Task";
 import { STORAGE_ACTIVE_KEY } from "@shared/constants/misc-constants";
 import * as logger from "@backend/logging/logger";
-import type { TaskState, TaskStateWriter } from "@backend/core/storage/TaskPersistenceController";
-import path from "path";
+import type { TaskState, TaskStateWriter } from "@backend/core/storage/TaskStorage";
 import { type SiYuanEnvironmentAPI, reportSiYuanApiIssue } from "@backend/core/api/SiYuanApiAdapter";
 import { getOptimizedJSON } from "@backend/core/storage/OptimizedJSON";
 
 const TEMP_SUFFIX = ".tmp";
-type FsPromises = typeof import("fs").promises;
+
+// Dynamic import types — avoid bundling Node.js modules in browser builds
+type FsPromises = {
+  mkdir(path: string, options?: { recursive?: boolean }): Promise<void | string>;
+  open(path: string, flags: string): Promise<{
+    writeFile(data: string, encoding: string): Promise<void>;
+    sync(): Promise<void>;
+    close(): Promise<void>;
+  }>;
+  rename(oldPath: string, newPath: string): Promise<void>;
+  rm(path: string, options?: { force?: boolean }): Promise<void>;
+};
+
+/** Platform-safe path.join replacement (no Node.js `path` import) */
+function joinPath(...segments: string[]): string {
+  return segments
+    .map((s, i) => (i > 0 ? s.replace(/^[/\\]+/, "") : s))
+    .join("/")
+    .replace(/\/+/g, "/");
+}
+
+/** Platform-safe path.dirname replacement */
+function dirName(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, "/");
+  const lastSlash = normalized.lastIndexOf("/");
+  return lastSlash > 0 ? normalized.substring(0, lastSlash) : ".";
+}
 
 export class ActiveTaskStore implements TaskStateWriter {
   private plugin: Plugin;
@@ -22,14 +47,30 @@ export class ActiveTaskStore implements TaskStateWriter {
 
   /**
    * Load active tasks from storage.
+   * @param signal - Optional AbortSignal for cancellation support
    */
-  async loadActive(): Promise<Map<string, Task>> {
+  async loadActive(signal?: AbortSignal): Promise<Map<string, Task>> {
+    // Check if already aborted
+    if (signal?.aborted) {
+      throw new DOMException('Operation aborted', 'AbortError');
+    }
+
     try {
       const data = await this.plugin.loadData(STORAGE_ACTIVE_KEY);
+      
+      // Check abort after async operation
+      if (signal?.aborted) {
+        throw new DOMException('Operation aborted', 'AbortError');
+      }
+      
       if (data && Array.isArray(data.tasks)) {
         return new Map(data.tasks.map((task: Task) => [task.id, task]));
       }
     } catch (err) {
+      // Re-throw abort errors
+      if (signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+        throw err;
+      }
       logger.error("Failed to load active tasks", err);
     }
     return new Map();
@@ -70,7 +111,7 @@ export class ActiveTaskStore implements TaskStateWriter {
       return;
     }
 
-    const dir = path.dirname(filePath);
+    const dir = dirName(filePath);
     await fs.mkdir(dir, { recursive: true });
 
     const tempPath = `${filePath}${TEMP_SUFFIX}`;
@@ -103,8 +144,11 @@ export class ActiveTaskStore implements TaskStateWriter {
     }
 
     try {
-      const module = await import("fs");
-      this.fsPromises = module.promises;
+      // Dynamic import with computed string to prevent Vite from statically analyzing this
+      // SiYuan desktop runs on Electron which has Node.js; browser/mobile does not
+      const fsModuleName = "f" + "s";
+      const module = await Function("m", "return import(m)")(fsModuleName);
+      this.fsPromises = module.promises as FsPromises;
       return this.fsPromises;
     } catch (err) {
       logger.warn("Node.js fs unavailable; falling back to plugin storage without atomic writes.", err);
@@ -129,6 +173,6 @@ export class ActiveTaskStore implements TaskStateWriter {
       return null;
     }
 
-    return path.join(dataDir, "storage", `p${pluginName}`, `${storageKey}.json`);
+    return joinPath(dataDir, "storage", `p${pluginName}`, `${storageKey}.json`);
   }
 }

@@ -1,5 +1,5 @@
 import type { Task } from "@backend/core/models/Task";
-import type { AllTaskDateFields } from "@shared/utils/dateTime/date-field-types";
+import type { AllTaskDateFields } from "@backend/utils/dateTime/date-field-types";
 import type { TaskEditingInstruction } from "./TaskEditingInstruction";
 
 /**

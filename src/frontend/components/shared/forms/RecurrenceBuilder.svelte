@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import Button from '../Button.svelte';
+	import { 
+		parseRRule, 
+		buildRRule, 
+		WEEKDAY_LABELS,
+		type RRuleData,
+		type RRuleFrequency,
+		type RRuleWeekDay
+	} from '@shared/utils/recurrence/rrule-utils';
 
-	// Recurrence types
-	type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
-	type WeekDay = 'SU' | 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA';
-
-	interface RecurrenceRule {
-		frequency: Frequency | null;
-		interval: number;
-		byDay?: WeekDay[];
-		byMonthDay?: number;
-		count?: number;
-		until?: string;
-	}
+	// Re-export types for backward compatibility
+	type Frequency = RRuleFrequency;
+	type WeekDay = RRuleWeekDay;
+	type RecurrenceRule = RRuleData;
 
 	// Props
 	export let value: string = ''; // iCalendar RRULE string
@@ -21,74 +21,6 @@
 	export let className: string = '';
 
 	const dispatch = createEventDispatcher<{ change: string }>();
-
-	// Parse iCalendar RRULE to parts
-	function parseRRule(rrule: string): RecurrenceRule {
-		const rule: RecurrenceRule = {
-			frequency: null,
-			interval: 1
-		};
-
-		if (!rrule) return rule;
-
-		const parts = rrule.split(';');
-		parts.forEach((part) => {
-			const [key, val] = part.split('=');
-			if (!val) return;
-			
-			switch (key) {
-				case 'FREQ':
-					rule.frequency = val as Frequency;
-					break;
-				case 'INTERVAL':
-					rule.interval = parseInt(val, 10);
-					break;
-				case 'BYDAY':
-					rule.byDay = val.split(',') as WeekDay[];
-					break;
-				case 'BYMONTHDAY':
-					rule.byMonthDay = parseInt(val, 10);
-					break;
-				case 'COUNT':
-					rule.count = parseInt(val, 10);
-					break;
-				case 'UNTIL':
-					rule.until = val;
-					break;
-			}
-		});
-
-		return rule;
-	}
-
-	// Build iCalendar RRULE from parts
-	function buildRRule(rule: RecurrenceRule): string {
-		if (!rule.frequency) return '';
-
-		const parts: string[] = [`FREQ=${rule.frequency}`];
-
-		if (rule.interval && rule.interval > 1) {
-			parts.push(`INTERVAL=${rule.interval}`);
-		}
-
-		if (rule.byDay && rule.byDay.length > 0) {
-			parts.push(`BYDAY=${rule.byDay.join(',')}`);
-		}
-
-		if (rule.byMonthDay) {
-			parts.push(`BYMONTHDAY=${rule.byMonthDay}`);
-		}
-
-		if (rule.count) {
-			parts.push(`COUNT=${rule.count}`);
-		}
-
-		if (rule.until) {
-			parts.push(`UNTIL=${rule.until}`);
-		}
-
-		return parts.join(';');
-	}
 
 	// Current rule state
 	let currentRule: RecurrenceRule = parseRRule(value);
@@ -100,15 +32,15 @@
 		}
 	}
 
-	// Weekday options
+	// Weekday options (using labels from utility)
 	const weekdays: { value: WeekDay; label: string; short: string }[] = [
-		{ value: 'SU', label: 'Sunday', short: 'S' },
-		{ value: 'MO', label: 'Monday', short: 'M' },
-		{ value: 'TU', label: 'Tuesday', short: 'T' },
-		{ value: 'WE', label: 'Wednesday', short: 'W' },
-		{ value: 'TH', label: 'Thursday', short: 'T' },
-		{ value: 'FR', label: 'Friday', short: 'F' },
-		{ value: 'SA', label: 'Saturday', short: 'S' }
+		{ value: 'SU', label: WEEKDAY_LABELS.SU.full, short: WEEKDAY_LABELS.SU.short },
+		{ value: 'MO', label: WEEKDAY_LABELS.MO.full, short: WEEKDAY_LABELS.MO.short },
+		{ value: 'TU', label: WEEKDAY_LABELS.TU.full, short: WEEKDAY_LABELS.TU.short },
+		{ value: 'WE', label: WEEKDAY_LABELS.WE.full, short: WEEKDAY_LABELS.WE.short },
+		{ value: 'TH', label: WEEKDAY_LABELS.TH.full, short: WEEKDAY_LABELS.TH.short },
+		{ value: 'FR', label: WEEKDAY_LABELS.FR.full, short: WEEKDAY_LABELS.FR.short },
+		{ value: 'SA', label: WEEKDAY_LABELS.SA.full, short: WEEKDAY_LABELS.SA.short }
 	];
 
 	// Handlers

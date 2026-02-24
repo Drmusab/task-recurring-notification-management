@@ -188,8 +188,3 @@ export function getShortcutDefinition(id: ShortcutId): ShortcutDefinition | unde
 export function getAllShortcutDefinitions(): ShortcutDefinition[] {
   return SHORTCUT_DEFINITIONS;
 }
-
-    return acc;
-  },
-  {} as ShortcutSettings
-);

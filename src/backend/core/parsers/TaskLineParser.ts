@@ -1,9 +1,9 @@
 // @ts-nocheck
 import type { Task } from '@backend/core/models/Task';
 import { normalizePriority } from '@backend/core/models/Task';
-import { Status, StatusType } from '@backend/core/models/Status';
-import { StatusRegistry } from '@backend/core/models/StatusRegistry';
-import { EMOJI_SIGNIFIERS, type TaskFormat } from "@shared/utils/task/signifiers";
+import { Status, StatusType } from '@shared/constants/statuses/Status';
+import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry';
+import { EMOJI_SIGNIFIERS, type TaskFormat } from "@backend/utils/task/signifiers";
 import { DateParser } from '@backend/core/parsers/DateParser';
 import { GlobalFilter } from '@backend/core/filtering/GlobalFilter';
 

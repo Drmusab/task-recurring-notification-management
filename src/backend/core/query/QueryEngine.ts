@@ -36,8 +36,7 @@ import { DueDateGrouper, ScheduledDateGrouper } from "@backend/core/query/groupe
 import { StatusTypeGrouper, StatusNameGrouper } from "@backend/core/query/groupers/StatusGrouper";
 import { PriorityGrouper } from "@backend/core/query/groupers/PriorityGrouper";
 import { FolderGrouper, PathGrouper, TagGrouper } from "@backend/core/query/groupers/PathGrouper";
-import { explainQuery } from "@backend/core/query/QueryExplain";
-import { QueryExplainer, type Explanation } from "@backend/core/query/QueryExplainer";
+import { QueryExplainer, type Explanation, explainQuery } from "@backend/core/query/QueryExplanation";
 import type { AttentionSettings, EscalationSettings } from '@backend/core/settings/PluginSettings';
 import { DEFAULT_ATTENTION_SETTINGS, DEFAULT_ESCALATION_SETTINGS } from '@backend/core/settings/PluginSettings';
 import { AttentionEngine, type AttentionLane } from '@backend/core/attention/AttentionEngine';

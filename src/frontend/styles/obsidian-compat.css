@@ -1,0 +1,93 @@
+/**
+ * Obsidian → SiYuan CSS Variable Compatibility Layer
+ * 
+ * Many components were originally written for Obsidian and use its CSS variables.
+ * SiYuan uses a different naming convention (--b3-*). This compatibility layer
+ * defines the Obsidian variable names in terms of SiYuan's theme system, so all
+ * 43+ affected components render correctly without individual file changes.
+ * 
+ * Phase 8: Cross-Platform Compatibility
+ * 
+ * Usage: Import this file in the main plugin entry or global CSS.
+ * Components will automatically pick up the correct theme values.
+ */
+
+:root {
+  /* ─── Background Variables ─── */
+  --background-primary: var(--b3-theme-background);
+  --background-primary-alt: var(--b3-theme-surface);
+  --background-secondary: var(--b3-theme-surface);
+  --background-secondary-alt: var(--b3-theme-background);
+  --background-modifier-border: var(--b3-border-color);
+  --background-modifier-hover: var(--b3-list-hover);
+  --background-modifier-form-field: var(--b3-theme-surface);
+  --background-modifier-error: var(--b3-theme-error-lighter, #fecaca);
+  --background-modifier-error-hover: var(--b3-theme-error-light, #fca5a5);
+  --background-modifier-info: var(--b3-theme-primary-lighter, #dbeafe);
+  --background-modifier-success: var(--b3-theme-success-lighter, #d1fae5);
+  --background-modifier-cover: rgba(0, 0, 0, 0.6);
+
+  /* ─── Text Variables ─── */
+  --text-normal: var(--b3-theme-on-background);
+  --text-muted: var(--b3-theme-on-surface-light);
+  --text-faint: var(--b3-theme-on-surface-light);
+  --text-on-accent: var(--b3-theme-on-primary, #fff);
+  --text-success: var(--b3-theme-success, #10b981);
+  --text-warning: var(--b3-theme-warning, #f59e0b);
+  --text-error: var(--b3-theme-error, #ef4444);
+  --text-selection: var(--b3-theme-primary-lightest, rgba(59, 130, 246, 0.2));
+
+  /* ─── Interactive Variables ─── */
+  --interactive-normal: var(--b3-theme-surface);
+  --interactive-hover: var(--b3-list-hover);
+  --interactive-accent: var(--b3-theme-primary);
+  --interactive-accent-hover: var(--b3-theme-primary-light);
+  --interactive-accent-rgb: var(--b3-theme-primary-rgb, 59, 130, 246);
+
+  /* ─── Font Variables ─── */
+  --font-text: var(--b3-font-family);
+  --font-monospace: var(--b3-font-family-code, monospace);
+  --font-ui-smaller: calc(var(--b3-font-size) * 0.85);
+  --font-ui-small: calc(var(--b3-font-size) * 0.9);
+  --font-ui-medium: var(--b3-font-size);
+  --font-ui-large: calc(var(--b3-font-size) * 1.15);
+
+  /* ─── Misc UI Variables ─── */
+  --radius-s: var(--b3-border-radius, 4px);
+  --radius-m: calc(var(--b3-border-radius, 4px) * 1.5);
+  --radius-l: calc(var(--b3-border-radius, 4px) * 2);
+  --cursor-link: pointer;
+  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-m: 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-l: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  /* ─── Scrollbar Variables ─── */
+  --scrollbar-active-thumb-bg: var(--b3-scroll-color);
+  --scrollbar-bg: transparent;
+  --scrollbar-thumb-bg: var(--b3-scroll-color);
+
+  /* ─── Color Palette (for priority/status colors) ─── */
+  --color-red: var(--b3-theme-error, #dc2626);
+  --color-orange: var(--b3-theme-warning, #f59e0b);
+  --color-yellow: #eab308;
+  --color-green: var(--b3-theme-success, #10b981);
+  --color-cyan: #06b6d4;
+  --color-blue: var(--b3-theme-primary, #3b82f6);
+  --color-purple: #8b5cf6;
+  --color-pink: #ec4899;
+
+  /* ─── Spacing (Obsidian uses numbered spacing) ─── */
+  --size-2-1: 2px;
+  --size-2-2: 4px;
+  --size-2-3: 6px;
+  --size-4-1: 4px;
+  --size-4-2: 8px;
+  --size-4-3: 12px;
+  --size-4-4: 16px;
+  --size-4-5: 20px;
+  --size-4-6: 24px;
+  --size-4-8: 32px;
+  --size-4-9: 36px;
+  --size-4-12: 48px;
+  --size-4-16: 64px;
+}

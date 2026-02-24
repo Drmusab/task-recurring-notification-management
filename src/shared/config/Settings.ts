@@ -9,7 +9,7 @@
  */
 
 import type { Task } from "@backend/core/models/Task";
-import { EMOJI_SIGNIFIERS } from "@shared/utils/task/signifiers";
+import { EMOJI_SIGNIFIERS } from "@backend/utils/task/signifiers";
 import type { EditModalShowSettings } from "@shared/config/EditModalShowSettings";
 import { defaultEditModalShowSettings } from "@shared/config/EditModalShowSettings";
 

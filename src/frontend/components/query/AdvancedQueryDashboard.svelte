@@ -37,17 +37,17 @@
   import ExplanationDiagramView from "../../../ui/components/query/ExplanationDiagramView.svelte";
   
   import type { SavedQuery } from "@backend/core/query/SavedQueryStore";
-  import type { Explanation } from "@backend/core/query/QueryExplainer";
+  import type { Explanation } from "@backend/core/query/QueryExplanation";
   import type { QueryAST } from "@backend/core/query/QueryParser";
-  import type { SuggestedFix } from "@backend/core/query/SuggestedFixGenerator";
+  import type { SuggestedFix } from "@backend/core/query/QuerySuggestions";
   import type { Task } from "@backend/core/models/Task";
-  import { SuggestedFixGenerator } from "@backend/core/query/SuggestedFixGenerator";
+  import { SuggestedFixGenerator } from "@backend/core/query/QuerySuggestions";
 
   // Props
   export let onQueryExecute: (queryString: string) => void = () => {};
   export let currentExplanation: Explanation | null = null;
   export let currentQueryAST: QueryAST | null = null;
-  export let onTaskUpdate: ((taskId: string, patch: any) => Promise<void>) | null = null;
+  export let onTaskUpdate: ((taskId: string, patch: Partial<Task>) => Promise<void>) | null = null;
   export let tasks: Task[] = []; // All tasks for calendar view
 
   // State

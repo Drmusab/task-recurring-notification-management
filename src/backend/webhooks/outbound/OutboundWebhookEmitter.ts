@@ -5,6 +5,7 @@ import { EventSubscriptionManager } from "@backend/events/EventSubscriptionManag
 import { EventQueue } from "@backend/events/EventQueue";
 import { RetryManager } from "@backend/webhooks/outbound/RetryManager";
 import { SignatureGenerator } from "@backend/webhooks/outbound/SignatureGenerator";
+import { CircuitBreaker } from "@backend/webhooks/outbound/CircuitBreaker";
 import { WebhookEvent, EventDeliveryRecord } from "@backend/events/types/EventTypes";
 import { WebhookSubscription } from "@backend/events/types/SubscriptionTypes";
 import * as logger from "@backend/logging/logger";
@@ -31,11 +32,14 @@ interface EventConfig {
 
 /**
  * Outbound webhook emitter
+ * 
+ * FIX [HIGH-007]: Added CircuitBreaker to prevent resource exhaustion
  */
 export class OutboundWebhookEmitter {
   private retryManager: RetryManager;
   private processingInterval: NodeJS.Timeout | null = null;
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private circuitBreakers: Map<string, CircuitBreaker> = new Map();
 
   constructor(
     private config: EventConfig,
@@ -147,6 +151,8 @@ export class OutboundWebhookEmitter {
 
   /**
    * Deliver single event
+   * 
+   * FIX [HIGH-007]: Wrapped sendWebhook with circuit breaker protection
    */
   private async deliverEvent(record: EventDeliveryRecord): Promise<void> {
     const subscription = this.subscriptionManager.get(record.subscriptionId);
@@ -169,7 +175,13 @@ export class OutboundWebhookEmitter {
     record.attempts++;
 
     try {
-      await this.sendWebhook(subscription, record.event);
+      // ✅ FIX: Get or create circuit breaker for this subscription URL
+      const circuitBreaker = this.getCircuitBreaker(subscription.url);
+      
+      // ✅ FIX: Execute webhook with circuit breaker protection
+      await circuitBreaker.execute(async () => {
+        await this.sendWebhook(subscription, record.event);
+      });
 
       // Success
       await this.queue.update(record.eventId, {
@@ -180,8 +192,31 @@ export class OutboundWebhookEmitter {
 
       await this.subscriptionManager.updateStats(subscription.id, true);
     } catch (error: unknown) {
-      // Failure
+      // Failure (from circuit breaker or actual HTTP error)
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const isCircuitOpen = errorMessage.includes('Circuit breaker');
+      
+      if (isCircuitOpen) {
+        // Circuit breaker is open - don't count as retry attempt
+        logger.warn('Circuit breaker prevented webhook delivery', {
+          subscriptionId: subscription.id,
+          url: subscription.url,
+          eventId: record.eventId,
+          error: errorMessage
+        });
+        
+        // Keep event in pending state for later retry (when circuit closes)
+        await this.queue.update(record.eventId, {
+          status: 'pending',
+          attempts: record.attempts - 1, // Don't count circuit breaker rejection as attempt
+          lastAttemptAt: new Date().toISOString(),
+          nextRetryAt: new Date(Date.now() + 60000).toISOString(), // Retry in 1 minute
+          lastError: errorMessage,
+        });
+        return;
+      }
+      
+      // Regular HTTP error - apply retry logic
       const shouldRetry = this.retryManager.shouldRetry(record.attempts);
 
       if (shouldRetry) {
@@ -240,6 +275,24 @@ export class OutboundWebhookEmitter {
     if (removed > 0) {
       logger.info(`Cleaned up ${removed} old events`);
     }
+  }
+
+  /**
+   * Get or create circuit breaker for URL
+   * 
+   * FIX [HIGH-007]: Circuit breaker management per endpoint
+   */
+  private getCircuitBreaker(url: string): CircuitBreaker {
+    if (!this.circuitBreakers.has(url)) {
+      const circuitBreaker = new CircuitBreaker({
+        threshold: 5,        // Open after 5 consecutive failures
+        timeout: 60000,      // Try again after 1 minute
+        name: `webhook:${url}`
+      });
+      this.circuitBreakers.set(url, circuitBreaker);
+      logger.info(`Created circuit breaker for webhook URL: ${url}`);
+    }
+    return this.circuitBreakers.get(url)!;
   }
 
   /**

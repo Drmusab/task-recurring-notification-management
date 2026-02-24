@@ -1,9 +1,8 @@
-// @ts-nocheck
-import { confirm as siyuanConfirm } from "siyuan";
+import { confirm as siyuanConfirm, showMessage } from "siyuan";
 
 /**
- * Simple toast notification utility
- * Can be enhanced with more sophisticated UI in the future
+ * Toast notification utility using SiYuan's native showMessage API.
+ * All UI mounts inside SiYuan-provided containers (Phase 4 §4.5 compliant).
  */
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -18,7 +17,16 @@ interface ToastOptions {
 }
 
 /**
- * Show a toast notification
+ * Map our toast types to SiYuan's showMessage type parameter.
+ * SiYuan supports "info" and "error"; we map success/warning to "info".
+ */
+function mapToSiyuanType(type: ToastType): "info" | "error" {
+  return type === "error" ? "error" : "info";
+}
+
+/**
+ * Show a toast notification using SiYuan's native showMessage API.
+ * Supports action buttons via HTML content injected into SiYuan's message container.
  */
 export function showToast(options: ToastOptions): void {
   const {
@@ -27,106 +35,37 @@ export function showToast(options: ToastOptions): void {
     duration = 3000,
     actionLabel,
     onAction,
-    showCountdown = false,
   } = options;
 
-  // Create toast element
-  const toast = document.createElement("div");
-  toast.className = `recurring-tasks-toast recurring-tasks-toast--${type}`;
-  const messageEl = document.createElement("span");
-  messageEl.textContent = message;
-  toast.appendChild(messageEl);
-
-  let countdownInterval: number | null = null;
+  const siyuanType = mapToSiyuanType(type);
 
   if (actionLabel && onAction) {
-    const actionButton = document.createElement("button");
-    actionButton.type = "button";
-    let remainingSeconds = Math.max(1, Math.ceil(duration / 1000));
-    actionButton.textContent = showCountdown
-      ? `${actionLabel} (${remainingSeconds}s)`
-      : actionLabel;
-    actionButton.className = "recurring-tasks-toast__action";
-    actionButton.addEventListener("click", () => {
-      onAction();
-      if (countdownInterval !== null) {
-        globalThis.clearInterval(countdownInterval);
-      }
-      if (toast.parentElement) {
-        toast.parentElement.removeChild(toast);
+    // Generate a unique ID for the action button
+    const actionId = `toast-action-${Date.now()}`;
+    const htmlContent = `${escapeHTML(message)} <button id="${actionId}" style="margin-left:8px;padding:2px 8px;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font-size:13px;">${escapeHTML(actionLabel)}</button>`;
+    showMessage(htmlContent, duration, siyuanType);
+
+    // Attach click handler after SiYuan inserts the message
+    requestAnimationFrame(() => {
+      const btn = document.getElementById(actionId);
+      if (btn) {
+        btn.addEventListener("click", () => {
+          onAction();
+          const msgEl = btn.closest(".b3-snackbar");
+          if (msgEl) msgEl.remove();
+        }, { once: true });
       }
     });
-    toast.appendChild(actionButton);
-
-    if (showCountdown && duration > 0) {
-      countdownInterval = globalThis.setInterval(() => {
-        remainingSeconds = Math.max(0, remainingSeconds - 1);
-        actionButton.textContent = `${actionLabel} (${remainingSeconds}s)`;
-        if (remainingSeconds <= 0 && countdownInterval !== null) {
-          globalThis.clearInterval(countdownInterval);
-          countdownInterval = null;
-        }
-      }, 1000);
-    }
-  }
-
-  // Add styles
-  Object.assign(toast.style, {
-    position: "fixed",
-    top: "20px",
-    right: "20px",
-    padding: "12px 20px",
-    borderRadius: "6px",
-    backgroundColor: getBackgroundColor(type),
-    color: "white",
-    fontSize: "14px",
-    fontWeight: "500",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-    zIndex: "10000",
-    maxWidth: "420px",
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    animation: "slideInRight 0.3s ease-out",
-  });
-
-  // Add to document
-  document.body.appendChild(toast);
-
-  const dismissToast = () => {
-    if (countdownInterval !== null) {
-      globalThis.clearInterval(countdownInterval);
-    }
-    toast.style.animation = "slideOutRight 0.3s ease-out";
-    setTimeout(() => {
-      if (toast.parentElement) {
-        toast.parentElement.removeChild(toast);
-      }
-    }, 300);
-  };
-
-  if (duration > 0) {
-    setTimeout(() => {
-      dismissToast();
-    }, duration);
+  } else {
+    showMessage(message, duration, siyuanType);
   }
 }
 
 /**
- * Get background color for toast type
+ * Escape HTML special characters for safe injection into showMessage
  */
-function getBackgroundColor(type: ToastType): string {
-  switch (type) {
-    case "success":
-      return "#4caf50";
-    case "error":
-      return "#f44336";
-    case "warning":
-      return "#ff9800";
-    case "info":
-    default:
-      return "#2196f3";
-  }
+function escapeHTML(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /**
@@ -157,48 +96,4 @@ export function confirmDialog(message: string, title = "Confirm"): Promise<boole
   });
 }
 
-// Add CSS animations if not already present
-if (typeof document !== "undefined") {
-  const style = document.createElement("style");
-  style.textContent = `
-    @keyframes slideInRight {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-    
-    @keyframes slideOutRight {
-      from {
-        transform: translateX(0);
-        opacity: 1;
-      }
-      to {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-    }
 
-    .recurring-tasks-toast__action {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: white;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .recurring-tasks-toast__action:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  `;
-  document.head.appendChild(style);
-}

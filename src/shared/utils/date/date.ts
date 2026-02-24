@@ -48,38 +48,6 @@ export function formatTime(date: Date): string {
 }
 
 /**
- * Format a date to a readable string
- */
-export function formatDate(date: Date): string {
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
-    throw new Error('Invalid date object provided to formatDate');
-  }
-
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/**
- * Format a date to a readable string with time
- */
-export function formatDateTime(date: Date): string {
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
-    throw new Error('Invalid date object provided to formatDateTime');
-  }
-
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-/**
  * Check if a date is today
  */
 export function isToday(date: Date): boolean {

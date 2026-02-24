@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { QueryEngine } from '../QueryEngine';
 import { QueryParser } from '../QueryParser';
-import type { Task } from '../../models/Task';
+import type { Task } from '@backend/core/models/Task';
 
 // Mock task index
 class MockTaskIndex {

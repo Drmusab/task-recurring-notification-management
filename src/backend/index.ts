@@ -4,7 +4,6 @@
  */
 
 // Re-export core modules when they are migrated
-export * from "@backend/core";
 export * from "@backend/adapters";
 export * from "@backend/services";
 export * from "@backend/commands";

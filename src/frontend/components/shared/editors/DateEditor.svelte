@@ -2,7 +2,7 @@
     import { doAutocomplete } from "@shared/utils/dateTime/date-abbreviations";
     import { parseTypedDateForDisplayUsingFutureDate } from "@shared/utils/dateTime/date-tools";
     import { labelContentWithAccessKey } from "@components/shared/utils/taskEditHelpers";
-    import { t, getTranslation } from '@stores/i18n.store';
+    import { t, getTranslation } from '@stores/I18n.store';
 
     export let id: 'start' | 'scheduled' | 'due' | 'done' | 'created' | 'cancelled';
     export let dateSymbol: string;

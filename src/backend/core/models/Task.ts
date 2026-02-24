@@ -1,5 +1,5 @@
 ﻿import type { Frequency } from "./Frequency";
-import type { Recurrence } from "../../../domain/models/Recurrence";
+import type { Recurrence } from "@domain/models/Recurrence";
 import { isValidFrequency } from "./Frequency";
 import { MAX_RECENT_COMPLETIONS, CURRENT_SCHEMA_VERSION } from "@shared/constants/misc-constants";
 import { calculateUrgencyScore } from "@backend/core/urgency/UrgencyScoreCalculator";
@@ -41,6 +41,36 @@ export interface Task {
 
   /** Display order for manual task ordering (Phase 4: Drag-to-reorder) */
   order?: number;
+
+  // ─── Block-Aware Metadata (CQRS Phase) ─────────────────────
+
+  /**
+   * Canonical SiYuan block ID.
+   * Primary identifier for block↔task binding.
+   * Set when task is created from a block or linked to one.
+   */
+  blockId?: string;
+
+  /**
+   * Root document ID containing this task's block.
+   * Used for document-scoped queries and lifecycle tracking.
+   */
+  rootId?: string;
+
+  /**
+   * SiYuan workspace identifier.
+   * Ensures scheduler only processes tasks belonging to current workspace.
+   */
+  workspaceId?: string;
+
+  /**
+   * Timestamp of the last block mutation affecting this task (epoch ms).
+   * Used by the recurrence engine to detect stale tasks and prevent
+   * ghost notifications when block content has changed externally.
+   */
+  lastMutationTime?: number;
+
+  // ─── Legacy Block Fields (kept for backward compat) ────────
 
   /** Linked block ID in Shehab-Note */
   linkedBlockId?: string;
@@ -100,8 +130,8 @@ export interface Task {
     }>;
   };
 
-  /** Schema version for migrations */
-  version?: number;
+  /** Schema version for migrations (REQUIRED for domain compatibility) */
+  version: number;
   
   /** Creation timestamp (ISO string) */
   createdAt: string;

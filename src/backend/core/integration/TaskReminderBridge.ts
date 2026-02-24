@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Task-Reminder Bridge Service
  * 
@@ -16,9 +15,28 @@
  */
 
 import type { Task } from '@backend/core/models/Task';
-import type ReminderPlugin from '@frontend/components/reminders/main';
-import type { Reminder } from '@backend/core/reminders/reminder';
 import * as logger from "@backend/logging/logger";
+
+/** Local reminder interface matching the subset this bridge consumes */
+interface Reminder {
+  title: string;
+  time: number;
+  enabled: boolean;
+  rowid?: string;
+}
+
+/** Abstraction over a reminder collection */
+interface Reminders {
+  addReminder(r: Reminder): string;
+  getReminder(id: string): Reminder | undefined;
+  updateReminder(r: Reminder): void;
+  removeReminder(id: string): void;
+}
+
+/** Minimal ReminderPlugin shape used by this bridge */
+interface ReminderPluginLike {
+  reminders: Reminders;
+}
 
 export interface TaskReminderSyncOptions {
   /** Auto-create reminders for tasks with due dates */
@@ -46,7 +64,7 @@ const DEFAULT_OPTIONS: TaskReminderSyncOptions = {
  * 3. Call removeTaskReminder() after task delete
  */
 export class TaskReminderBridge {
-  private reminderPlugin: ReminderPlugin | null = null;
+  private reminderPlugin: ReminderPluginLike | null = null;
   private options: TaskReminderSyncOptions;
   private taskReminderMap: Map<string, string> = new Map(); // taskId -> reminderId
   
@@ -57,7 +75,7 @@ export class TaskReminderBridge {
   /**
    * Initialize bridge with ReminderPlugin instance
    */
-  initialize(reminderPlugin: ReminderPlugin): void {
+  initialize(reminderPlugin: ReminderPluginLike): void {
     this.reminderPlugin = reminderPlugin;
     logger.info('TaskReminderBridge initialized');
   }

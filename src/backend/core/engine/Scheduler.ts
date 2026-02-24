@@ -1,6 +1,7 @@
 ﻿import type { Task } from "@backend/core/models/Task";
 import type { TaskStorage } from "@backend/core/storage/TaskStorage";
-import { RecurrenceEngineRRULE as RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
+import { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngine";
+import { ensureRecurrence, hasRecurrence } from "@backend/core/utils/RecurrenceMigrationHelper";
 import { TimezoneHandler } from "./TimezoneHandler";
 import { OnCompletionHandler } from "./OnCompletion";
 import type { SchedulerEventListener, SchedulerEventType, TaskDueEvent } from "./SchedulerEvents";
@@ -45,6 +46,11 @@ export class Scheduler {
   private persistTimeoutId: number | null = null;
   private emittedStateReady: Promise<void> | null = null;
   private timer: SchedulerTimer;
+
+  // ─── Workspace-Aware Lifecycle (CQRS Phase) ─────────────────
+  private isPaused = false;
+  private currentWorkspaceId: string | null = null;
+  private pauseReason: string | null = null;
 
   constructor(
     storage: TaskStorage,
@@ -91,6 +97,9 @@ export class Scheduler {
   /**
    * Stop the scheduler and persist emitted state.
    * Returns a promise so callers can await final persistence before teardown.
+   * 
+   * FIX [CRITICAL-003]: Added retry logic with exponential backoff and backup persistence
+   * to prevent data loss on shutdown.
    */
   async stop(): Promise<void> {
     this.timer.stop();
@@ -99,11 +108,59 @@ export class Scheduler {
       globalThis.clearTimeout(this.persistTimeoutId);
       this.persistTimeoutId = null;
     }
-    try {
-      await this.persistEmittedState();
-    } catch (err) {
-      logger.error("Failed to persist emitted state during stop", err);
+
+    // ✅ FIX [CRITICAL-003]: Retry persistence with exponential backoff
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.persistEmittedState();
+        logger.info("Scheduler stopped, emitted state persisted successfully");
+        return; // Success
+      } catch (err) {
+        lastError = err as Error;
+        logger.warn(
+          `Failed to persist emitted state (attempt ${attempt}/${maxRetries})`,
+          {
+            error: err instanceof Error ? err.message : String(err),
+            attempt,
+            maxRetries
+          }
+        );
+
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff: 100ms, 200ms, 400ms)
+          const delayMs = 100 * Math.pow(2, attempt - 1);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
     }
+
+    // All retries failed - try backup location
+    logger.error(
+      "CRITICAL: Failed to persist emitted state after all retries",
+      {
+        error: lastError?.message || 'Unknown error',
+        retries: maxRetries,
+        emittedDueCount: this.emittedDue.size,
+        emittedMissedCount: this.emittedMissed.size
+      }
+    );
+    
+    // Last resort: save to alternative location
+    try {
+      await this.saveEmittedStateBackup();
+      logger.info("Saved emitted state to backup location as fallback");
+    } catch (backupError) {
+      logger.error(
+        "CRITICAL: Failed to save emitted state backup - data may be lost",
+        {
+          error: backupError instanceof Error ? backupError.message : String(backupError)
+        }
+      );
+    }
+
     logger.info("Scheduler stopped");
   }
 
@@ -122,9 +179,85 @@ export class Scheduler {
   }
 
   /**
+   * Public event-driven trigger for an immediate due-task check.
+   * Call this when external events occur (task created, document saved, etc.)
+   * instead of waiting for the next timer tick.
+   */
+  triggerCheck(): void {
+    if (!this.timer.isActive()) return;
+    if (this.isPaused) return; // Respect pause state
+    this.checkDueTasks();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // WORKSPACE-AWARE LIFECYCLE
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Pause the scheduler (workspace switched, plugin disabled, layout closed).
+   * Timer keeps running but checkDueTasks() becomes a no-op.
+   * Prevents ghost notifications, orphan recurrence, and memory waste.
+   */
+  pause(reason: string = "manual"): void {
+    if (this.isPaused) return;
+    this.isPaused = true;
+    this.pauseReason = reason;
+    logger.info(`Scheduler paused: ${reason}`);
+  }
+
+  /**
+   * Resume the scheduler (workspace opened, plugin re-enabled).
+   * Triggers an immediate check to catch anything missed while paused.
+   */
+  resume(): void {
+    if (!this.isPaused) return;
+    this.isPaused = false;
+    logger.info(`Scheduler resumed (was paused for: ${this.pauseReason})`);
+    this.pauseReason = null;
+    // Immediate check on resume to catch up
+    if (this.timer.isActive()) {
+      this.checkDueTasks();
+    }
+  }
+
+  /**
+   * Set the active workspace ID.
+   * Tasks with a different workspaceId will be skipped during checks.
+   */
+  setWorkspace(workspaceId: string): void {
+    const changed = this.currentWorkspaceId !== workspaceId;
+    this.currentWorkspaceId = workspaceId;
+    if (changed) {
+      logger.info(`Scheduler workspace set: ${workspaceId}`);
+    }
+  }
+
+  /**
+   * Get the current workspace ID.
+   */
+  getWorkspaceId(): string | null {
+    return this.currentWorkspaceId;
+  }
+
+  /**
+   * Check if the scheduler is currently paused.
+   */
+  getIsPaused(): boolean {
+    return this.isPaused;
+  }
+
+  /**
    * Check for tasks that are due and trigger notifications
+   * 
+   * FIX [CRITICAL-001]: Added error isolation per task to prevent single
+   * task error from crashing entire scheduler check cycle.
+   * 
+   * CQRS Phase: Respects pause state and workspace filtering.
    */
   private checkDueTasks(): void {
+    // Respect pause state — no-op when paused
+    if (this.isPaused) return;
+
     // Add timeout recovery - if isChecking has been true for > 30 seconds, force reset
     if (this.isChecking) {
       const checkingDuration = Date.now() - (this.lastCheckStartTime || 0);
@@ -140,54 +273,90 @@ export class Scheduler {
     this.lastCheckStartTime = Date.now();
     const now = new Date();
     // Use the due index for fast lookup of due + overdue tasks.
-    const tasks = this.storage.getTasksDueOnOrBefore(now);
+    let tasks = this.storage.getTasksDueOnOrBefore(now);
+
+    // CQRS Phase: Filter by workspace if set
+    if (this.currentWorkspaceId) {
+      tasks = tasks.filter(
+        (t) => !t.workspaceId || t.workspaceId === this.currentWorkspaceId
+      );
+    }
 
     try {
+      let successCount = 0;
+      let errorCount = 0;
+
       for (const task of tasks) {
-        if (!this.isActive(task)) {
-          continue;
-        }
-
-        const dueDate = new Date(task.dueAt);
-        const isDue = dueDate <= now;
-
-        // Check if task is due
-        if (isDue) {
-          const taskKey = this.buildOccurrenceKey(task.id, dueDate, "hour");
-          if (!this.emittedDue.has(taskKey)) {
-            this.emitEvent("task:due", {
-              taskId: task.id,
-              dueAt: dueDate,
-              context: "today",
-              task,
-            });
-            this.registerEmittedKey("due", taskKey);
-            logger.info(`Task due: ${task.name}`, { taskId: task.id, dueAt: task.dueAt });
+        // ✅ FIX [CRITICAL-001]: Wrap individual task processing in try/catch
+        // This prevents a single corrupted task from crashing the entire check cycle
+        try {
+          if (!this.isActive(task)) {
+            continue;
           }
-        }
 
-        // Check if task is missed
-        const lastCompletedAt = task.lastCompletedAt
-          ? new Date(task.lastCompletedAt)
-          : null;
+          const dueDate = new Date(task.dueAt);
+          const isDue = dueDate <= now;
 
-        if (
-          isDue &&
-          now.getTime() - dueDate.getTime() >= MISSED_GRACE_PERIOD_MS &&
-          (!lastCompletedAt || lastCompletedAt < dueDate)
-        ) {
-          const taskKey = this.buildOccurrenceKey(task.id, dueDate, "hour");
-          if (!this.emittedMissed.has(taskKey)) {
-            this.emitEvent("task:overdue", {
-              taskId: task.id,
-              dueAt: dueDate,
-              context: "overdue",
-              task,
-            });
-            this.registerEmittedKey("missed", taskKey);
-            logger.warn(`Task missed: ${task.name}`, { taskId: task.id, dueAt: task.dueAt });
+          // Check if task is due
+          if (isDue) {
+            const taskKey = this.buildOccurrenceKey(task.id, dueDate, "hour");
+            if (!this.emittedDue.has(taskKey)) {
+              this.emitEvent("task:due", {
+                taskId: task.id,
+                dueAt: dueDate,
+                context: "today",
+                task,
+              });
+              this.registerEmittedKey("due", taskKey);
+              logger.info(`Task due: ${task.name}`, { taskId: task.id, dueAt: task.dueAt });
+            }
           }
+
+          // Check if task is missed
+          const lastCompletedAt = task.lastCompletedAt
+            ? new Date(task.lastCompletedAt)
+            : null;
+
+          if (
+            isDue &&
+            now.getTime() - dueDate.getTime() >= MISSED_GRACE_PERIOD_MS &&
+            (!lastCompletedAt || lastCompletedAt < dueDate)
+          ) {
+            const taskKey = this.buildOccurrenceKey(task.id, dueDate, "hour");
+            if (!this.emittedMissed.has(taskKey)) {
+              this.emitEvent("task:overdue", {
+                taskId: task.id,
+                dueAt: dueDate,
+                context: "overdue",
+                task,
+              });
+              this.registerEmittedKey("missed", taskKey);
+              logger.warn(`Task missed: ${task.name}`, { taskId: task.id, dueAt: task.dueAt });
+            }
+          }
+
+          successCount++;
+
+        } catch (taskError) {
+          // Log error but continue processing other tasks
+          errorCount++;
+          logger.error(
+            `Failed to process task: ${task.name}`,
+            {
+              taskId: task.id,
+              error: taskError instanceof Error ? taskError.message : String(taskError),
+              stack: taskError instanceof Error ? taskError.stack : undefined
+            }
+          );
+          // Continue to next task
         }
+      }
+
+      // Log summary if there were errors
+      if (errorCount > 0) {
+        logger.warn(
+          `Scheduler check completed with errors: ${successCount} succeeded, ${errorCount} failed`
+        );
       }
       
       // Cleanup emitted sets periodically
@@ -304,36 +473,48 @@ export class Scheduler {
     }
 
     // Calculate next occurrence
-    if (!task.frequency) {
-      logger.warn('Task has no frequency configured', { taskId: task.id });
+    if (!hasRecurrence(task)) {
+      logger.warn('Task has no recurrence configured', { taskId: task.id });
       return;
     }
     
-    const currentDue = new Date(task.dueAt);
-    const nextDue = this.recurrenceEngine.calculateNext(
-      currentDue,
-      task.frequency,
-      {
-        completionDate: now,
-        whenDone: task.whenDone
+    try {
+      // Auto-convert legacy frequency to recurrence if needed
+      const taskWithRecurrence = ensureRecurrence(task);
+      
+      // Use completion date as reference for whenDone mode
+      const referenceDate = task.whenDone ? now : new Date(task.dueAt);
+      
+      const nextDue = this.recurrenceEngine.next(taskWithRecurrence, referenceDate);
+
+      if (!nextDue) {
+        // Recurrence series exhausted — disable the task
+        task.enabled = false;
+        await this.storage.saveTask(task);
+        logger.info(`Task "${task.name}" recurrence series exhausted, disabled`);
+        return;
       }
-    );
+      
+      // Update task with converted recurrence if it was migrated
+      if (!task.recurrence && taskWithRecurrence.recurrence) {
+        task.recurrence = taskWithRecurrence.recurrence;
+      }
 
-    if (!nextDue) {
-      // Recurrence series exhausted — disable the task
-      task.enabled = false;
+      // Update task
+      task.dueAt = nextDue.toISOString();
+      // Clear doneAt for next occurrence
+      task.doneAt = undefined;
       await this.storage.saveTask(task);
-      logger.info(`Task "${task.name}" recurrence series exhausted, disabled`);
-      return;
+
+      logger.info(`Task "${task.name}" completed and rescheduled to ${nextDue.toISOString()}`);
+    } catch (error) {
+      logger.error('Failed to reschedule task after completion', {
+        taskId: task.id,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      // Don't throw - task completion succeeded, just rescheduling failed
+      // The completed task is still saved with doneAt set
     }
-
-    // Update task
-    task.dueAt = nextDue.toISOString();
-    // Clear doneAt for next occurrence
-    task.doneAt = undefined;
-    await this.storage.saveTask(task);
-
-    logger.info(`Task "${task.name}" completed and rescheduled to ${nextDue.toISOString()}`);
   }
 
   /**
@@ -398,28 +579,41 @@ export class Scheduler {
     // Record as a miss
     recordMiss(task);
 
-    if (!task.frequency) {
-      logger.warn('Task has no frequency configured for skip', { taskId: task.id });
+    if (!hasRecurrence(task)) {
+      logger.warn('Task has no recurrence configured for skip', { taskId: task.id });
       return;
     }
 
-    const currentDue = new Date(task.dueAt);
-    const nextDue = this.recurrenceEngine.calculateNext(
-      currentDue,
-      task.frequency
-    );
+    try {
+      // Auto-convert legacy frequency to recurrence if needed
+      const taskWithRecurrence = ensureRecurrence(task);
+      
+      const currentDue = new Date(task.dueAt);
+      const nextDue = this.recurrenceEngine.next(taskWithRecurrence, currentDue);
 
-    if (!nextDue) {
-      task.enabled = false;
+      if (!nextDue) {
+        task.enabled = false;
+        await this.storage.saveTask(task);
+        logger.info(`Task "${task.name}" recurrence series exhausted on skip, disabled`);
+        return;
+      }
+      
+      // Update task with converted recurrence if it was migrated
+      if (!task.recurrence && taskWithRecurrence.recurrence) {
+        task.recurrence = taskWithRecurrence.recurrence;
+      }
+
+      task.dueAt = nextDue.toISOString();
       await this.storage.saveTask(task);
-      logger.info(`Task "${task.name}" recurrence series exhausted on skip, disabled`);
-      return;
+
+      logger.info(`Task "${task.name}" skipped to ${nextDue.toISOString()}`);
+    } catch (error) {
+      logger.error('Failed to skip task occurrence', {
+        taskId: task.id,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
     }
-
-    task.dueAt = nextDue.toISOString();
-    await this.storage.saveTask(task);
-
-    logger.info(`Task "${task.name}" skipped to ${nextDue.toISOString()}`);
   }
 
   /**
@@ -443,8 +637,14 @@ export class Scheduler {
   private static readonly MAX_MISSED_EMISSIONS_PER_TASK = 50;
 
   /**
-   * Recover missed tasks from the last plugin session
-   * Based on patterns from siyuan-dailynote-today (RoutineEventHandler)
+   * Recover missed tasks from the last plugin session.
+   * Uses the RRule-based RecurrenceEngine API (Phase 3).
+   *
+   * Flow:
+   * 1. Load lastRunAt timestamp from storage
+   * 2. For each enabled task with an RRULE, get missed occurrences
+   * 3. Emit "task:overdue" for each (capped per-task to prevent flooding)
+   * 4. Advance overdue tasks to next future occurrence
    */
   async recoverMissedTasks(): Promise<void> {
     await this.ensureEmittedStateLoaded();
@@ -462,27 +662,29 @@ export class Scheduler {
     
     let totalEmitted = 0;
     for (const task of this.storage.getEnabledTasks()) {
-      if (!task.frequency) {
-        continue; // Skip tasks without frequency
+      // Phase 3: Use RRULE-based recurrence, skip tasks without it
+      if (!task.recurrence?.rrule) {
+        continue;
       }
       
       try {
-        const missedOccurrences = this.recurrenceEngine.getMissedOccurrences(
+        // Use the new RecurrenceEngine.getMissedOccurrences(task, lastChecked, now, options) API
+        const result = this.recurrenceEngine.getMissedOccurrences(
+          task,
           lastRunAt,
           now,
-          task.frequency,
-          new Date(task.createdAt)
+          { policy: "catchUp", maxMissed: Scheduler.MAX_MISSED_EMISSIONS_PER_TASK }
         );
         
         // Backpressure: cap per-task emissions to avoid flooding after long downtime
         let emittedForTask = 0;
-        if (missedOccurrences.length > Scheduler.MAX_MISSED_EMISSIONS_PER_TASK) {
+        if (result.count > Scheduler.MAX_MISSED_EMISSIONS_PER_TASK) {
           logger.warn(
-            `Task "${task.name}" has ${missedOccurrences.length} missed occurrences, capping to ${Scheduler.MAX_MISSED_EMISSIONS_PER_TASK}`
+            `Task "${task.name}" has ${result.count} missed occurrences, capping to ${Scheduler.MAX_MISSED_EMISSIONS_PER_TASK}`
           );
         }
 
-        for (const missedAt of missedOccurrences) {
+        for (const missedAt of result.missedDates) {
           if (emittedForTask >= Scheduler.MAX_MISSED_EMISSIONS_PER_TASK) {
             break;
           }
@@ -513,7 +715,8 @@ export class Scheduler {
   }
 
   /**
-   * Advance a task to the next occurrence in the future
+   * Advance a task to the next occurrence in the future.
+   * Uses the RRule-based RecurrenceEngine.next(task, ref) API (Phase 3).
    */
   private async advanceToNextFutureOccurrence(task: Task, now: Date): Promise<void> {
     const currentDue = new Date(task.dueAt);
@@ -523,27 +726,22 @@ export class Scheduler {
       return;
     }
 
-    if (!task.frequency) {
-      logger.warn('Task has no frequency configured for advance', { taskId: task.id });
+    // Phase 3: Use RRULE-based recurrence
+    if (!task.recurrence?.rrule) {
+      logger.warn('Task has no RRULE configured for advance', { taskId: task.id });
       return;
     }
 
-    let nextDue = currentDue;
-    let iterations = 0;
-
-    // Keep advancing until we find a future occurrence, but cap iterations to
-    // avoid infinite loops for corrupt timestamps or extreme downtime.
-    while (nextDue < now && iterations < MAX_RECOVERY_ITERATIONS) {
-      const computed = this.recurrenceEngine.calculateNext(nextDue, task.frequency);
-      if (!computed) {
-        // Series exhausted during recovery — disable task
-        task.enabled = false;
-        await this.storage.saveTask(task);
-        logger.info(`Task "${task.name}" recurrence series exhausted during recovery, disabled`);
-        return;
-      }
-      nextDue = computed;
-      iterations++;
+    // Use RecurrenceEngine.next() which finds the next occurrence after a given date.
+    // We pass `now` as reference so it returns the next future occurrence directly.
+    const nextDue = this.recurrenceEngine.next(task, now);
+    
+    if (!nextDue) {
+      // Series exhausted during recovery — disable task
+      task.enabled = false;
+      await this.storage.saveTask(task);
+      logger.info(`Task "${task.name}" recurrence series exhausted during recovery, disabled`);
+      return;
     }
 
     if (nextDue > currentDue) {
@@ -649,24 +847,96 @@ export class Scheduler {
     return this.emittedStateReady;
   }
 
+  /**
+   * Restore emitted state from storage
+   * 
+   * FIX [HIGH-002]: Load from backup if primary fails (persistent duplicate detection)
+   */
   private async restoreEmittedState(): Promise<void> {
     if (!this.plugin) {
       return;
     }
 
     try {
+      // Try to load from primary key
       const data = await this.plugin.loadData(EMITTED_OCCURRENCES_KEY);
-      const due = Array.isArray(data?.due) ? data.due.filter((entry: unknown) => typeof entry === "string") : [];
-      const missed = Array.isArray(data?.missed) ? data.missed.filter((entry: unknown) => typeof entry === "string") : [];
-      this.emittedDue = new Set(due.slice(-this.MAX_EMITTED_ENTRIES));
-      this.emittedMissed = new Set(missed.slice(-this.MAX_EMITTED_ENTRIES));
-      logger.info("Restored scheduler emitted state", {
-        due: this.emittedDue.size,
-        missed: this.emittedMissed.size,
-      });
+      
+      if (data && Array.isArray(data.due) && data.due.length > 0) {
+        // Primary key has valid data
+        const due = data.due.filter((entry: unknown) => typeof entry === "string");
+        const missed = Array.isArray(data.missed) ? data.missed.filter((entry: unknown) => typeof entry === "string") : [];
+        this.emittedDue = new Set(due.slice(-this.MAX_EMITTED_ENTRIES));
+        this.emittedMissed = new Set(missed.slice(-this.MAX_EMITTED_ENTRIES));
+        logger.info("Restored scheduler emitted state from primary key", {
+          due: this.emittedDue.size,
+          missed: this.emittedMissed.size,
+        });
+        return;
+      }
+
+      // ✅ FIX: Primary key failed or empty, try loading from most recent backup
+      logger.warn("Primary emitted state empty or invalid, attempting backup restore");
+      await this.restoreFromBackup();
+      
     } catch (err) {
-      logger.error("Failed to restore scheduler emitted state:", err);
+      logger.error("Failed to restore scheduler emitted state from primary key:", err);
+      
+      // ✅ FIX: Try backup on error
+      try {
+        await this.restoreFromBackup();
+      } catch (backupErr) {
+        logger.error("Failed to restore from backup, starting with empty state:", backupErr);
+        // Start with empty sets if all restore attempts fail
+        this.emittedDue = new Set();
+        this.emittedMissed = new Set();
+      }
     }
+  }
+
+  /**
+   * Restore emitted state from most recent backup
+   * 
+   * FIX [HIGH-002]: Backup restoration mechanism
+   */
+  private async restoreFromBackup(): Promise<void> {
+    if (!this.plugin) {
+      throw new Error('Plugin not available for backup restore');
+    }
+
+    // List all data keys (SiYuan plugin API limitation: no direct list method)
+    // We need to try known backup keys by timestamp
+    // Strategy: Try last 10 possible backup timestamps (last 10 minutes assuming 1 backup/minute max)
+    const now = Date.now();
+    const minuteInMs = 60 * 1000;
+    
+    for (let i = 0; i < 10; i++) {
+      const estimatedTime = now - (i * minuteInMs);
+      const possibleKey = `${EMITTED_OCCURRENCES_KEY}_backup_${estimatedTime}`;
+      
+      try {
+        const backupData = await this.plugin.loadData(possibleKey);
+        
+        if (backupData && Array.isArray(backupData.due)) {
+          const due = backupData.due.filter((entry: unknown) => typeof entry === "string");
+          const missed = Array.isArray(backupData.missed) ? backupData.missed.filter((entry: unknown) => typeof entry === "string") : [];
+          this.emittedDue = new Set(due.slice(-this.MAX_EMITTED_ENTRIES));
+          this.emittedMissed = new Set(missed.slice(-this.MAX_EMITTED_ENTRIES));
+          
+          logger.info(`Restored scheduler emitted state from backup: ${possibleKey}`, {
+            due: this.emittedDue.size,
+            missed: this.emittedMissed.size,
+            timestamp: backupData.timestamp,
+            reason: backupData.reason
+          });
+          return;
+        }
+      } catch (err) {
+        // This backup key doesn't exist or failed to load, try next
+        continue;
+      }
+    }
+
+    throw new Error('No valid backup found in last 10 minutes');
   }
 
   private schedulePersistEmittedState(): void {
@@ -698,6 +968,28 @@ export class Scheduler {
     } catch (err) {
       logger.error("Failed to persist scheduler emitted state:", err);
     }
+  }
+
+  /**
+   * Save emitted state to backup location (fallback for failures)
+   * 
+   * FIX [CRITICAL-003]: Backup persistence to prevent data loss
+   */
+  private async saveEmittedStateBackup(): Promise<void> {
+    if (!this.plugin) {
+      throw new Error('Plugin not available for backup');
+    }
+
+    const backupKey = `${EMITTED_OCCURRENCES_KEY}_backup_${Date.now()}`;
+    const data = {
+      due: Array.from(this.emittedDue),
+      missed: Array.from(this.emittedMissed),
+      timestamp: new Date().toISOString(),
+      reason: 'primary_persistence_failed'
+    };
+
+    await this.plugin.saveData(backupKey, data);
+    logger.info(`Emitted state saved to backup: ${backupKey}`);
   }
 
   private buildOccurrenceKey(

@@ -12,7 +12,6 @@ import {
 import { ActiveTaskStore } from "@backend/core/storage/ActiveTaskStore";
 import { ArchiveTaskStore, type ArchiveQuery } from "@backend/core/storage/ArchiveTaskStore";
 import * as logger from "@backend/logging/logger";
-import { TaskPersistenceController } from "@backend/core/storage/TaskPersistenceController";
 import {
   SiYuanApiAdapter,
   SiYuanApiExecutionError,
@@ -20,9 +19,71 @@ import {
   type SiYuanBlockAPI,
   reportSiYuanApiIssue,
 } from "@backend/core/api/SiYuanApiAdapter";
-import { GlobalFilter } from '@backend/core/filtering/GlobalFilter'; // Add this import
+import { GlobalFilter } from '@backend/core/filtering/GlobalFilter';
 import { TaskIndexManager } from '@backend/core/storage/TaskIndexManager';
 import { BatchBlockSync } from '@backend/core/storage/BatchBlockSync';
+import { BlockMetadataService } from '@backend/core/api/BlockMetadataService';
+import { JsonToBlockMigration } from '@backend/core/storage/JsonToBlockMigration';
+
+// ================== Phase 3: Storage Layer Consolidation ==================
+// Moved from TaskPersistenceController.ts and TaskRepository.ts
+
+/**
+ * Task state snapshot for transaction rollback
+ * 
+ * FIX [CRITICAL-005]: Transaction pattern to prevent partial saves
+ */
+interface TaskSnapshot {
+  task: Task;
+  existed: boolean;
+  previousTask?: Task;
+  version: number;
+}
+
+/**
+ * Task state snapshot for persistence
+ */
+export interface TaskState {
+  tasks: Task[];
+}
+
+/**
+ * Writer interface for task state persistence
+ */
+export interface TaskStateWriter {
+  write(state: TaskState): Promise<void>;
+}
+
+/**
+ * TaskRepositoryProvider interface (moved from TaskRepository.ts)
+ * Defines the contract for task storage operations
+ */
+export interface TaskRepositoryProvider {
+  /** Return all tasks. */
+  getAllTasks(): Task[];
+  /** Get a task by ID. */
+  getTask(id: string): Task | undefined;
+  /** Get a task by linked block ID. */
+  getTaskByBlockId(blockId: string): Task | undefined;
+  /** Return enabled tasks only. */
+  getEnabledTasks(): Task[];
+  /** Return tasks due on or before a date. */
+  getTasksDueOnOrBefore(date: Date): Task[];
+  /** Return tasks due today or overdue. */
+  getTodayAndOverdueTasks(): Task[];
+  /** Return tasks within a date range. */
+  getTasksInRange(startDate: Date, endDate: Date): Task[];
+  /** Persist a task. */
+  saveTask(task: Task): Promise<void>;
+  /** Remove a task by ID. */
+  deleteTask(taskId: string): Promise<void>;
+  /** Archive a task snapshot. */
+  archiveTask(task: Task): Promise<void>;
+  /** Load archived tasks. */
+  loadArchive(filter?: ArchiveQuery): Promise<Task[]>;
+  /** Flush pending writes. */
+  flush(): Promise<void>;
+}
 
 /**
  * TaskStorage manages task persistence using SiYuan storage API.
@@ -31,7 +92,7 @@ import { BatchBlockSync } from '@backend/core/storage/BatchBlockSync';
  */
 export interface TaskStorageProvider {
   /** Load active tasks from storage. */
-  loadActive(): Promise<Map<string, Task>>;
+  loadActive(signal?: AbortSignal): Promise<Map<string, Task>>;
   /** Save active tasks to storage. */
   saveActive(tasks: Map<string, Task>): Promise<void>;
   /** Archive a completed task. */
@@ -40,17 +101,123 @@ export interface TaskStorageProvider {
   loadArchive(filter?: ArchiveQuery): Promise<Task[]>;
 }
 
-export class TaskStorage implements TaskStorageProvider {
+/**
+ * Inlined TaskPersistenceController (Phase 3 consolidation)
+ * Serializes disk writes and guarantees latest-state persistence.
+ */
+class InlinedPersistenceController {
+  private pendingState: TaskState | null = null;
+  private writeInProgress = false;
+  private scheduledTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushResolvers: Array<() => void> = [];
+
+  constructor(
+    private writer: TaskStateWriter,
+    private debounceMs = 50
+  ) {}
+
+  requestSave(state: TaskState): void {
+    this.pendingState = state;
+
+    if (this.writeInProgress || this.scheduledTimer) {
+      return;
+    }
+
+    this.scheduledTimer = setTimeout(() => {
+      this.scheduledTimer = null;
+      void this.drainQueue();
+    }, this.debounceMs);
+  }
+
+  async flush(): Promise<void> {
+    if (!this.pendingState && !this.writeInProgress && !this.scheduledTimer) {
+      return;
+    }
+
+    return new Promise((resolve) => {
+      this.flushResolvers.push(resolve);
+      if (!this.writeInProgress && !this.scheduledTimer && this.pendingState) {
+        void this.drainQueue();
+      }
+    });
+  }
+
+  private async drainQueue(): Promise<void> {
+    if (this.writeInProgress) {
+      return;
+    }
+
+    this.writeInProgress = true;
+
+    try {
+      while (this.pendingState) {
+        const stateToWrite = this.pendingState;
+        this.pendingState = null;
+
+        const success = await this.writeWithRetry(stateToWrite);
+        if (!success) {
+          this.pendingState = stateToWrite;
+          break;
+        }
+      }
+    } finally {
+      this.writeInProgress = false;
+
+      if (!this.pendingState) {
+        this.resolveFlushes();
+      }
+
+      if (this.pendingState && !this.scheduledTimer) {
+        this.scheduledTimer = setTimeout(() => {
+          this.scheduledTimer = null;
+          void this.drainQueue();
+        }, this.debounceMs);
+      }
+    }
+  }
+
+  private async writeWithRetry(state: TaskState): Promise<boolean> {
+    try {
+      await this.writer.write(state);
+      return true;
+    } catch (err) {
+      logger.error("Task persistence write failed, retrying once", err);
+    }
+
+    try {
+      await this.writer.write(state);
+      return true;
+    } catch (err) {
+      logger.error("Task persistence write failed after retry", err);
+      return false;
+    }
+  }
+
+  private resolveFlushes(): void {
+    if (this.flushResolvers.length === 0) {
+      return;
+    }
+    const resolvers = [...this.flushResolvers];
+    this.flushResolvers = [];
+    for (const resolve of resolvers) {
+      resolve();
+    }
+  }
+}
+
+export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider {
   private plugin: Plugin;
   private activeTasks: Map<string, Task>;
   private indexManager: TaskIndexManager;
   private batchBlockSync: BatchBlockSync;
   private activeStore: ActiveTaskStore;
   private archiveStore: ArchiveTaskStore;
-  private persistence: TaskPersistenceController;
+  private persistence: InlinedPersistenceController;
   private blockAttrSyncEnabled = true;
   private blockApi: SiYuanBlockAPI;
   private apiAdapter: SiYuanApiAdapter;
+  private blockMetadata: BlockMetadataService;
+  private migration: JsonToBlockMigration;
   
   // Retry queue for failed block attribute syncs (timeout-based, managed per blockId)
   private blockAttrRetryQueue: Map<string, { attrs: Record<string, string>; attempts: number }> = new Map();
@@ -65,28 +232,77 @@ export class TaskStorage implements TaskStorageProvider {
     this.batchBlockSync = new BatchBlockSync(apiAdapter, 500, 100);
     this.activeStore = new ActiveTaskStore(plugin, apiAdapter);
     this.archiveStore = new ArchiveTaskStore(plugin);
-    this.persistence = new TaskPersistenceController(this.activeStore);
+    this.persistence = new InlinedPersistenceController(this.activeStore);
+    this.blockMetadata = new BlockMetadataService();
+    this.migration = new JsonToBlockMigration(plugin, this.blockMetadata);
   }
 
   /**
-   * Initialize storage by loading tasks from disk
+   * Initialize storage — hybrid block-first loading with JSON fallback
+   * 
+   * Phase 6 Strategy:
+   * 1. Run legacy JSON migration (v0 format → active/archive split)
+   * 2. Check if JSON→block migration has been done
+   *    - If NOT migrated: load from JSON, write to blocks, mark done
+   *    - If migrated: load from blocks (primary), fall back to JSON if blocks empty
+   * 3. Apply global filter and rebuild indexes
    */
   async init(): Promise<void> {
     await this.migrateLegacyStorage();
-    const loadedTasks = await this.activeStore.loadActive();
-    
-    // Apply global filter
+
+    const isMigrated = await this.migration.isMigrated();
+
+    if (!isMigrated) {
+      // First run after upgrade: load from JSON, migrate to blocks
+      const jsonTasks = await this.activeStore.loadActive();
+      logger.info(`[Storage] Pre-migration: loaded ${jsonTasks.size} tasks from JSON`);
+
+      if (jsonTasks.size > 0) {
+        const result = await this.migration.migrate(jsonTasks);
+        logger.info("[Storage] Migration complete", result);
+      } else {
+        // No JSON tasks — mark migrated anyway
+        await this.migration.migrate(new Map());
+      }
+
+      this.activeTasks = this.applyGlobalFilter(jsonTasks);
+    } else {
+      // Post-migration: try loading from block attributes first
+      let blockTasks: Map<string, Task>;
+      try {
+        blockTasks = await this.blockMetadata.loadAllTasks();
+      } catch (err) {
+        logger.warn("[Storage] Block attribute loading failed, falling back to JSON", err);
+        blockTasks = new Map();
+      }
+
+      if (blockTasks.size > 0) {
+        logger.info(`[Storage] Loaded ${blockTasks.size} tasks from block attributes (primary)`);
+        this.activeTasks = this.applyGlobalFilter(blockTasks);
+      } else {
+        // Fallback: blocks returned nothing (maybe blocks were deleted, or fresh install)
+        logger.info("[Storage] No tasks in block attributes, falling back to JSON");
+        const jsonTasks = await this.activeStore.loadActive();
+        this.activeTasks = this.applyGlobalFilter(jsonTasks);
+      }
+    }
+
+    logger.info(`[Storage] Initialized with ${this.activeTasks.size} active tasks`);
+    this.indexManager.rebuildIndexes(this.activeTasks);
+  }
+
+  /**
+   * Apply global filter to a task map
+   */
+  private applyGlobalFilter(tasks: Map<string, Task>): Map<string, Task> {
     const globalFilter = GlobalFilter.getInstance();
     const filtered = new Map<string, Task>();
-    for (const [id, task] of loadedTasks.entries()) {
+    for (const [id, task] of tasks.entries()) {
       if (globalFilter.shouldIncludeTask(task)) {
         filtered.set(id, task);
       }
     }
-    
-    this.activeTasks = filtered;
-    logger.info(`Loaded ${this.activeTasks.size} active tasks from storage (after global filter)`);
-    this.indexManager.rebuildIndexes(this.activeTasks);
+    return filtered;
   }
 
   /**
@@ -185,6 +401,8 @@ export class TaskStorage implements TaskStorageProvider {
 
   /**
    * Add or update a task
+   * 
+   * FIX [CRITICAL-005]: Transaction pattern with rollback to prevent data inconsistency
    */
   async saveTask(task: Task): Promise<void> {
     const existingTask = this.activeTasks.get(task.id);
@@ -200,43 +418,112 @@ export class TaskStorage implements TaskStorageProvider {
     task.version = (task.version ?? 0) + 1;
     
     const previousTask = this.activeTasks.get(task.id);
+    const previousBlockId = previousTask?.linkedBlockId;
     
-    // Update index manager
-    if (previousTask) {
-      this.indexManager.updateTask(task.id, previousTask, task);
-    } else {
-      this.indexManager.addTask(task.id, task);
-    }
+    // ✅ FIX: Create snapshot for transaction rollback
+    const snapshot: TaskSnapshot = {
+      task: { ...task },
+      existed: this.activeTasks.has(task.id),
+      previousTask: previousTask ? { ...previousTask } : undefined,
+      version: task.version
+    };
 
-    task.updatedAt = new Date().toISOString();
-    this.activeTasks.set(task.id, task);
-    await this.save();
+    try {
+      // Phase 1: Update index manager
+      if (previousTask) {
+        this.indexManager.updateTask(task.id, previousTask, task);
+      } else {
+        this.indexManager.addTask(task.id, task);
+      }
 
-    // Sync to block attributes for persistence with retry
-    if (task.linkedBlockId) {
-      await this.syncTaskToBlockAttrsWithRetry(task);
-    }
+      // Phase 2: Update in-memory state
+      task.updatedAt = new Date().toISOString();
+      this.activeTasks.set(task.id, task);
+      
+      // Phase 3: Persist to disk
+      await this.save();
 
-    if (previousBlockId && previousBlockId !== task.linkedBlockId) {
-      await this.clearBlockAttrs(previousBlockId);
+      // Phase 4: Sync to block attributes for persistence with retry
+      if (task.linkedBlockId) {
+        await this.syncTaskToBlockAttrsWithRetry(task);
+      }
+
+      // Phase 5: Clean up old block attributes if block changed
+      if (previousBlockId && previousBlockId !== task.linkedBlockId) {
+        await this.clearBlockAttrs(previousBlockId);
+      }
+
+      logger.info(`Task saved successfully: ${task.name}`, { taskId: task.id });
+
+    } catch (error) {
+      // ✅ FIX: Rollback on any error to maintain consistency
+      logger.error(
+        `Failed to save task "${task.name}", rolling back changes`,
+        error as Error,
+        { taskId: task.id }
+      );
+
+      await this.rollbackTaskSave(snapshot);
+      throw error; // Re-throw so caller knows save failed
     }
   }
 
   /**
-   * Sync task data to block attributes
-   * This ensures task information persists even if plugin data is lost
+   * Rollback task save operation
+   * 
+   * FIX [CRITICAL-005]: Restore previous state on save failure
+   */
+  private async rollbackTaskSave(snapshot: TaskSnapshot): Promise<void> {
+    try {
+      if (snapshot.existed && snapshot.previousTask) {
+        // Restore previous version
+        this.activeTasks.set(snapshot.previousTask.id, snapshot.previousTask);
+        
+        // Restore index
+        this.indexManager.updateTask(snapshot.task.id, snapshot.task, snapshot.previousTask);
+      } else {
+        // Remove the new task that failed to save
+        this.activeTasks.delete(snapshot.task.id);
+        this.indexManager.removeTask(snapshot.task.id);
+      }
+
+      logger.info('Task save rolled back successfully', { taskId: snapshot.task.id });
+    } catch (rollbackError) {
+      logger.error(
+        'CRITICAL: Rollback failed - data may be inconsistent',
+        rollbackError as Error,
+        { taskId: snapshot.task.id }
+      );
+      // Note: We cannot recover from rollback failure
+      // This should trigger manual intervention
+    }
+  }
+
+  /**
+   * Sync task data to block attributes (Phase 6: full attribute set via BlockMetadataService)
+   * This is now the PRIMARY persistence path for tasks with linked blocks.
+   * JSON file persistence is kept as a backup.
    */
   private async syncTaskToBlockAttrs(task: Task): Promise<void> {
     if (!task.linkedBlockId) {
       return;
     }
 
-    // Use batch sync instead of immediate update
-    this.batchBlockSync.queueUpdate(task.linkedBlockId, {
-      [BLOCK_ATTR_TASK_ID]: task.id,
-      [BLOCK_ATTR_TASK_DUE]: task.dueAt,
-      [BLOCK_ATTR_TASK_ENABLED]: task.enabled ? "true" : "false",
-    });
+    // Use BlockMetadataService for full attribute sync (11 fields + JSON blob)
+    try {
+      await this.blockMetadata.setTaskAttributes(task.linkedBlockId, task);
+    } catch (err) {
+      // Fall back to batch sync with minimal attributes
+      logger.warn("[Storage] BlockMetadataService sync failed, queuing minimal batch sync", {
+        taskId: task.id,
+        blockId: task.linkedBlockId,
+      });
+      this.batchBlockSync.queueUpdate(task.linkedBlockId, {
+        [BLOCK_ATTR_TASK_ID]: task.id,
+        [BLOCK_ATTR_TASK_DUE]: task.dueAt,
+        [BLOCK_ATTR_TASK_ENABLED]: task.enabled ? "true" : "false",
+      });
+    }
   }
 
   private async clearBlockAttrs(blockId: string): Promise<void> {
@@ -393,9 +680,10 @@ export class TaskStorage implements TaskStorageProvider {
 
   /**
    * Load active tasks from storage (TaskStorageProvider API).
+   * @param signal - Optional AbortSignal for cancellation support
    */
-  async loadActive(): Promise<Map<string, Task>> {
-    return this.activeStore.loadActive();
+  async loadActive(signal?: AbortSignal): Promise<Map<string, Task>> {
+    return this.activeStore.loadActive(signal);
   }
 
   /**

@@ -10,7 +10,7 @@
   import { SmartSuggestionEngine, type TaskSuggestion } from '@backend/core/ai/SmartSuggestionEngine';
   import type { UnifiedTask } from '@backend/services/TaskAdapterService';
   import { TaskModelAdapter } from '@backend/services/TaskAdapterService';
-  import { t } from '@stores/i18n.store';
+  import { t } from '@stores/I18n.store';
   import { showMessage } from 'siyuan';
   
   export let task: UnifiedTask;

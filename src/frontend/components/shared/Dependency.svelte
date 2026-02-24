@@ -1,10 +1,11 @@
 <script lang="ts">
     import { computePosition, flip, offset, shift, size } from '@floating-ui/dom';
-    import type { Task } from "@shared/utils/task/Task";
+    import type { Task } from "@backend/core/models/Task";
     import type { EditableTask } from "@components/shared/utils/editableTask";
     import { descriptionAdjustedForDependencySearch, searchForCandidateTasksForDependency } from "@components/shared/utils/dependencyHelpers";
     import { labelContentWithAccessKey } from "@components/shared/utils/taskEditHelpers";
-    import { t } from '@stores/i18n.store';
+    import { t } from '@stores/I18n.store';
+    import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry';
 
     export let task: Task;
     export let editableTask: EditableTask;
@@ -25,6 +26,12 @@
 
     let input: HTMLElement;
     let dropdown: HTMLElement;
+
+    // Helper to get status symbol from status string
+    function getStatusSymbol(task: Task): string {
+        if (!task.status) return ' ';
+        return StatusRegistry.getInstance().bySymbol(task.status).symbol;
+    }
 
     function addTask(task: Task) {
         editableTask[type] = [...editableTask[type], task];
@@ -59,9 +66,12 @@
             case 'Enter':
                 if (e.isComposing) return;
 
-                if (searchIndex !== null) {
+                if (searchIndex !== null && searchResults && searchResults[searchIndex]) {
                     e.preventDefault();
-                    addTask(searchResults[searchIndex]);
+                    const selectedTask = searchResults[searchIndex];
+                    if (selectedTask) {
+                        addTask(selectedTask);
+                    }
                     searchIndex = null;
                     inputFocused = false;
                 } else {
@@ -114,7 +124,7 @@
     }
 
     function displayPath(path: string) {
-        return path === task.taskLocation.path ? '' : path;
+        return path === task.path ? '' : path;
     }
 
     function descriptionTooltipText(task: Task) {
@@ -122,9 +132,12 @@
     }
 
     function showDescriptionTooltip(element: HTMLElement, text: string) {
-        const tooltip = element.createDiv();
-        tooltip.addClasses(['tooltip', 'pop-up']);
+        const tooltip = document.createElement('div');
+        tooltip.classList.add('tooltip', 'pop-up');
         tooltip.innerText = text;
+        // Mount inside SiYuan container (Phase 4 §4.5 compliant)
+        const container = element.closest('.dock__panel') || element.closest('.layout__center') || element.closest('#layouts') || element.parentElement!;
+        container.appendChild(tooltip);
 
         computePosition(element, tooltip, {
             placement: 'top',
@@ -165,7 +178,7 @@
 {#if searchResults && searchResults.length !== 0}
     <ul class="task-dependency-dropdown" role="listbox" bind:this={dropdown} on:mouseleave={() => (searchIndex = null)}>
         {#each searchResults as searchTask, index}
-            {@const filepath = displayPath(searchTask.taskLocation.path)}
+            {@const filepath = displayPath(searchTask.path || '')}
             <li
                 role="option"
                 tabindex="0"
@@ -182,7 +195,7 @@
                     class={filepath ? 'dependency-name-shared' : 'dependency-name'}
                     on:mouseenter={(e) => showDescriptionTooltip(e.currentTarget, descriptionTooltipText(searchTask))}
                 >
-                    [{searchTask.status.symbol}] {descriptionAdjustedForDependencySearch(searchTask)}
+                    [{getStatusSymbol(searchTask)}] {descriptionAdjustedForDependencySearch(searchTask)}
                 </div>
                 {#if filepath}
                     <div
@@ -208,7 +221,7 @@
                 on:mouseenter={(e) => showDescriptionTooltip(e.currentTarget, descriptionTooltipText(task))}
             >
                 <span class="task-dependency-name"
-                    >[{task.status.symbol}] {descriptionAdjustedForDependencySearch(task)}</span
+                    >[{getStatusSymbol(task)}] {descriptionAdjustedForDependencySearch(task)}</span
                 >
 
                 <button on:click={() => removeTask(task)} type="button" class="task-dependency-delete" aria-label={$t('dependencies.remove')}>

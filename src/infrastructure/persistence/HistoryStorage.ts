@@ -14,7 +14,7 @@
  * - etc.
  */
 
-import type { Task } from '../domain/models/Task';
+import type { Task } from '@backend/core/models/Task';
 
 /**
  * History partition (one month of completed tasks)

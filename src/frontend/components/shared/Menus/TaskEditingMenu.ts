@@ -1,8 +1,8 @@
-// @ts-nocheck
 import type { Task } from "@backend/core/models/Task";
 import { replaceTaskWithTasks } from "@backend/core/file/File";
 import type { TaskEditingInstruction } from "@components/shared/EditInstructions/TaskEditingInstruction";
 import { SEPARATOR_INSTRUCTION_DISPLAY_NAME } from "@components/shared/EditInstructions/MenuDividerInstruction";
+import { Menu, MenuItem } from "@shared/utils/compat/siyuan-compat";
 
 /**
  * A function for replacing one task with zero or more new tasks.

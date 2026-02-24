@@ -1,11 +1,12 @@
 {
-  "name": "task-recurring-notfication-mangmant",
+  "name": "task-recurring-notification-management",
   "author": "Drmusab",
   "url": "https://github.com/Drmusab/task-recurring-notification-management",
-  "version": "1.0.0",
-  "minAppVersion": "3.0.0",
-  "backends": ["all"],
-  "frontends": ["all"],
+  "version": "1.1.0",
+  "minAppVersion": "3.2.1",
+  "backends": ["windows", "linux", "darwin", "ios", "android", "harmony", "docker"],
+  "frontends": ["desktop", "mobile", "browser-desktop", "browser-mobile", "desktop-window"],
+  "disabledInPublish": false,
   "displayName": {
     "default": "Task Recurring Notification Management",
     "zh_CN": "任务循环通知管理",
@@ -33,6 +34,5 @@
     "productivity",
     "scheduling",
     "automation"
-  ],
-  "icon": "icon.png"
+  ]
 }

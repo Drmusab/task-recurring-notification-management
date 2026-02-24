@@ -13,7 +13,7 @@
  */
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
-import type { Task } from '../../../../domain/models/Task';
+import type { Task } from '@domain/models/Task';
 import type { 
   IRecurrenceEngine, 
   RecurrenceExplanation, 

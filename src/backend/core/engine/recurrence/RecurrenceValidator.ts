@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * RecurrenceValidator - RRULE validation layer
  * 

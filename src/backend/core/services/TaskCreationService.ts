@@ -6,7 +6,7 @@
  */
 
 import type { Task } from '../models/Task';
-import type { Recurrence } from '../../../domain/models/Recurrence';
+import type { Recurrence } from '@domain/models/Recurrence';
 import type { PluginSettings } from '../settings/PluginSettings';
 import { createTask as createTaskLegacy } from '../models/Task';
 import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';

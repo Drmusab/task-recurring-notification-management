@@ -1,5 +1,5 @@
 // @ts-nocheck
-import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
+import type { TaskRepositoryProvider } from "@backend/core/storage/TaskStorage";
 import type { BlockActionEngine } from "@backend/core/block-actions/BlockActionEngine";
 import type { BlockEvent } from "@backend/core/block-actions/BlockActionTypes";
 import type { BlockActionSettings } from "@backend/core/settings/PluginSettings";

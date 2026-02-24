@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Unified EditTask Component Wrapper
  * 
@@ -17,6 +16,7 @@
  */
 
 import { writable } from 'svelte/store';
+import { mount, unmount } from 'svelte';
 import EditTaskLegacy from "@components/shared/EditTask.svelte";
 import BlockActionsEditor from "@components/shared/editors/BlockActionsEditor.svelte";
 import TagsCategoryEditor from "@components/shared/editors/TagsCategoryEditor.svelte";
@@ -105,7 +105,7 @@ export function createUnifiedEditor(
     ? props.task as ObsidianTask
     : TaskModelAdapter.unifiedToObsidian(unifiedTask);
   
-  const legacyEditor = new EditTaskLegacy({
+  const legacyEditor = mount(EditTaskLegacy, {
     target: legacyContainer,
     props: {
       task: legacyTask,
@@ -138,7 +138,7 @@ export function createUnifiedEditor(
   });
   
   // Mount Tags/Category editor
-  const tagsEditor = new TagsCategoryEditor({
+  const tagsEditor = mount(TagsCategoryEditor, {
     target: tagsContainer,
     props: {
       tags: currentTags,
@@ -158,7 +158,7 @@ export function createUnifiedEditor(
   });
   
   // Mount Block Actions editor
-  const blockActionsEditor = new BlockActionsEditor({
+  const blockActionsEditor = mount(BlockActionsEditor, {
     target: blockActionsContainer,
     props: {
       actions: currentBlockActions,
@@ -175,7 +175,7 @@ export function createUnifiedEditor(
   });
   
   // Mount AI Suggestions panel with reactive task store
-  const aiPanel = new AISuggestionsPanel({
+  const aiPanel = mount(AISuggestionsPanel, {
     target: aiContainer,
     props: {
       task: unifiedTask,
@@ -196,7 +196,9 @@ export function createUnifiedEditor(
               suggestion.action.type === 'setPriority') {
             // Trigger legacy editor update by updating its props
             const updatedObsidian = TaskModelAdapter.unifiedToObsidian(updated);
-            legacyEditor.$set({ task: updatedObsidian });
+            // Note: Svelte 5 mount() returns don't support $set.
+            // The legacy editor should react to store changes instead.
+            // TODO: Refactor to use reactive store for the legacy editor task prop.
           }
           
           return updated;
@@ -218,10 +220,10 @@ export function createUnifiedEditor(
   return {
     destroy: () => {
       unsubscribe();
-      legacyEditor.$destroy();
-      tagsEditor.$destroy();
-      blockActionsEditor.$destroy();
-      aiPanel.$destroy();
+      try { unmount(legacyEditor); } catch { /* ignore */ }
+      try { unmount(tagsEditor); } catch { /* ignore */ }
+      try { unmount(blockActionsEditor); } catch { /* ignore */ }
+      try { unmount(aiPanel); } catch { /* ignore */ }
     },
   };
 }

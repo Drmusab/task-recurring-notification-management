@@ -1,8 +1,9 @@
 /**
  * Plugin constants
+ * Must match the "name" field in plugin.json
  */
 
-export const PLUGIN_NAME = "plugin-sample-shehab-note";
+export const PLUGIN_NAME = "task-recurring-notification-management";
 
 /**
  * @deprecated Use STORAGE_ACTIVE_KEY or STORAGE_LEGACY_KEY instead.

@@ -11,6 +11,10 @@ import QuickFilters from '@frontend/components/shared/pickers/QuickFilters.svelt
 import { taskStore } from '@stores/Task.store';
 import { settingsStore } from '@stores/Settings.store';
 import type { Task } from '@backend/core/models/Task';
+import type { PluginEventBus } from '@backend/core/events/PluginEventBus';
+
+/** Optional eventBus prop for dispatching edit events */
+export let eventBus: PluginEventBus | undefined = undefined;
 
 enum TabView {
   INBOX = 'inbox',
@@ -68,9 +72,9 @@ function filterTasksForActiveTab() {
 
   switch (activeTab) {
     case TabView.INBOX:
-      // All open tasks
+      // All open tasks (not done or cancelled)
       filteredTasks = allTasks.filter(
-        (t) => t.status === 'todo' || t.status === 'in-progress'
+        (t) => t.status !== 'done' && t.status !== 'cancelled'
       );
       break;
 
@@ -177,13 +181,9 @@ function handleQuickFilter(event: CustomEvent<any>) {
 function handleTaskClick(event: CustomEvent<Task>) {
   const task = event.detail;
   
-  if (task.linkedBlockId) {
-    // Use SiYuan API to jump to block
-    // @ts-ignore - SiYuan global
-    if (window.siyuan?.openBlock) {
-      // @ts-ignore
-      window.siyuan.openBlock({ id: task.linkedBlockId });
-    }
+  if (task.linkedBlockId && eventBus) {
+    // Emit navigation event — plugin orchestrator handles the actual SiYuan API call
+    eventBus.emit("block:navigate", { blockId: task.linkedBlockId });
   }
 }
 
@@ -200,12 +200,10 @@ async function handleTaskToggle(event: CustomEvent<Task>) {
  */
 function handleTaskEdit(event: CustomEvent<Task>) {
   const task = event.detail;
-  // Dispatch event to open edit modal
-  const editEvent = new CustomEvent('openEditModal', {
-    detail: task,
-    bubbles: true,
-  });
-  window.dispatchEvent(editEvent);
+  // Use PluginEventBus to open edit modal (no window reference)
+  if (eventBus) {
+    eventBus.emit('task:edit', { task });
+  }
 }
 
 /**
@@ -222,7 +220,7 @@ function getTabCount(tab: TabView): number {
 
   switch (tab) {
     case TabView.INBOX:
-      return allTasks.filter((t) => t.status === 'todo' || t.status === 'in-progress').length;
+      return allTasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length;
 
     case TabView.TODAY:
       return allTasks.filter((t) => {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { DependencyIndex } from '@backend/core/dependencies/DependencyIndex';
 
 export interface BlockedExplanation {

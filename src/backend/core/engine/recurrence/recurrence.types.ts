@@ -3,7 +3,7 @@
  * RFC 5545 compliant scheduling types
  */
 
-import type { Task } from "../../../../domain/models/Task";
+import type { Task } from "@domain/models/Task";
 
 /**
  * Scheduling mode for recurrence calculation

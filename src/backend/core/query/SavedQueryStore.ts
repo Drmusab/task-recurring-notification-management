@@ -1,9 +1,11 @@
 /**
  * SavedQueryStore - Persistent storage for saved queries
- * Ported from obsidian-tasks Presets system with localStorage backend
+ * Uses SiYuan plugin.loadData/saveData API (replaces localStorage)
  * 
  * Phase 1: Query Enhancement
  */
+
+import type { Plugin } from "siyuan";
 
 export interface SavedQuery {
   id: string;
@@ -40,12 +42,41 @@ export interface SavedQueryCollection {
   version: number;
 }
 
+/** Module-level plugin reference and in-memory cache */
+let pluginRef: Plugin | null = null;
+let cachedCollection: SavedQueryCollection | null = null;
+const STORAGE_KEY = "saved-queries";
+
 /**
- * SavedQueryStore manages persistence of saved queries to localStorage
+ * Initialize the SavedQueryStore with a plugin reference.
+ * Must be called once during plugin onload before any store operations.
+ */
+export async function initSavedQueryStore(plugin: Plugin): Promise<void> {
+  pluginRef = plugin;
+  const raw = await plugin.loadData(STORAGE_KEY);
+  if (raw && typeof raw === "object") {
+    // Handle legacy array format
+    if (Array.isArray(raw)) {
+      cachedCollection = {
+        queries: raw,
+        folders: [],
+        version: SavedQueryStore.CURRENT_VERSION,
+      };
+    } else if (Array.isArray(raw.queries)) {
+      cachedCollection = raw as SavedQueryCollection;
+    } else {
+      cachedCollection = SavedQueryStore.createEmptyCollection();
+    }
+  } else {
+    cachedCollection = SavedQueryStore.createEmptyCollection();
+  }
+}
+
+/**
+ * SavedQueryStore manages persistence of saved queries via SiYuan plugin storage
  */
 export class SavedQueryStore {
-  private static readonly STORAGE_KEY = 'tasks-saved-queries';
-  private static readonly CURRENT_VERSION = 1;
+  static readonly CURRENT_VERSION = 1;
   
   /**
    * Load all saved queries from localStorage
@@ -61,38 +92,13 @@ export class SavedQueryStore {
   }
 
   /**
-   * Load complete collection (queries + folders)
+   * Load complete collection (queries + folders) from in-memory cache
    */
   static loadCollection(): SavedQueryCollection {
-    try {
-      const json = localStorage.getItem(this.STORAGE_KEY);
-      
-      if (!json) {
-        return this.createEmptyCollection();
-      }
-      
-      const parsed = JSON.parse(json);
-      
-      // Handle legacy format (array of queries without version)
-      if (Array.isArray(parsed)) {
-        return {
-          queries: parsed,
-          folders: [],
-          version: this.CURRENT_VERSION
-        };
-      }
-      
-      // Validate structure
-      if (!parsed.version || !Array.isArray(parsed.queries)) {
-        console.warn('Invalid saved query collection, resetting to empty');
-        return this.createEmptyCollection();
-      }
-      
-      return parsed as SavedQueryCollection;
-    } catch (error) {
-      console.error('Failed to parse saved queries:', error);
-      return this.createEmptyCollection();
+    if (cachedCollection) {
+      return cachedCollection;
     }
+    return this.createEmptyCollection();
   }
 
   /**
@@ -442,15 +448,15 @@ export class SavedQueryStore {
   // Private helper methods
 
   private static saveCollection(collection: SavedQueryCollection): void {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(collection));
-    } catch (error) {
-      console.error('Failed to save query collection:', error);
-      throw error;
+    cachedCollection = collection;
+    if (pluginRef) {
+      pluginRef.saveData(STORAGE_KEY, collection).catch((err: unknown) => {
+        console.error("Failed to persist saved queries:", err);
+      });
     }
   }
 
-  private static createEmptyCollection(): SavedQueryCollection {
+  static createEmptyCollection(): SavedQueryCollection {
     return {
       queries: [],
       folders: [],

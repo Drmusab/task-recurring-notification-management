@@ -3,6 +3,7 @@ import type { Task } from "@backend/core/models/Task";
 import type { TaskDueEvent } from "@backend/core/engine/SchedulerEvents";
 import type { Scheduler } from "@backend/core/engine/Scheduler";
 import { NotificationState } from "@backend/core/engine/NotificationState";
+import { OccurrenceBlockCreator } from "@backend/core/engine/OccurrenceBlockCreator";
 import * as logger from "@backend/logging/logger";
 import type { NotificationConfig, TaskEventPayload, TaskEventType, QueueItem } from "@backend/services/event-service.types";
 import { createTaskSnapshot } from "@backend/services/event-service.types";
@@ -36,6 +37,7 @@ export class EventService {
   private fetcher: Fetcher;
   private notificationState: NotificationState;
   private schedulerUnsubscribe: Array<() => void> = [];
+  private occurrenceCreator: OccurrenceBlockCreator | null = null;
 
   constructor(
     plugin: Plugin,
@@ -50,32 +52,66 @@ export class EventService {
   }
 
   /**
+   * Set the occurrence block creator for materializing recurring task blocks.
+   * Called from index.ts after TaskStorage is initialized.
+   */
+  setOccurrenceCreator(creator: OccurrenceBlockCreator): void {
+    this.occurrenceCreator = creator;
+  }
+
+  /**
    * Initialize the event service
+   * 
+   * FIX [CRITICAL-002]: Added state validation before starting queue worker
+   * to prevent service from running with corrupted or invalid configuration.
    */
   async init(): Promise<void> {
+    const errors: string[] = [];
+
+    // Try to load notification state
     try {
       await this.notificationState.load();
     } catch (error) {
       logger.error('Failed to load notification state', error);
+      errors.push('notification-state');
       // Continue with empty state rather than failing completely
     }
     
+    // Try to load config
     try {
       await this.loadConfig();
     } catch (error) {
       logger.error('Failed to load event config', error);
-      // Continue with default config
+      errors.push('config');
+      this.config = { ...DEFAULT_NOTIFICATION_CONFIG }; // Use defaults
     }
     
+    // Try to load queue
     try {
       await this.loadQueue();
     } catch (error) {
       logger.error('Failed to load event queue', error);
-      // Continue with empty queue
+      errors.push('queue');
       this.queue = [];
       this.dedupeKeys = new Set();
     }
+
+    // ✅ FIX [CRITICAL-002]: Validate critical state before starting worker
+    if (!this.isConfigValid(this.config)) {
+      const critError = 'EventService config is invalid - refusing to start';
+      logger.error(critError, { config: this.config });
+      throw new Error('CRITICAL: EventService initialization failed - invalid config');
+    }
     
+    // Log non-fatal errors
+    if (errors.length > 0) {
+      logger.warn(
+        `EventService started with degraded state: ${errors.join(', ')} failed to load`,
+        { failedComponents: errors }
+      );
+    }
+    
+    // Flush queue on startup
     try {
       await this.flushQueueOnStartup();
     } catch (error) {
@@ -84,6 +120,7 @@ export class EventService {
     }
     
     this.startQueueWorker();
+    logger.info('EventService initialized successfully');
   }
 
   /**
@@ -230,77 +267,150 @@ export class EventService {
   /**
    * Handle a task completion event and reset escalation policy.
    */
+  /**
+   * Handle task completion event
+   * 
+   * FIX [HIGH-001]: Added try/catch for error handling
+   */
   async handleTaskCompleted(task: Task): Promise<void> {
-    await this.emitTaskEvent("task.completed", task, 0);
-    this.notificationState.resetEscalation(task.id);
-    await this.notificationState.save();
+    try {
+      await this.emitTaskEvent("task.completed", task, 0);
+      this.notificationState.resetEscalation(task.id);
+      await this.notificationState.save();
+    } catch (error) {
+      logger.error("Failed to handle task completed event", error, {
+        taskId: task.id,
+        taskName: task.name
+      });
+      // Don't re-throw - allow caller to continue
+    }
   }
 
   /**
    * Handle a task snooze event.
+   * 
+   * FIX [HIGH-001]: Added try/catch for error handling
    */
   async handleTaskSnoozed(task: Task): Promise<void> {
-    await this.emitTaskEvent("task.snoozed", task, 0);
+    try {
+      await this.emitTaskEvent("task.snoozed", task, 0);
+    } catch (error) {
+      logger.error("Failed to handle task snoozed event", error, {
+        taskId: task.id,
+        taskName: task.name
+      });
+      // Don't re-throw - allow caller to continue
+    }
   }
 
+  /**
+   * Handle task due event
+   * 
+   * FIX [HIGH-001]: Added try/catch for error handling
+   */
   private async handleTaskDue(event: TaskDueEvent): Promise<void> {
-    const taskKey = this.notificationState.generateTaskKey(
-      event.taskId,
-      event.dueAt.toISOString()
-    );
-    if (this.notificationState.hasNotified(taskKey)) {
-      return;
-    }
+    try {
+      const taskKey = this.notificationState.generateTaskKey(
+        event.taskId,
+        event.dueAt.toISOString()
+      );
+      if (this.notificationState.hasNotified(taskKey)) {
+        return;
+      }
 
-    const escalationLevel = this.notificationState.getEscalationLevel(event.taskId);
-    await this.emitTaskEvent("task.due", event.task, escalationLevel);
-    this.notificationState.markNotified(taskKey);
-    // Save state with error handling
-    this.notificationState.save().catch((error) => {
-      logger.error("Failed to save notification state after task due", error);
-    });
+      // Phase 7: Create a SiYuan block for this recurring occurrence
+      if (this.occurrenceCreator && event.task.recurrence?.rrule) {
+        const result = await this.occurrenceCreator.createOccurrenceBlock(
+          event.task,
+          event.dueAt
+        );
+        if (result.success) {
+          logger.info("[EventService] Occurrence block created", {
+            taskId: event.taskId,
+            blockId: result.blockId,
+          });
+        }
+      }
+
+      const escalationLevel = this.notificationState.getEscalationLevel(event.taskId);
+      await this.emitTaskEvent("task.due", event.task, escalationLevel);
+      this.notificationState.markNotified(taskKey);
+      
+      // Save state with error handling
+      await this.notificationState.save();
+    } catch (error) {
+      logger.error("Failed to handle task due event", error, {
+        taskId: event.taskId,
+        dueAt: event.dueAt.toISOString()
+      });
+      // Don't re-throw - allow scheduler to continue
+    }
   }
 
+  /**
+   * Handle task overdue event
+   * 
+   * FIX [HIGH-001]: Added try/catch for error handling
+   */
   private async handleTaskOverdue(event: TaskDueEvent): Promise<void> {
-    const taskKey = this.notificationState.generateTaskKey(
-      event.taskId,
-      event.dueAt.toISOString()
-    );
-    if (this.notificationState.hasMissed(taskKey)) {
-      return;
-    }
+    try {
+      const taskKey = this.notificationState.generateTaskKey(
+        event.taskId,
+        event.dueAt.toISOString()
+      );
+      if (this.notificationState.hasMissed(taskKey)) {
+        return;
+      }
 
-    const escalationLevel = this.notificationState.getEscalationLevel(event.taskId);
-    await this.emitTaskEvent("task.missed", event.task, escalationLevel);
-    this.notificationState.markMissed(taskKey);
-    this.notificationState.incrementEscalation(event.taskId);
-    // Save state with error handling
-    this.notificationState.save().catch((error) => {
-      logger.error("Failed to save notification state after task overdue", error);
-    });
+      const escalationLevel = this.notificationState.getEscalationLevel(event.taskId);
+      await this.emitTaskEvent("task.missed", event.task, escalationLevel);
+      this.notificationState.markMissed(taskKey);
+      this.notificationState.incrementEscalation(event.taskId);
+      
+      // Save state with error handling
+      await this.notificationState.save();
+    } catch (error) {
+      logger.error("Failed to handle task overdue event", error, {
+        taskId: event.taskId,
+        dueAt: event.dueAt.toISOString()
+      });
+      // Don't re-throw - allow scheduler to continue
+    }
   }
 
   /**
    * Emit a task event to n8n
+   * 
+   * FIX [HIGH-001]: Added try/catch for error handling
    */
   async emitTaskEvent(event: TaskEventType, task: Task, escalationLevel: number = 0): Promise<void> {
-    if (!this.config.n8n.enabled || !this.config.n8n.webhookUrl) {
-      return;
-    }
+    try {
+      if (!this.config.n8n.enabled || !this.config.n8n.webhookUrl) {
+        return;
+      }
 
-    const dedupeKey = this.buildDedupeKey(event, task);
-    if (this.isDuplicate(dedupeKey)) {
-      return;
-    }
+      const dedupeKey = this.buildDedupeKey(event, task);
+      if (this.isDuplicate(dedupeKey)) {
+        return;
+      }
 
-    const payload = this.buildPayload(event, task, dedupeKey, 1, escalationLevel);
-    const success = await this.sendPayload(payload);
+      const payload = this.buildPayload(event, task, dedupeKey, 1, escalationLevel);
+      const success = await this.sendPayload(payload);
 
-    if (success) {
-      this.markDelivered(dedupeKey);
-      await this.persistQueue();
-    } else {
-      this.enqueue(payload);
+      if (success) {
+        this.markDelivered(dedupeKey);
+        await this.persistQueue();
+      } else {
+        this.enqueue(payload);
+      }
+    } catch (error) {
+      logger.error("Failed to emit task event", error, {
+        event,
+        taskId: task.id,
+        taskName: task.name,
+        escalationLevel
+      });
+      // Don't re-throw - queue will retry later
     }
   }
 
@@ -604,6 +714,42 @@ export class EventService {
       return true;
     } catch (error) {
       logger.error("Failed to send n8n event", error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate notification config
+   * 
+   * FIX [CRITICAL-002]: Config validation to prevent invalid state
+   */
+  private isConfigValid(config: NotificationConfig): boolean {
+    // Basic validation
+    if (!config) return false;
+    
+    // If webhook URL configured, validate it
+    if (config.webhookUrl && !this.isValidUrl(config.webhookUrl)) {
+      logger.error('Invalid webhook URL in config', { url: config.webhookUrl });
+      return false;
+    }
+
+    // Validate enabled flag exists
+    if (config.enabled === undefined || config.enabled === null) {
+      logger.error('Config missing enabled flag');
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Validate URL format
+   */
+  private isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
       return false;
     }
   }

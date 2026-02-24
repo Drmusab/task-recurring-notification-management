@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * TaskModal - Main task editor modal wrapper for SiYuan
  * 
@@ -14,7 +13,7 @@
 
 import { Dialog, showMessage } from "siyuan";
 import type { Plugin } from "siyuan";
-import { createUnifiedEditor } from "@components/shared/utils/editTaskUnified";
+import { createUnifiedEditor } from "@components/shared/EditTaskUnified";
 import type { Task as SiYuanTask } from "@backend/core/models/Task";
 import type { Task as ObsidianTask } from "@backend/core/models/Task";
 import type { Status } from "@shared/types/Status";

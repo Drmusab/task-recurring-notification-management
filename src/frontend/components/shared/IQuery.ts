@@ -1,8 +1,41 @@
-import type { TaskLayoutOptions } from "@components/shared/Layout/TaskLayoutOptions";
-import type { QueryLayoutOptions } from "@components/shared/Layout/QueryLayoutOptions";
-import type { Task } from "@components/shared/Task/Task";
+/**
+ * Query Interface - Legacy compatibility
+ * 
+ * This interface is maintained for cross-project compatibility.
+ * Not actively used in SiYuan plugin but kept for reference.
+ */
+
+import type { Task } from "@backend/core/models/Task";
 import type { Grouper } from "@components/shared/Query/Group/Grouper";
-import type { QueryResult } from "@components/shared/Query/QueryResult";
+
+/**
+ * Layout options for task display (inline type definition)
+ */
+export interface TaskLayoutOptions {
+    showDescription?: boolean;
+    showPriority?: boolean;
+    showRecurrence?: boolean;
+    showDueDate?: boolean;
+    showTags?: boolean;
+}
+
+/**
+ * Layout options for query results display (inline type definition)
+ */
+export interface QueryLayoutOptions {
+    showTaskCount?: boolean;
+    showBacklinks?: boolean;
+    showUrgency?: boolean;
+}
+
+/**
+ * Query result type (inline type definition)
+ */
+export interface QueryResult {
+    tasks: Task[];
+    totalCount: number;
+    groupedBy?: string;
+}
 
 /**
  * Standard interface for the query engine used by Tasks, multiple

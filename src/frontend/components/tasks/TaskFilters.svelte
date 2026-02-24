@@ -48,7 +48,9 @@
     Boolean(activeFilters.project)
   ].filter(Boolean).length;
   
-  function handleChange(filterType: string, value: any) {
+  type FilterValue = string | string[] | boolean | undefined;
+  
+  function handleChange(filterType: string, value: FilterValue) {
     const newFilters = { ...activeFilters, [filterType]: value };
     dispatch('change', { filters: newFilters });
   }

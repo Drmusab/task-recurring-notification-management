@@ -11,7 +11,7 @@
   
   import type { BlockLinkedAction, BlockTrigger, TaskAction, ConditionExpr } from '@backend/core/block-actions/BlockActionTypes';
   import type { TaskPriority } from '@backend/core/models/Task';
-  import { t } from '@stores/i18n.store';
+  import { t } from '@stores/I18n.store';
   import { showMessage } from 'siyuan';
   
   export let actions: BlockLinkedAction[] = [];
@@ -227,7 +227,8 @@
         return `🔑 Content has keyword: ${(trigger as any).keyword}`;
       default:
         // TypeScript exhaustive check - should never reach here if all cases covered
-        return String(trigger.type);
+        const _exhaustiveCheck: never = trigger;
+        return `Unknown trigger: ${String((trigger as BlockTrigger).type)}`;
     }
   }
   
@@ -257,8 +258,9 @@
       case 'notify':
         return `Notify: ${(action as any).message}`;
       default:
-        // TypeScript exhaustive check
-        return String(action.type);
+        // TypeScript exhaustive check - should never reach here if all cases covered
+        const _exhaustiveCheck: never = action;
+        return `Unknown action: ${String((action as TaskAction).type)}`;
     }
   }
 </script>

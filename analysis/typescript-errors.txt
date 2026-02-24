@@ -1,0 +1,8 @@
+﻿
+> task-recurring-notfication-mangmant@1.0.0 type-check
+> tsc --noEmit
+
+src/frontend/utils/keyboardShortcuts.ts(193,3): error TS1128: Declaration or statement expected.
+src/frontend/utils/keyboardShortcuts.ts(193,4): error TS1128: Declaration or statement expected.
+src/frontend/utils/keyboardShortcuts.ts(194,6): error TS1434: Unexpected keyword or identifier.
+src/frontend/utils/keyboardShortcuts.ts(195,1): error TS1128: Declaration or statement expected.

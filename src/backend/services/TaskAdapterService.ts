@@ -1,22 +1,54 @@
-// @ts-nocheck
 /**
  * Task Model Adapter
  * 
  * Bridges the gap between:
- * - Obsidian Tasks model (src/Task/Task.ts) - class-based, Moment dates
+ * - Obsidian Tasks model (class-based, Moment dates) — used by legacy UI
  * - SiYuan Core model (src/core/models/Task.ts) - interface, ISO strings
  * 
  * WHY: EditTask.svelte uses Obsidian model but new AI/block features need SiYuan model.
  * This adapter allows gradual migration without breaking existing UI.
  */
 
-import type { Task as ObsidianTask } from '@backend/core/models/Task';
 import type { Task as SiYuanTask, TaskPriority } from '@backend/core/models/Task';
 import type { Frequency } from '@backend/core/models/Frequency';
-import type { Priority as ObsidianPriority } from '@shared/utils/task/priority';
-import type { Status } from '@shared/types/Status';
-import type { Recurrence } from '@shared/utils/task/recurrence';
-import moment, { type Moment } from 'moment';
+import { Priority as ObsidianPriority } from '@backend/utils/task/priority';
+import moment from 'moment';
+
+/**
+ * Shape of an Obsidian-style task (legacy bridge).
+ * The actual class does not exist in this codebase; this interface
+ * describes the duck-typed shape that legacy code passes in.
+ */
+interface ObsidianTaskLike {
+  id: string;
+  description: string;
+  dueDate?: { toISOString(): string } | null;
+  scheduledDate?: { toISOString(): string } | null;
+  startDate?: { toISOString(): string } | null;
+  createdDate?: { toISOString(): string } | null;
+  doneDate?: { toISOString(): string } | null;
+  cancelledDate?: { toISOString(): string } | null;
+  recurrence?: { toText(): string } | null;
+  priority: ObsidianPriority;
+  status: { symbol: string; name: string; type: string };
+  dependsOn?: string[];
+  blockLink?: string;
+  tags?: string[];
+  taskLocation?: { path: string };
+  scheduledDateIsInferred?: boolean;
+}
+
+/** Local Status representation (Obsidian compat) */
+interface StatusLike {
+  symbol: string;
+  name: string;
+  type: string;
+}
+
+/** Local StatusRegistry duck-type */
+interface StatusRegistryLike {
+  bySymbol?: (s: string) => StatusLike;
+}
 
 /**
  * Unified task representation that can convert between both models.
@@ -74,7 +106,7 @@ export class TaskModelAdapter {
   /**
    * Convert Obsidian Task to SiYuan Task
    */
-  static obsidianToSiyuan(obsTask: ObsidianTask): SiYuanTask {
+  static obsidianToSiyuan(obsTask: ObsidianTaskLike): SiYuanTask {
     return {
       id: obsTask.id,
       name: obsTask.description, // Obsidian uses 'description' for task name
@@ -89,7 +121,7 @@ export class TaskModelAdapter {
       // Convert Obsidian Recurrence to SiYuan Frequency
       frequency: obsTask.recurrence 
         ? this.recurrenceToFrequency(obsTask.recurrence)
-        : { type: 'once' },
+        : undefined,
       
       enabled: !obsTask.status.symbol.includes('x') && !obsTask.status.symbol.includes('-'),
       
@@ -119,7 +151,7 @@ export class TaskModelAdapter {
    * Note: This creates a minimal ObsidianTask compatible object.
    * Full Obsidian Task requires additional context (TaskLocation, Status registry)
    */
-  static siyuanToObsidian(siyTask: SiYuanTask, statusRegistry: any): Partial<ObsidianTask> {
+  static siyuanToObsidian(siyTask: SiYuanTask, statusRegistry?: StatusRegistryLike): Partial<ObsidianTaskLike> {
     const status = this.getStatusFromSymbol(siyTask.status || 'todo', statusRegistry);
     
     return {
@@ -127,12 +159,12 @@ export class TaskModelAdapter {
       description: siyTask.name,
       
       // Convert ISO strings to Moment objects
-      dueDate: siyTask.dueAt ? moment(siyTask.dueAt) : null,
-      scheduledDate: siyTask.scheduledAt ? moment(siyTask.scheduledAt) : null,
-      startDate: siyTask.startAt ? moment(siyTask.startAt) : null,
-      createdDate: siyTask.createdAt ? moment(siyTask.createdAt) : null,
-      doneDate: siyTask.doneAt ? moment(siyTask.doneAt) : null,
-      cancelledDate: siyTask.cancelledAt ? moment(siyTask.cancelledAt) : null,
+      dueDate: siyTask.dueAt ? moment(siyTask.dueAt) : undefined,
+      scheduledDate: siyTask.scheduledAt ? moment(siyTask.scheduledAt) : undefined,
+      startDate: siyTask.startAt ? moment(siyTask.startAt) : undefined,
+      createdDate: siyTask.createdAt ? moment(siyTask.createdAt) : undefined,
+      doneDate: siyTask.doneAt ? moment(siyTask.doneAt) : undefined,
+      cancelledDate: siyTask.cancelledAt ? moment(siyTask.cancelledAt) : undefined,
       
       priority: this.siyuanPriorityToObsidian(siyTask.priority),
       
@@ -145,16 +177,16 @@ export class TaskModelAdapter {
       
       // Obsidian-specific defaults
       scheduledDateIsInferred: false,
-    } as Partial<ObsidianTask>;
+    };
   }
 
   /**
    * Convert to UnifiedTask (used by new components)
    */
-  static toUnified(source: ObsidianTask | SiYuanTask): UnifiedTask {
+  static toUnified(source: ObsidianTaskLike | SiYuanTask): UnifiedTask {
     // Check if it's an Obsidian task (has description property and is a class instance)
     if ('description' in source && typeof (source as any).description === 'string') {
-      const obs = source as ObsidianTask;
+      const obs = source as ObsidianTaskLike;
       return {
         id: obs.id,
         name: obs.description,
@@ -242,7 +274,7 @@ export class TaskModelAdapter {
   /**
    * Convert Obsidian Recurrence to SiYuan Frequency
    */
-  private static recurrenceToFrequency(recurrence: Recurrence): Frequency {
+  private static recurrenceToFrequency(recurrence: { toText(): string }): Frequency {
     // This is a simplified conversion. Real implementation would parse recurrence rules.
     // For now, return a basic frequency structure.
     const recurrenceText = recurrence.toText();
@@ -263,7 +295,7 @@ export class TaskModelAdapter {
   /**
    * Get Obsidian Status from symbol
    */
-  private static getStatusFromSymbol(symbol: string, statusRegistry: any): Status {
+  private static getStatusFromSymbol(symbol: string, statusRegistry?: StatusRegistryLike): StatusLike {
     if (statusRegistry?.bySymbol) {
       return statusRegistry.bySymbol(symbol === 'done' ? 'x' : symbol === 'cancelled' ? '-' : ' ');
     }
@@ -272,7 +304,7 @@ export class TaskModelAdapter {
       symbol: symbol === 'done' ? 'x' : symbol === 'cancelled' ? '-' : ' ',
       name: symbol === 'done' ? 'Done' : symbol === 'cancelled' ? 'Cancelled' : 'Todo',
       type: symbol === 'done' ? 'DONE' : symbol === 'cancelled' ? 'CANCELLED' : 'TODO',
-    } as any;
+    };
   }
 
   /**
@@ -324,7 +356,7 @@ export class TaskModelAdapter {
   /**
    * Convert Obsidian Task to UnifiedTask
    */
-  static obsidianToUnified(obsTask: ObsidianTask): UnifiedTask {
+  static obsidianToUnified(obsTask: ObsidianTaskLike): UnifiedTask {
     return {
       id: obsTask.id,
       name: obsTask.description,
@@ -389,18 +421,18 @@ export class TaskModelAdapter {
    * Convert UnifiedTask to Obsidian Task
    * Note: Returns a partial ObsidianTask that can be used with EditTask.svelte
    */
-  static unifiedToObsidian(unified: UnifiedTask): any {
+  static unifiedToObsidian(unified: UnifiedTask): ObsidianTaskLike {
     // We need to import Task class to create proper instance
     // For now, return a compatible object that EditTask can use
     return {
       id: unified.id,
       description: unified.name,
-      dueDate: unified.dueAt ? moment(unified.dueAt) : null,
-      scheduledDate: unified.scheduledAt ? moment(unified.scheduledAt) : null,
-      startDate: unified.startAt ? moment(unified.startAt) : null,
-      createdDate: unified.createdAt ? moment(unified.createdAt) : null,
-      doneDate: unified.doneAt ? moment(unified.doneAt) : null,
-      cancelledDate: unified.cancelledAt ? moment(unified.cancelledAt) : null,
+      dueDate: unified.dueAt ? moment(unified.dueAt) : undefined,
+      scheduledDate: unified.scheduledAt ? moment(unified.scheduledAt) : undefined,
+      startDate: unified.startAt ? moment(unified.startAt) : undefined,
+      createdDate: unified.createdAt ? moment(unified.createdAt) : undefined,
+      doneDate: unified.doneAt ? moment(unified.doneAt) : undefined,
+      cancelledDate: unified.cancelledAt ? moment(unified.cancelledAt) : undefined,
       priority: this.siyuanPriorityToObsidian(unified.priority),
       status: {
         symbol: unified.status === 'done' ? 'x' : unified.status === 'cancelled' ? '-' : ' ',

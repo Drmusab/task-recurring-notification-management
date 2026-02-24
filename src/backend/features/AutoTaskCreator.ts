@@ -8,7 +8,7 @@
 
 import type { ParsedTask, ParseError } from '@backend/parsers/InlineTaskParser';
 import type { Task } from '@backend/core/models/Task';
-import type { TaskRepositoryProvider } from '@backend/core/storage/TaskRepository';
+import type { TaskRepositoryProvider } from '@backend/core/storage/TaskStorage';
 import type { InlineTaskSettings } from '@backend/core/settings/PluginSettings';
 import { parseInlineTask } from '@backend/parsers/InlineTaskParser';
 import { showParseErrorHint } from '@components/shared/utils/inlineErrorHints';

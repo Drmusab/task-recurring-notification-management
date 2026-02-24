@@ -17,12 +17,12 @@
    */
 
   import { onMount } from "svelte";
-  import type { TaskTemplate } from "@shared/utils/task/task-templates";
+  import type { TaskTemplate } from "@backend/utils/task/task-templates";
   import {
     loadTaskTemplates,
     saveTaskTemplate,
     deleteTaskTemplate,
-  } from "@shared/utils/task/task-templates";
+  } from "@backend/utils/task/task-templates";
 
   export let onApplyTemplate: ((template: TaskTemplate) => void) | undefined = undefined;
   export let onClose: (() => void) | undefined = undefined;

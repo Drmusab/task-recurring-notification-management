@@ -685,7 +685,7 @@ export const locale = derived(i18nStore, $i18n => $i18n.locale);
  * Falls back to the key itself if not found
  * 
  * Usage in components:
- *   import { t } from '@stores/i18n.store';
+ *   import { t } from '@stores/I18n.store';
  *   const label = $t('task.name');
  *   const formatted = $t('messages.taskCreated', { name: 'My Task' });
  */

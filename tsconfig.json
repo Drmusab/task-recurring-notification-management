@@ -36,6 +36,7 @@
       "@backend/*": ["src/backend/*"],
       "@frontend/*": ["src/frontend/*"],
       "@shared/*": ["src/shared/*"],
+      "@domain/*": ["src/domain/*"],
       "@infrastructure/*": ["src/infrastructure/*"],
       "@components/*": ["src/frontend/components/*"],
       "@stores/*": ["src/frontend/stores/*"],
@@ -60,18 +61,6 @@
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts",
-    "src/frontend/components/analytics/**",
-    "src/frontend/components/dashboard/parsing.ts",
-    "src/frontend/components/dashboard/expr.ts",
-    "src/frontend/components/dashboard/main.ts",
-    "src/frontend/components/dashboard/rendering.ts",
-    "src/frontend/components/dashboard/data.ts",
-    "src/frontend/components/dashboard/collecting.ts",
-    "src/frontend/components/dashboard/month.ts",
-    "src/frontend/components/dashboard/pie.ts",
-    "src/frontend/components/calendar/**",
-    "src/shared/config/Settings.ts",
-    "src/backend/webhooks/inbound/WebhookServer.ts"
+    "**/*.spec.ts"
   ]
 }

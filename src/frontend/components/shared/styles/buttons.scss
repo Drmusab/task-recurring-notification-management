@@ -1,0 +1,115 @@
+/**
+ * Shared Button Styles
+ * 
+ * Consistent button styling across the application.
+ * Import this in components that use standardized buttons.
+ */
+
+/* Primary Button */
+.btn-primary {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background-color: var(--interactive-accent, #4a9eff);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--interactive-accent-hover, #3a8eef);
+}
+
+.btn-primary:focus {
+  outline: 2px solid var(--interactive-accent, #4a9eff);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary Button */
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background-color: var(--background-secondary, #f5f5f5);
+  color: var(--text-normal, #000000);
+}
+
+.btn-secondary:hover {
+  background-color: var(--background-modifier-hover, #e0e0e0);
+}
+
+.btn-secondary:focus {
+  outline: 2px solid var(--interactive-accent, #4a9eff);
+  outline-offset: 2px;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Danger Button */
+.btn-danger {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background-color: #ff4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #ee3333;
+}
+
+.btn-danger:focus {
+  outline: 2px solid #ff4444;
+  outline-offset: 2px;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Small Button Size */
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* Large Button Size */
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* Icon Button */
+.btn-icon {
+  padding: 0.5rem;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Button Group */
+.btn-group {
+  display: inline-flex;
+  gap: 0.5rem;
+}

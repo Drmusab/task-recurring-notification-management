@@ -168,9 +168,8 @@ export function downloadCSV(csvContent: string, filename: string = "task-analyti
   link.href = url;
   link.download = filename;
   link.style.display = "none";
-  document.body.appendChild(link);
+  // Programmatic click without DOM attachment (Phase 4 §4.5 compliant)
   link.click();
-  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 

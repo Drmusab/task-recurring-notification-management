@@ -1,11 +1,12 @@
 /**
  * Task Model - Single Source of Truth
  * Consolidated from previous duplicate implementations
- * Version: 2.0.0 (Phase 1 - Obsidian Tasks Parity)
+ * Version: 2.1.0 (Phase 3 - Hardened with Value Objects)
  */
 
 import type { Recurrence } from './Recurrence';
-import type { Frequency } from '../../backend/core/models/Frequency';
+import type { Frequency } from './Frequency';
+import type { TaskId, ISODateString } from './ValueObjects';
 
 export type TaskStatus = 'todo' | 'done' | 'cancelled';
 export type TaskPriority = 'highest' | 'high' | 'medium' | 'low' | 'lowest' | 'none';
@@ -39,13 +40,13 @@ export interface OnCompletionAction {
  * Completion history entry for analytics
  */
 export interface CompletionHistoryEntry {
-  completedAt: string;      // ISO timestamp
-  delayMinutes?: number;    // How late was it?
-  durationMinutes?: number; // How long did it take?
-  context?: {
-    dayOfWeek: number;
-    hourOfDay: number;
-    wasOverdue: boolean;
+  readonly completedAt: ISODateString;  // ISO timestamp
+  readonly delayMinutes?: number;       // How late was it?
+  readonly durationMinutes?: number;    // How long did it take?
+  readonly context?: {
+    readonly dayOfWeek: number;
+    readonly hourOfDay: number;
+    readonly wasOverdue: boolean;
   };
 }
 
@@ -53,34 +54,37 @@ export interface CompletionHistoryEntry {
  * Smart recurrence configuration (ML-based pattern learning)
  */
 export interface SmartRecurrence {
-  enabled: boolean;
-  autoAdjust: boolean;
-  minDataPoints: number;
-  confidenceThreshold: number; // 0-1
+  readonly enabled: boolean;
+  readonly autoAdjust: boolean;
+  readonly minDataPoints: number;
+  readonly confidenceThreshold: number; // 0-1
 }
 
 /**
  * Task entity representing a task with full Obsidian Tasks parity
  * 
- * Schema Version: 2
- * Migration: Version 1 tasks will be auto-migrated on load
+ * Schema Version: 2.1 (Phase 3 - Hardened)
+ * Migration: Version 1-2 tasks will be auto-migrated on load
+ * 
+ * Immutable fields: id, createdAt, version
+ * All other fields can be updated via methods or direct assignment
  */
 export interface Task {
-  // ===== Core Identity =====
+  // ===== Core Identity (IMMUTABLE) =====
   /** Unique task identifier (UUID v4) */
-  id: string;
+  readonly id: string;  // Will use TaskId in future (breaking change)
   
   /** Task title/description */
   name: string;
   
   /** Schema version for migrations */
-  version: number;
+  readonly version: number;
   
-  /** Creation timestamp (ISO 8601) */
-  createdAt: string;
+  /** Creation timestamp (ISO 8601) - IMMUTABLE */
+  readonly createdAt: string;  // Will use ISODateString in future
   
   /** Last update timestamp (ISO 8601) */
-  updatedAt: string;
+  updatedAt: string;  // Will use ISODateString in future
 
   // ===== Status & Lifecycle =====
   /** Task status (replaces legacy 'enabled' field) */
@@ -226,10 +230,32 @@ export interface Task {
 }
 
 /**
- * Create a new task with defaults
+ * Create a new task with defaults and validation
+ * 
+ * @param partial - Partial task data
+ * @returns Validated task with defaults
+ * @throws Error if validation fails
  */
 export function createTask(partial: Partial<Task>): Task {
   const now = new Date().toISOString();
+  
+  // Validate required fields
+  if (partial.name !== undefined && partial.name.trim().length === 0) {
+    throw new Error('Task name cannot be empty');
+  }
+  
+  // Validate dates if provided
+  if (partial.dueAt && !isValidISODate(partial.dueAt)) {
+    throw new Error(`Invalid dueAt date: ${partial.dueAt}`);
+  }
+  
+  if (partial.scheduledAt && !isValidISODate(partial.scheduledAt)) {
+    throw new Error(`Invalid scheduledAt date: ${partial.scheduledAt}`);
+  }
+  
+  if (partial.startAt && !isValidISODate(partial.startAt)) {
+    throw new Error(`Invalid startAt date: ${partial.startAt}`);
+  }
   
   return {
     id: partial.id || generateTaskId(),
@@ -247,6 +273,16 @@ export function createTask(partial: Partial<Task>): Task {
     recentCompletions: [],
     ...partial,
   };
+}
+
+/**
+ * Validate ISO date string (simple check)
+ */
+function isValidISODate(dateStr: string): boolean {
+  const iso8601Regex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
+  if (!iso8601Regex.test(dateStr)) return false;
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime());
 }
 
 /**

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { SCHEDULER_INTERVAL_MS } from "@shared/constants/misc-constants";
 
 /**

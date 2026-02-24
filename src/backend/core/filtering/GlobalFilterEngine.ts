@@ -1,7 +1,7 @@
 // @ts-nocheck
 import type { GlobalFilterConfig, FilterRule } from "@backend/core/filtering/FilterRule";
-import { StatusRegistry } from '@backend/core/models/StatusRegistry';
-import type { StatusType } from '@backend/core/models/Status';
+import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry';
+import type { StatusType } from '@shared/constants/statuses/Status';
 import type { Task } from '@backend/core/models/Task';
 
 /**
@@ -205,7 +205,7 @@ export class GlobalFilterEngine {
     if (!symbol) {
       return null;
     }
-    return this.statusRegistry.get(symbol).type;
+    return this.statusRegistry.bySymbol(symbol).type;
   }
 
   private extractStatusSymbol(content: string): string | null {

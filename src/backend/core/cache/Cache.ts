@@ -12,7 +12,7 @@
  * Reference: obsidian-tasks-main/src/siyuan/sync/TaskSyncService.ts
  */
 
-import type { Task } from "@domain/models/Task";
+import type { Task } from "@backend/core/models/Task";
 import type { Plugin } from "siyuan";
 import type { TaskIndex } from "@domain/index/TaskIndex";
 import * as logger from "@backend/logging/logger";

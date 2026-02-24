@@ -290,7 +290,9 @@ export function announceToScreenReader(
     liveRegion.setAttribute('aria-live', priority);
     liveRegion.setAttribute('aria-atomic', 'true');
     liveRegion.className = 'sr-only';
-    document.body.appendChild(liveRegion);
+    // Mount inside SiYuan's layout container (Phase 4 §4.5 compliant)
+    const siyuanContainer = document.getElementById('layouts') || document.getElementById('app') || document.body;
+    siyuanContainer.appendChild(liveRegion);
   }
   
   // Clear and set new message (triggers announcement)

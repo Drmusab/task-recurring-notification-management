@@ -7,7 +7,7 @@ import {
     validateOnCompletionAction,
     type EnhancedOnCompletionAction,
 } from '../on-completion';
-import type { Task, OnCompletionAction } from '../../../../backend/core/models/Task';
+import type { Task, OnCompletionAction } from '@backend/core/models/Task';
 
 describe('OnCompletion - parseOnCompletionValue', () => {
     it('should parse "delete" to OnCompletion.Delete', () => {

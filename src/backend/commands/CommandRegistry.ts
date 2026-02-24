@@ -1,147 +1,232 @@
-// @ts-nocheck
-import { Router } from "@backend/webhooks/inbound/Router";
-import { TaskCommandHandler, ITaskManager } from "@backend/commands/handlers/TaskCommandHandler";
-import { QueryCommandHandler, IStorageService } from "@backend/commands/handlers/QueryCommandHandler";
-import { RecurrenceCommandHandler } from "@backend/commands/handlers/RecurrenceCommandHandler";
-import { PreviewCommandHandler } from "@backend/commands/handlers/PreviewCommandHandler";
-import { BulkCommandHandler } from "@backend/commands/handlers/BulkCommandHandler";
-import { SearchCommandHandler } from "@backend/commands/handlers/SearchCommandHandler";
-import { TaskValidator } from "@backend/commands/validation/TaskValidator";
-import { RecurrenceLimitsConfig } from "@shared/config/WebhookConfig";
-import { IRecurrenceEngine } from "@backend/core/engine/recurrence/recurrence.types";
-import { Scheduler } from "@backend/core/engine/Scheduler";
-import { WebhookError } from "@backend/webhooks/types/Error";
+/**
+ * CommandRegistry — Central command dispatcher bound to SiYuan plugin runtime
+ *
+ * Replaces the deleted internal CommandRegistry with a proper SiYuan-native
+ * command system. All commands are registered via:
+ *   - plugin.addCommand()       → keyboard shortcuts / command palette
+ *   - eventBus "click-blockicon" → block context menu
+ *   - plugin.protyleSlash       → slash commands
+ *
+ * Registry is populated in onload() and cleaned up automatically by SiYuan
+ * when the plugin unloads.
+ *
+ * ┌──────────────────────────────────────────────────────┐
+ * │  Command            │  Mount Point                   │
+ * ├──────────────────────────────────────────────────────┤
+ * │  Create Task        │  block menu + command palette  │
+ * │  Toggle Recurring   │  checkbox (runtime bridge)     │
+ * │  Open Task Editor   │  slash command + hotkey        │
+ * │  Skip Recurrence    │  command palette               │
+ * │  Complete Task      │  command palette               │
+ * │  Open Dashboard     │  command palette + hotkey      │
+ * │  Today's Tasks      │  command palette + hotkey      │
+ * └──────────────────────────────────────────────────────┘
+ */
 
+import type { Plugin } from "siyuan";
+import { openTab } from "siyuan";
+import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
+import type { Scheduler } from "@backend/core/engine/Scheduler";
+import type { SiYuanRuntimeBridge } from "@backend/runtime/SiYuanRuntimeBridge";
 import * as logger from "@backend/logging/logger";
+import { TAB_TYPE } from "../../plugin/constants";
 
-export interface CommandRegistryOptions {
-  recurrenceEngine?: IRecurrenceEngine;
-  scheduler?: Scheduler;
+// ─── Command Definition ──────────────────────────────────────
+
+export interface TaskCommand {
+  id: string;
+  langKey: string;
+  hotkey?: string;
+  /** Where this command mounts */
+  mount: "command-palette" | "block-menu" | "slash" | "checkbox";
+  /** The callback to execute */
+  execute: (...args: any[]) => void | Promise<void>;
 }
 
-/**
- * Command registry - registers all command handlers
- */
+export interface CommandRegistryDeps {
+  plugin: Plugin;
+  pluginEventBus: PluginEventBus;
+  scheduler: Scheduler;
+  runtimeBridge?: SiYuanRuntimeBridge;
+  openQuickTaskEditor: () => void;
+  showTodayTasks: () => void;
+  openTaskEditorForBlock?: (blockId: string, blockContent: string) => void;
+  showQuickActionsMenu?: () => void;
+  openSetting?: () => void;
+}
+
+// ─── Registry Class ──────────────────────────────────────────
+
 export class CommandRegistry {
-  private taskHandler: TaskCommandHandler;
-  private queryHandler: QueryCommandHandler;
-  private recurrenceHandler: RecurrenceCommandHandler | null = null;
-  private previewHandler: PreviewCommandHandler;
-  private bulkHandler: BulkCommandHandler;
-  private searchHandler: SearchCommandHandler;
-
-  constructor(
-    private router: Router,
-    taskManager: ITaskManager,
-    storage: IStorageService,
-    recurrenceLimits: RecurrenceLimitsConfig,
-    options?: CommandRegistryOptions
-  ) {
-    const validator = new TaskValidator(recurrenceLimits);
-
-    this.taskHandler = new TaskCommandHandler(taskManager, validator);
-    this.queryHandler = new QueryCommandHandler(storage);
-
-    if (options?.recurrenceEngine && options?.scheduler) {
-      this.recurrenceHandler = new RecurrenceCommandHandler(
-        taskManager,
-        options.recurrenceEngine,
-        options.scheduler,
-        validator
-      );
-    } else {
-      logger.info('CommandRegistry: recurrence commands unavailable (engine/scheduler not provided)');
-    }
-
-    this.previewHandler = new PreviewCommandHandler(taskManager);
-    this.bulkHandler = new BulkCommandHandler(taskManager);
-    this.searchHandler = new SearchCommandHandler(storage);
-
-    this.registerCommands();
-  }
+  private commands: Map<string, TaskCommand> = new Map();
+  private cleanups: (() => void)[] = [];
 
   /**
-   * Register all commands
+   * Register all task commands with SiYuan's plugin system.
+   * Call in onload().
    */
-  private registerCommands(): void {
-    // Task commands
-    this.router.register('v1/tasks/create', this.wrap((data, ctx) => 
-      this.taskHandler.handleCreate(data, ctx)
-    ));
-    this.router.register('v1/tasks/update', this.wrap((data, ctx) => 
-      this.taskHandler.handleUpdate(data, ctx)
-    ));
-    this.router.register('v1/tasks/complete', this.wrap((data, ctx) => 
-      this.taskHandler.handleComplete(data, ctx)
-    ));
-    this.router.register('v1/tasks/delete', this.wrap((data, ctx) => 
-      this.taskHandler.handleDelete(data, ctx)
-    ));
-    this.router.register('v1/tasks/get', this.wrap((data, ctx) => 
-      this.taskHandler.handleGet(data, ctx)
-    ));
+  register(deps: CommandRegistryDeps): void {
+    const { plugin, pluginEventBus, scheduler } = deps;
 
-    // Query commands
-    this.router.register('v1/query/list', this.wrap((data, ctx) => 
-      this.queryHandler.handleList(data, ctx)
-    ));
-    this.router.register('v1/query/search', this.wrap((data, ctx) => 
-      this.searchHandler.handleSearch(data, ctx)
-    ));
-    this.router.register('v1/query/stats', this.wrap((data, ctx) => 
-      this.searchHandler.handleStats(data, ctx)
-    ));
-
-    // Recurrence commands (only registered when engine/scheduler are provided)
-    if (this.recurrenceHandler) {
-      this.router.register('v1/recurrence/pause', this.wrap((data, ctx) => 
-        this.recurrenceHandler!.handlePause(data, ctx)
-      ));
-      this.router.register('v1/recurrence/resume', this.wrap((data, ctx) => 
-        this.recurrenceHandler!.handleResume(data, ctx)
-      ));
-      this.router.register('v1/recurrence/skip', this.wrap((data, ctx) => 
-        this.recurrenceHandler!.handleSkip(data, ctx)
-      ));
-      this.router.register('v1/recurrence/update-pattern', this.wrap((data, ctx) => 
-        this.recurrenceHandler!.handleUpdatePattern(data, ctx)
-      ));
-      this.router.register('v1/recurrence/recalculate', this.wrap((data, ctx) => 
-        this.recurrenceHandler!.handleRecalculate(data, ctx)
-      ));
-    }
-    this.router.register('v1/recurrence/preview-occurrences', this.wrap((data, ctx) => 
-      this.previewHandler.handlePreview(data, ctx)
-    ));
-
-    // Bulk commands
-    this.router.register('v1/tasks/bulk-complete', this.wrap((data, ctx) => 
-      this.bulkHandler.handleBulkComplete(data, ctx)
-    ));
-    this.router.register('v1/tasks/bulk-reschedule', this.wrap((data, ctx) => 
-      this.bulkHandler.handleBulkReschedule(data, ctx)
-    ));
-    this.router.register('v1/tasks/bulk-delete', this.wrap((data, ctx) => 
-      this.bulkHandler.handleBulkDelete(data, ctx)
-    ));
-  }
-
-  /**
-   * Wrap handler to convert CommandResult to router format
-   */
-  private wrap(
-    handler: (data: Record<string, unknown>, context: Record<string, unknown>) => Promise<{ status: string; result?: unknown; error?: { code: string; message: string; details?: unknown } }>
-  ): (command: string, data: Record<string, unknown>, context: Record<string, unknown>) => Promise<unknown> {
-    return async (command: string, data: Record<string, unknown>, context: Record<string, unknown>) => {
-      const result = await handler(data, context);
-      if (result.status === 'error') {
-        throw new WebhookError(
-          result.error!.code as string,
-          result.error!.message,
-          result.error!.details
-        );
-      }
-      return result.result;
+    // ── 1. Create Recurring Task (command palette + hotkey) ──
+    const createTaskCmd: TaskCommand = {
+      id: "createRecurringTask",
+      langKey: "createRecurringTask",
+      hotkey: "⌘⌥T",
+      mount: "command-palette",
+      execute: () => deps.openQuickTaskEditor(),
     };
+    this.commands.set(createTaskCmd.id, createTaskCmd);
+    plugin.addCommand({
+      langKey: createTaskCmd.langKey,
+      hotkey: createTaskCmd.hotkey!,
+      callback: () => createTaskCmd.execute(),
+    });
+
+    // ── 2. Open Task Editor (slash + hotkey) ──
+    const openEditorCmd: TaskCommand = {
+      id: "openTaskEditor",
+      langKey: "createQuickTask",
+      hotkey: "⌘⇧N",
+      mount: "command-palette",
+      execute: () => deps.openQuickTaskEditor(),
+    };
+    this.commands.set(openEditorCmd.id, openEditorCmd);
+    plugin.addCommand({
+      langKey: openEditorCmd.langKey,
+      hotkey: openEditorCmd.hotkey!,
+      callback: () => openEditorCmd.execute(),
+    });
+
+    // ── 3. Skip Recurrence (command palette) ──
+    const skipCmd: TaskCommand = {
+      id: "skipRecurrence",
+      langKey: "skipRecurrence",
+      hotkey: "⌘⌥S",
+      mount: "command-palette",
+      execute: () => {
+        // Emit skip event — TaskManager will handle the actual skip
+        pluginEventBus.emit("task:refresh", undefined);
+        logger.info("[CommandRegistry] Skip recurrence triggered via command palette");
+      },
+    };
+    this.commands.set(skipCmd.id, skipCmd);
+    plugin.addCommand({
+      langKey: skipCmd.langKey,
+      hotkey: skipCmd.hotkey!,
+      callback: () => skipCmd.execute(),
+    });
+
+    // ── 4. Today's Tasks (command palette + hotkey) ──
+    const todayCmd: TaskCommand = {
+      id: "todayTasks",
+      langKey: "todayTasks",
+      hotkey: "⌘⌥D",
+      mount: "command-palette",
+      execute: () => deps.showTodayTasks(),
+    };
+    this.commands.set(todayCmd.id, todayCmd);
+    plugin.addCommand({
+      langKey: todayCmd.langKey,
+      hotkey: todayCmd.hotkey!,
+      callback: () => todayCmd.execute(),
+    });
+
+    // ── 5. Open Dashboard Tab (command palette + hotkey) ──
+    const dashboardCmd: TaskCommand = {
+      id: "openTaskTab",
+      langKey: "openTaskTab",
+      hotkey: "⌘⇧T",
+      mount: "command-palette",
+      execute: () => {
+        openTab({
+          app: plugin.app,
+          custom: {
+            id: plugin.name + TAB_TYPE,
+            title: plugin.i18n?.dockTitle || "Recurring Tasks",
+            icon: "iconTaskRecurring",
+          },
+        });
+      },
+    };
+    this.commands.set(dashboardCmd.id, dashboardCmd);
+    plugin.addCommand({
+      langKey: dashboardCmd.langKey,
+      hotkey: dashboardCmd.hotkey!,
+      callback: () => dashboardCmd.execute(),
+    });
+
+    // ── 6. Toggle Recurring via checkbox (runtime bridge subscription) ──
+    if (deps.runtimeBridge) {
+      const unsub = deps.runtimeBridge.subscribeCheckboxToggle((evt) => {
+        logger.info("[CommandRegistry] Checkbox toggled", {
+          blockId: evt.blockId,
+          checked: evt.checked,
+        });
+        // Emit into plugin event bus for TaskManager to handle
+        if (evt.checked) {
+          pluginEventBus.emit("task:complete", { taskId: evt.blockId });
+        }
+      });
+      this.cleanups.push(unsub);
+    }
+
+    // ── 7. Quick Actions Menu (command palette) ──
+    if (deps.showQuickActionsMenu) {
+      const quickActionsCmd: TaskCommand = {
+        id: "openTaskPanel",
+        langKey: "openTaskPanel",
+        hotkey: "⌘⌥P",
+        mount: "command-palette",
+        execute: () => deps.showQuickActionsMenu!(),
+      };
+      this.commands.set(quickActionsCmd.id, quickActionsCmd);
+      plugin.addCommand({
+        langKey: quickActionsCmd.langKey,
+        hotkey: quickActionsCmd.hotkey!,
+        callback: () => quickActionsCmd.execute(),
+      });
+    }
+
+    logger.info(`[CommandRegistry] Registered ${this.commands.size} commands`);
+  }
+
+  /**
+   * Get a registered command by ID.
+   */
+  get(commandId: string): TaskCommand | undefined {
+    return this.commands.get(commandId);
+  }
+
+  /**
+   * Execute a command by ID.
+   */
+  async execute(commandId: string, ...args: any[]): Promise<void> {
+    const cmd = this.commands.get(commandId);
+    if (!cmd) {
+      logger.warn(`[CommandRegistry] Command not found: ${commandId}`);
+      return;
+    }
+    await cmd.execute(...args);
+  }
+
+  /**
+   * Get all registered commands.
+   */
+  getAll(): TaskCommand[] {
+    return Array.from(this.commands.values());
+  }
+
+  /**
+   * Cleanup all command-related subscriptions.
+   * Called in onunload(). SiYuan handles removing plugin.addCommand() registrations.
+   */
+  destroy(): void {
+    for (const cleanup of this.cleanups) {
+      try { cleanup(); } catch { /* ignore */ }
+    }
+    this.cleanups.length = 0;
+    this.commands.clear();
+    logger.info("[CommandRegistry] Destroyed");
   }
 }

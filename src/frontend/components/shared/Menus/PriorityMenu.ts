@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Task } from "@backend/core/models/Task";
 import { allPriorityInstructions } from "@components/shared/EditInstructions/PriorityInstructions";
 import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/shared/Menus/TaskEditingMenu";

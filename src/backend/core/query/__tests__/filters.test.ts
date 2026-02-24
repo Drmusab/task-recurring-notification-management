@@ -3,7 +3,7 @@ import { QueryParser } from '@backend/core/query/QueryParser';
 import { QueryEngine } from '@backend/core/query/QueryEngine';
 import type { Task } from '@backend/core/models/Task';
 import { createTask } from '@backend/core/models/Task';
-import { StatusType } from '@backend/core/models/Status';
+import { StatusType } from '@shared/constants/statuses/Status';
 
 describe('Enhanced Query Language Filters', () => {
   const mockTasks: Task[] = [

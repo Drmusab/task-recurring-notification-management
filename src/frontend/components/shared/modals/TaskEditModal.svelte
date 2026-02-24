@@ -1,11 +1,11 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { t } from '@stores/i18n.store';
+    import { t } from '@stores/I18n.store';
     import { defaultEditModalShowSettings } from "@shared/config/EditModalShowSettings";
 
     import { TASK_FORMATS, getSettings } from "@shared/config/Settings";
-    import type { Status } from "@shared/types/Status";
-    import type { Task } from "@shared/utils/task/Task";
+    import { Status } from "@shared/constants/statuses/Status";
+    import type { Task } from "@backend/core/models/Task";
     import { settingsStore } from "@stores/Settings.store";
     import DateEditor from "@components/shared/editors/DateEditor.svelte";
     import Dependency from "@components/shared/Dependency.svelte";
@@ -66,7 +66,8 @@
     $: isShownInEditModal = { ...defaultEditModalShowSettings, ...$settingsStore.isShownInEditModal };
 
     onMount(() => {
-        settingsStore.set(getSettings());
+        // Note: settingsStore loads its own settings in constructor
+        // If needed to sync legacy settings, use: settingsStore.updateSettings(getSettings())
 
         const { provideAccessKeys } = getSettings();
         withAccessKeys = provideAccessKeys;

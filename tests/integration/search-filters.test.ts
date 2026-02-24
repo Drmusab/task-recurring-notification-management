@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
 import { searchStore, applySmartFilters, calculateFilterCounts } from '@stores/search.store';
-import { fuzzySearchTasks, simpleSearchTasks } from '@shared/utils/search/fuzzy-search';
+import { fuzzySearchTasks, simpleSearchTasks } from '@backend/utils/search/fuzzy-search';
 import type { Task } from '@backend/core/models/Task';
 import { createTask } from '@backend/core/models/Task';
 import type { Frequency } from '@backend/core/models/Frequency';
@@ -68,47 +68,47 @@ describe('Fuzzy Search', () => {
     return task;
   };
 
-  it('should return all tasks when query is empty', () => {
+  it('should return all tasks when query is empty', async () => {
     const tasks = [
       createTestTask('Task 1'),
       createTestTask('Task 2')
     ];
     
-    const results = fuzzySearchTasks(tasks, '', ['description']);
+    const results = await fuzzySearchTasks(tasks, '', ['description']);
     expect(results).toHaveLength(2);
   });
 
-  it('should find tasks by description match', () => {
+  it('should find tasks by description match', async () => {
     const tasks = [
       createTestTask('Buy groceries'),
       createTestTask('Clean house'),
       createTestTask('Buy tickets')
     ];
     
-    const results = fuzzySearchTasks(tasks, 'buy', ['description']);
+    const results = await fuzzySearchTasks(tasks, 'buy', ['description']);
     expect(results.length).toBeGreaterThan(0);
     expect(results.some(t => t.name.includes('Buy'))).toBe(true);
   });
 
-  it('should find tasks by tag match', () => {
+  it('should find tasks by tag match', async () => {
     const tasks = [
       createTestTask('Task 1', ['work', 'urgent']),
       createTestTask('Task 2', ['personal']),
       createTestTask('Task 3', ['work'])
     ];
     
-    const results = fuzzySearchTasks(tasks, 'work', ['tags']);
+    const results = await fuzzySearchTasks(tasks, 'work', ['tags']);
     expect(results.length).toBeGreaterThan(0);
   });
 
-  it('should handle fuzzy matching', () => {
+  it('should handle fuzzy matching', async () => {
     const tasks = [
       createTestTask('Important meeting'),
       createTestTask('Unrelated task')
     ];
     
     // Fuzzy search should find "meeting" even with slight typos
-    const results = fuzzySearchTasks(tasks, 'meting', ['description']);
+    const results = await fuzzySearchTasks(tasks, 'meting', ['description']);
     // Depending on threshold, this may or may not match
     expect(results).toBeDefined();
   });

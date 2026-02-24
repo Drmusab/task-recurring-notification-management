@@ -4,9 +4,10 @@
  */
 
 import type { Task } from "@backend/core/models/Task";
-import type { RecurrenceEngineRRULE } from "@backend/core/engine/recurrence/RecurrenceEngineRRULE";
+import type { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngine";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import { duplicateTask } from "@backend/core/models/Task";
+import { ensureRecurrence, hasRecurrence } from "@backend/core/utils/RecurrenceMigrationHelper";
 import * as logger from "@backend/logging/logger";
 
 export interface CompletionResult {
@@ -58,7 +59,7 @@ function serializeTask(task: Task): string {
 export class CompletionHandler {
   constructor(
     private storage: TaskStorage,
-    private recurrenceEngine: RecurrenceEngineRRULE,
+    private recurrenceEngine: RecurrenceEngine,
     private settings: PluginSettings,
     private siyuanApi?: SiYuanBlockAPI
   ) {}
@@ -75,7 +76,7 @@ export class CompletionHandler {
       
       // 2. Handle recurrence if present
       let nextTask: Task | undefined;
-      if (task.frequency) {
+      if (hasRecurrence(task)) {
         nextTask = await this.generateNextInstance(updatedTask, completionDate);
         
         if (nextTask) {
@@ -155,24 +156,20 @@ export class CompletionHandler {
     task: Task,
     completionDate: Date
   ): Promise<Task | undefined> {
-    if (!task.frequency) {
+    if (!hasRecurrence(task)) {
       return undefined;
     }
     
     try {
-      // Determine base date for calculation
-      const currentDue = new Date(task.dueAt);
+      // Auto-convert legacy frequency to recurrence if needed
+      const taskWithRecurrence = ensureRecurrence(task);
       
-      // Calculate next occurrence using whenDone logic
-      const nextDueDate = this.recurrenceEngine.calculateNext(
-        currentDue,
-        task.frequency,
-        {
-          completionDate,
-          // @ts-expect-error - Legacy Frequency may have whenDone property
-          whenDone: task.frequency.whenDone || task.whenDone,
-        }
-      );
+      // Determine reference date for calculation
+      // For whenDone mode, use completion date; otherwise use due date
+      const referenceDate = task.whenDone ? completionDate : new Date(task.dueAt);
+      
+      // Calculate next occurrence
+      const nextDueDate = this.recurrenceEngine.next(taskWithRecurrence, referenceDate);
       
       if (!nextDueDate) {
         // Recurrence series exhausted — no next occurrence
@@ -190,6 +187,11 @@ export class CompletionHandler {
         linkedBlockContent: undefined,
       });
       
+      // Update with converted recurrence if it was migrated
+      if (!nextTask.recurrence && taskWithRecurrence.recurrence) {
+        nextTask.recurrence = taskWithRecurrence.recurrence;
+      }
+      
       // Remove scheduled date if setting enabled
       if (this.settings.recurrence.removeScheduledOnRecurrence) {
         nextTask.scheduledAt = undefined;
@@ -199,7 +201,6 @@ export class CompletionHandler {
     } catch (err) {
       logger.error('Failed to generate next recurrence instance', {
         taskId: task.id,
-        frequency: task.frequency,
         error: err,
       });
       return undefined;

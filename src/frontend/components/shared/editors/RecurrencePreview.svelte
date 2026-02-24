@@ -8,7 +8,7 @@
   
   import type { Frequency } from '@backend/core/models/Frequency';
   import moment from 'moment';
-  import { t, getTranslation } from '@stores/i18n.store';
+  import { t, getTranslation } from '@stores/I18n.store';
   
   export let frequency: Frequency | null = null;
   export let startDate: string | null = null;
@@ -20,7 +20,7 @@
    * Calculate next N occurrences based on frequency
    */
   function calculateNextOccurrences(freq: Frequency, start: string | null, count: number): string[] {
-    if (!freq || freq.type === 'once') return [];
+    if (!freq) return [];
     
     const results: string[] = [];
     const baseDate = start ? moment(start) : moment();
@@ -45,8 +45,9 @@
           
         case 'yearly':
           current.add(freq.interval || 1, 'years');
-          if (freq.month !== undefined) {
-            current.month(freq.month);
+          if (freq.monthOfYear !== undefined) {
+            // monthOfYear is 1-12, moment.month() expects 0-11
+            current.month(freq.monthOfYear - 1);
           }
           if (freq.dayOfMonth) {
             current.date(freq.dayOfMonth);
@@ -97,15 +98,13 @@
           : getTranslation('recurrence.yearly');
       case 'custom':
         return `${getTranslation('recurrence.custom')}: ${freq.rrule || getTranslation('recurrence.noRuleDefined')}`;
-      case 'once':
-        return getTranslation('recurrence.oneTime');
       default:
         return getTranslation('recurrence.unknown');
     }
   }
 </script>
 
-{#if frequency && frequency.type !== 'once'}
+{#if frequency}
   <div class="recurrence-preview">
     <div class="preview-header">
       <span class="preview-icon">🔁</span>

@@ -8,9 +8,9 @@
  */
 
 import { createEventDispatcher } from 'svelte';
-import { StatusRegistry } from '../../domain/models/TaskStatus';
-import type { Task } from '../../domain/models/Task';
-import { formatRelativeDate } from '../../domain/utils/DateUtils';
+import { StatusRegistry } from '../../../domain/models/TaskStatus';
+import type { Task } from '../../../domain/models/Task';
+import { formatDateRelative } from '../../utils/dateFormatters';
 import { 
   getTaskAriaLabel, 
   getStatusText, 
@@ -68,7 +68,7 @@ function formatDate(dateStr?: string): string {
   
   try {
     const date = new Date(dateStr);
-    return formatRelativeDate(date);
+    return formatDateRelative(date);
   } catch {
     return dateStr;
   }

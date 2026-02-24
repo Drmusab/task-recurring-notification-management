@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TaskLineParser } from '@backend/core/parsers/TaskLineParser';
 import { TaskLineSerializer } from '@backend/core/parsers/TaskLineSerializer';
-import { StatusRegistry } from '@backend/core/models/StatusRegistry';
+import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry';
 import type { Task } from '@backend/core/models/Task';
 
 describe('Task Date Tracking', () => {

@@ -1,15 +1,15 @@
 // @ts-nocheck
 import { GlobalFilter } from "@shared/config/GlobalFilter";
-import { parseTypedDateForSaving } from "@shared/utils/dateTime/date-tools";
+import { parseTypedDateForSaving } from "@shared/utils/date/date-tools";
 import { PriorityTools } from "@shared/utils/lib/priority-tools";
 import { replaceTaskWithTasks } from "@backend/core/file/File";
 import type { Status } from "@shared/types/Status";
-import type { OnCompletion } from "@shared/utils/task/on-completion";
-import { Occurrence } from "@shared/utils/task/occurrence";
-import { Priority } from "@shared/utils/task/priority";
-import { Recurrence } from "@shared/utils/task/recurrence";
+import type { OnCompletion } from "@backend/utils/task/on-completion";
+import { Occurrence } from "@backend/utils/task/occurrence";
+import { Priority } from "@backend/utils/task/priority";
+import { Recurrence } from "@backend/utils/task/recurrence";
 import type { Task } from "@backend/core/models/Task";
-import { addDependencyToParent, ensureTaskHasId, generateUniqueId, removeDependency } from "@shared/utils/task/task-dependency";
+import { addDependencyToParent, ensureTaskHasId, generateUniqueId, removeDependency } from "@backend/utils/task/task-dependency";
 import { StatusType } from "@shared/constants/statuses/StatusConfiguration";
 
 /**

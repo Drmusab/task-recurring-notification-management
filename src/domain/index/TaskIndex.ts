@@ -12,8 +12,8 @@
  * - By dependency relationships
  */
 
-import type { Task } from '../../domain/models/Task';
-import { isTaskCompleted, isTaskOverdue } from '../../domain/models/Task';
+import type { Task } from '@domain/models/Task';
+import { isTaskCompleted, isTaskOverdue } from '@domain/models/Task';
 
 /**
  * Index structure for fast lookups

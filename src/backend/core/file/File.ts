@@ -4,7 +4,7 @@
  * Handles reading and writing task data to files
  */
 
-import type { Task } from "@backend/Task/Task";
+import type { Task } from "@backend/core/models/Task";
 import type { ListItem } from "@backend/Task/ListItem";
 
 /** Minimal vault interface expected from SiYuan/Obsidian */

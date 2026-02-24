@@ -111,8 +111,8 @@ export class AutoMigrationService {
           continue;
         }
 
-        // Convert
-        const migrated = FrequencyConverter.updateTaskRecurrence(task as any, true);
+        // Convert - Phase 3: Remove frequency field after migration (preserveFrequency = false)
+        const migrated = FrequencyConverter.updateTaskRecurrence(task as any, false);
 
         if (!migrated) {
           stats.failed++;

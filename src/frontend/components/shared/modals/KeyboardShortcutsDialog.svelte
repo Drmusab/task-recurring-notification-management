@@ -14,9 +14,9 @@
    */
 
   import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp.svelte';
+  import type { ShortcutManager } from '@backend/commands/ShortcutManager';
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  export let shortcutManager: any;
+  export let shortcutManager: ShortcutManager;
   export let onClose: () => void;
 </script>
 

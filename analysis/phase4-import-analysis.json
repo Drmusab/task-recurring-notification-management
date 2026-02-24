@@ -1,0 +1,1610 @@
+{
+  "timestamp": "2026-02-14T08:42:15.635Z",
+  "statistics": {
+    "totalFiles": 494,
+    "filesWithRelativeImports": 56,
+    "totalRelativeImports": 116,
+    "sameDirImports": 0,
+    "parentImports": 50,
+    "grandparentImports": 1,
+    "deepImports": 0,
+    "canUseAlias": 88,
+    "alreadyGood": 28,
+    "same-dirImports": null
+  },
+  "suggestions": [
+    {
+      "file": "src/backend/analytics/AnalyticsReporter.ts",
+      "line": 1,
+      "current": "../core/models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../core/models/Task';"
+    },
+    {
+      "file": "src/backend/analytics/AnalyticsReporter.ts",
+      "line": 2,
+      "current": "./ProductivityAnalyzer",
+      "resolved": "src/backend/analytics/ProductivityAnalyzer",
+      "suggested": "@backend/analytics/ProductivityAnalyzer",
+      "category": "same-dir",
+      "fullLine": "import { ProductivityAnalyzer, type ProductivityMetrics, type ProductivityComparison, type ProductivityInsights } from './ProductivityAnalyzer';"
+    },
+    {
+      "file": "src/backend/analytics/AnalyticsReporter.ts",
+      "line": 3,
+      "current": "./TrendAnalyzer",
+      "resolved": "src/backend/analytics/TrendAnalyzer",
+      "suggested": "@backend/analytics/TrendAnalyzer",
+      "category": "same-dir",
+      "fullLine": "import { TrendAnalyzer, type TrendReport, type TrendAnalysis, type TrendDataPoint } from './TrendAnalyzer';"
+    },
+    {
+      "file": "src/backend/analytics/ProductivityAnalyzer.ts",
+      "line": 1,
+      "current": "../core/models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../core/models/Task';"
+    },
+    {
+      "file": "src/backend/analytics/TrendAnalyzer.ts",
+      "line": 1,
+      "current": "../core/models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../core/models/Task';"
+    },
+    {
+      "file": "src/backend/analytics/TrendAnalyzer.ts",
+      "line": 2,
+      "current": "./ProductivityAnalyzer",
+      "resolved": "src/backend/analytics/ProductivityAnalyzer",
+      "suggested": "@backend/analytics/ProductivityAnalyzer",
+      "category": "same-dir",
+      "fullLine": "import type { ProductivityMetrics } from './ProductivityAnalyzer';"
+    },
+    {
+      "file": "src/backend/core/ai/PredictiveScheduler.ts",
+      "line": 7,
+      "current": "./scoring/TimeSlotScorer",
+      "resolved": "src/backend/core/ai/scoring/TimeSlotScorer",
+      "suggested": "@backend/core/ai/scoring/TimeSlotScorer",
+      "category": "same-dir",
+      "fullLine": "import { TimeSlotScorer } from './scoring/TimeSlotScorer';"
+    },
+    {
+      "file": "src/backend/core/ai/scoring/TimeSlotScorer.ts",
+      "line": 6,
+      "current": "../PredictiveScheduler",
+      "resolved": "src/backend/core/ai/PredictiveScheduler",
+      "suggested": "@backend/core/ai/PredictiveScheduler",
+      "category": "parent",
+      "fullLine": "import type { SchedulingContext } from '../PredictiveScheduler';"
+    },
+    {
+      "file": "src/backend/core/ai/__tests__/smart-suggestion-engine.test.ts",
+      "line": 6,
+      "current": "../SmartSuggestionEngine",
+      "resolved": "src/backend/core/ai/SmartSuggestionEngine",
+      "suggested": "@backend/core/ai/SmartSuggestionEngine",
+      "category": "parent",
+      "fullLine": "import { SmartSuggestionEngine } from '../SmartSuggestionEngine';"
+    },
+    {
+      "file": "src/backend/core/analytics/CompletionProbabilityCalculator.ts",
+      "line": 9,
+      "current": "./PredictiveEngine",
+      "resolved": "src/backend/core/analytics/PredictiveEngine",
+      "suggested": "@backend/core/analytics/PredictiveEngine",
+      "category": "same-dir",
+      "fullLine": "import { predictiveEngine, type CompletionProbability, type PredictiveInsights } from './PredictiveEngine';"
+    },
+    {
+      "file": "src/backend/core/dependencies/__tests__/DependencyGraph.test.ts",
+      "line": 2,
+      "current": "../DependencyGraph",
+      "resolved": "src/backend/core/dependencies/DependencyGraph",
+      "suggested": "@backend/core/dependencies/DependencyGraph",
+      "category": "parent",
+      "fullLine": "import { DependencyGraph, type DependencyGraphOptions } from '../DependencyGraph';"
+    },
+    {
+      "file": "src/backend/core/dependencies/__tests__/DependencyGraph.test.ts",
+      "line": 3,
+      "current": "../CycleDetector",
+      "resolved": "src/backend/core/dependencies/CycleDetector",
+      "suggested": "@backend/core/dependencies/CycleDetector",
+      "category": "parent",
+      "fullLine": "import { CycleDetector } from '../CycleDetector';"
+    },
+    {
+      "file": "src/backend/core/dependencies/__tests__/DependencyGraph.test.ts",
+      "line": 4,
+      "current": "../DependencyIndex",
+      "resolved": "src/backend/core/dependencies/DependencyIndex",
+      "suggested": "@backend/core/dependencies/DependencyIndex",
+      "category": "parent",
+      "fullLine": "import { DependencyIndex } from '../DependencyIndex';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+      "line": 25,
+      "current": "./RRuleCache",
+      "resolved": "src/backend/core/engine/recurrence/RRuleCache",
+      "suggested": "@backend/core/engine/recurrence/RRuleCache",
+      "category": "same-dir",
+      "fullLine": "import { RRuleCache } from './RRuleCache';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+      "line": 26,
+      "current": "./RecurrenceValidator",
+      "resolved": "src/backend/core/engine/recurrence/RecurrenceValidator",
+      "suggested": "@backend/core/engine/recurrence/RecurrenceValidator",
+      "category": "same-dir",
+      "fullLine": "import { RecurrenceValidator } from './RecurrenceValidator';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+      "line": 27,
+      "current": "./RecurrenceExplainer",
+      "resolved": "src/backend/core/engine/recurrence/RecurrenceExplainer",
+      "suggested": "@backend/core/engine/recurrence/RecurrenceExplainer",
+      "category": "same-dir",
+      "fullLine": "import { RecurrenceExplainer } from './RecurrenceExplainer';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+      "line": 28,
+      "current": "./utils",
+      "resolved": "src/backend/core/engine/recurrence/utils",
+      "suggested": "@backend/core/engine/recurrence/utils",
+      "category": "same-dir",
+      "fullLine": "import { generateCacheKey } from './utils';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceEngineRRULE.ts",
+      "line": 3,
+      "current": "../../models/Frequency",
+      "resolved": "src/backend/core/models/Frequency",
+      "suggested": "@backend/core/models/Frequency",
+      "category": "grandparent",
+      "fullLine": "import type { Frequency } from \"../../models/Frequency\";"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceExplainer.ts",
+      "line": 13,
+      "current": "./recurrence.types",
+      "resolved": "src/backend/core/engine/recurrence/recurrence.types",
+      "suggested": "@backend/core/engine/recurrence/recurrence.types",
+      "category": "same-dir",
+      "fullLine": "import type { RecurrenceExplanation, ExplanationStep, RecurrenceMode } from './recurrence.types';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceValidator.ts",
+      "line": 13,
+      "current": "./recurrence.types",
+      "resolved": "src/backend/core/engine/recurrence/recurrence.types",
+      "suggested": "@backend/core/engine/recurrence/recurrence.types",
+      "category": "same-dir",
+      "fullLine": "import type { ValidationResult } from './recurrence.types';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RecurrenceValidator.ts",
+      "line": 14,
+      "current": "./utils",
+      "resolved": "src/backend/core/engine/recurrence/utils",
+      "suggested": "@backend/core/engine/recurrence/utils",
+      "category": "same-dir",
+      "fullLine": "import { extractRRuleOptions } from './utils';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RRuleCache.ts",
+      "line": 12,
+      "current": "./recurrence.types",
+      "resolved": "src/backend/core/engine/recurrence/recurrence.types",
+      "suggested": "@backend/core/engine/recurrence/recurrence.types",
+      "category": "same-dir",
+      "fullLine": "import type { CacheEntry, CacheStats } from './recurrence.types';"
+    },
+    {
+      "file": "src/backend/core/engine/recurrence/RRuleCache.ts",
+      "line": 13,
+      "current": "./utils",
+      "resolved": "src/backend/core/engine/recurrence/utils",
+      "suggested": "@backend/core/engine/recurrence/utils",
+      "category": "same-dir",
+      "fullLine": "import { extractRRuleOptions } from './utils';"
+    },
+    {
+      "file": "src/backend/core/engine/Scheduler.ts",
+      "line": 4,
+      "current": "./TimezoneHandler",
+      "resolved": "src/backend/core/engine/TimezoneHandler",
+      "suggested": "@backend/core/engine/TimezoneHandler",
+      "category": "same-dir",
+      "fullLine": "import { TimezoneHandler } from \"./TimezoneHandler\";"
+    },
+    {
+      "file": "src/backend/core/engine/Scheduler.ts",
+      "line": 5,
+      "current": "./OnCompletion",
+      "resolved": "src/backend/core/engine/OnCompletion",
+      "suggested": "@backend/core/engine/OnCompletion",
+      "category": "same-dir",
+      "fullLine": "import { OnCompletionHandler } from \"./OnCompletion\";"
+    },
+    {
+      "file": "src/backend/core/engine/Scheduler.ts",
+      "line": 6,
+      "current": "./SchedulerEvents",
+      "resolved": "src/backend/core/engine/SchedulerEvents",
+      "suggested": "@backend/core/engine/SchedulerEvents",
+      "category": "same-dir",
+      "fullLine": "import type { SchedulerEventListener, SchedulerEventType, TaskDueEvent } from \"./SchedulerEvents\";"
+    },
+    {
+      "file": "src/backend/core/engine/__tests__/dependency-graph.test.ts",
+      "line": 2,
+      "current": "../DependencyGraph",
+      "resolved": "src/backend/core/engine/DependencyGraph",
+      "suggested": "@backend/core/engine/DependencyGraph",
+      "category": "parent",
+      "fullLine": "import { DependencyGraph } from '../DependencyGraph';"
+    },
+    {
+      "file": "src/backend/core/engine/__tests__/on-completion.test.ts",
+      "line": 2,
+      "current": "../OnCompletion",
+      "resolved": "src/backend/core/engine/OnCompletion",
+      "suggested": "@backend/core/engine/OnCompletion",
+      "category": "parent",
+      "fullLine": "import { OnCompletionHandler } from '../OnCompletion';"
+    },
+    {
+      "file": "src/backend/core/indexing/TaskIndexManager.ts",
+      "line": 14,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task, TaskPriority } from '../models/Task';"
+    },
+    {
+      "file": "src/backend/core/managers/index.ts",
+      "line": 1,
+      "current": "./TaskManager",
+      "resolved": "src/backend/core/managers/TaskManager",
+      "suggested": "@backend/core/managers/TaskManager",
+      "category": "same-dir",
+      "fullLine": "import { TaskManager } from \"./TaskManager\";"
+    },
+    {
+      "file": "src/backend/core/migration/FrequencyToRecurrenceConverter.ts",
+      "line": 13,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../models/Task';"
+    },
+    {
+      "file": "src/backend/core/migration/FrequencyToRecurrenceConverter.ts",
+      "line": 14,
+      "current": "../engine/recurrence/RecurrenceEngine",
+      "resolved": "src/backend/core/engine/recurrence/RecurrenceEngine",
+      "suggested": "@backend/core/engine/recurrence/RecurrenceEngine",
+      "category": "parent",
+      "fullLine": "import { RecurrenceEngine } from '../engine/recurrence/RecurrenceEngine';"
+    },
+    {
+      "file": "src/backend/core/migration/__tests__/FrequencyToRecurrenceConverter.test.ts",
+      "line": 10,
+      "current": "../FrequencyToRecurrenceConverter",
+      "resolved": "src/backend/core/migration/FrequencyToRecurrenceConverter",
+      "suggested": "@backend/core/migration/FrequencyToRecurrenceConverter",
+      "category": "parent",
+      "fullLine": "import { FrequencyToRecurrenceConverter } from '../FrequencyToRecurrenceConverter';"
+    },
+    {
+      "file": "src/backend/core/models/RecurrencePatterns.ts",
+      "line": 3,
+      "current": "./Frequency",
+      "resolved": "src/backend/core/models/Frequency",
+      "suggested": "@backend/core/models/Frequency",
+      "category": "same-dir",
+      "fullLine": "import type { Frequency } from './Frequency';"
+    },
+    {
+      "file": "src/backend/core/models/Task.ts",
+      "line": 1,
+      "current": "./Frequency",
+      "resolved": "src/backend/core/models/Frequency",
+      "suggested": "@backend/core/models/Frequency",
+      "category": "same-dir",
+      "fullLine": "import type { Frequency } from \"./Frequency\";"
+    },
+    {
+      "file": "src/backend/core/models/Task.ts",
+      "line": 3,
+      "current": "./Frequency",
+      "resolved": "src/backend/core/models/Frequency",
+      "suggested": "@backend/core/models/Frequency",
+      "category": "same-dir",
+      "fullLine": "import { isValidFrequency } from \"./Frequency\";"
+    },
+    {
+      "file": "src/backend/core/query/ExplanationCache.ts",
+      "line": 14,
+      "current": "./QueryExplainer",
+      "resolved": "src/backend/core/query/QueryExplainer",
+      "suggested": "@backend/core/query/QueryExplainer",
+      "category": "same-dir",
+      "fullLine": "import type { Explanation, TaskExplanation } from \"./QueryExplainer\";"
+    },
+    {
+      "file": "src/backend/core/query/ExplanationCache.ts",
+      "line": 15,
+      "current": "./QueryParser",
+      "resolved": "src/backend/core/query/QueryParser",
+      "suggested": "@backend/core/query/QueryParser",
+      "category": "same-dir",
+      "fullLine": "import type { QueryAST } from \"./QueryParser\";"
+    },
+    {
+      "file": "src/backend/core/query/ExplanationDiagramGenerator.ts",
+      "line": 14,
+      "current": "./QueryParser",
+      "resolved": "src/backend/core/query/QueryParser",
+      "suggested": "@backend/core/query/QueryParser",
+      "category": "same-dir",
+      "fullLine": "import type { QueryAST, FilterNode } from \"./QueryParser\";"
+    },
+    {
+      "file": "src/backend/core/query/ExplanationDiagramGenerator.ts",
+      "line": 15,
+      "current": "./QueryExplainer",
+      "resolved": "src/backend/core/query/QueryExplainer",
+      "suggested": "@backend/core/query/QueryExplainer",
+      "category": "same-dir",
+      "fullLine": "import type { Explanation, TaskExplanation } from \"./QueryExplainer\";"
+    },
+    {
+      "file": "src/backend/core/query/ExplanationDiff.ts",
+      "line": 14,
+      "current": "./QueryExplainer",
+      "resolved": "src/backend/core/query/QueryExplainer",
+      "suggested": "@backend/core/query/QueryExplainer",
+      "category": "same-dir",
+      "fullLine": "import type { Explanation, TaskExplanation } from \"./QueryExplainer\";"
+    },
+    {
+      "file": "src/backend/core/query/SuggestedFixGenerator.ts",
+      "line": 13,
+      "current": "./QueryExplainer",
+      "resolved": "src/backend/core/query/QueryExplainer",
+      "suggested": "@backend/core/query/QueryExplainer",
+      "category": "same-dir",
+      "fullLine": "import type { TaskExplanation, FilterExplanation } from \"./QueryExplainer\";"
+    },
+    {
+      "file": "src/backend/core/query/__tests__/MultiFieldSort.test.ts",
+      "line": 7,
+      "current": "../QueryEngine",
+      "resolved": "src/backend/core/query/QueryEngine",
+      "suggested": "@backend/core/query/QueryEngine",
+      "category": "parent",
+      "fullLine": "import { QueryEngine } from '../QueryEngine';"
+    },
+    {
+      "file": "src/backend/core/query/__tests__/MultiFieldSort.test.ts",
+      "line": 8,
+      "current": "../QueryParser",
+      "resolved": "src/backend/core/query/QueryParser",
+      "suggested": "@backend/core/query/QueryParser",
+      "category": "parent",
+      "fullLine": "import { QueryParser } from '../QueryParser';"
+    },
+    {
+      "file": "src/backend/core/recurrence/RecurrenceEngine.ts",
+      "line": 11,
+      "current": "../models/Frequency",
+      "resolved": "src/backend/core/models/Frequency",
+      "suggested": "@backend/core/models/Frequency",
+      "category": "parent",
+      "fullLine": "import type { Frequency } from '../models/Frequency';"
+    },
+    {
+      "file": "src/backend/core/scheduling/DualEngineScheduler.ts",
+      "line": 37,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../models/Task';"
+    },
+    {
+      "file": "src/backend/core/scheduling/DualEngineScheduler.ts",
+      "line": 41,
+      "current": "../utils/FrequencyConverter",
+      "resolved": "src/backend/core/utils/FrequencyConverter",
+      "suggested": "@backend/core/utils/FrequencyConverter",
+      "category": "parent",
+      "fullLine": "import { FrequencyConverter } from '../utils/FrequencyConverter';"
+    },
+    {
+      "file": "src/backend/core/services/AutoMigrationService.ts",
+      "line": 8,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../models/Task';"
+    },
+    {
+      "file": "src/backend/core/services/AutoMigrationService.ts",
+      "line": 9,
+      "current": "../settings/PluginSettings",
+      "resolved": "src/backend/core/settings/PluginSettings",
+      "suggested": "@backend/core/settings/PluginSettings",
+      "category": "parent",
+      "fullLine": "import type { PluginSettings } from '../settings/PluginSettings';"
+    },
+    {
+      "file": "src/backend/core/services/AutoMigrationService.ts",
+      "line": 10,
+      "current": "../utils/FrequencyConverter",
+      "resolved": "src/backend/core/utils/FrequencyConverter",
+      "suggested": "@backend/core/utils/FrequencyConverter",
+      "category": "parent",
+      "fullLine": "import { FrequencyConverter } from '../utils/FrequencyConverter';"
+    },
+    {
+      "file": "src/backend/core/services/RecurrencePreviewService.ts",
+      "line": 13,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from \"../models/Task\";"
+    },
+    {
+      "file": "src/backend/core/services/TaskCreationService.ts",
+      "line": 8,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../models/Task';"
+    },
+    {
+      "file": "src/backend/core/services/TaskCreationService.ts",
+      "line": 10,
+      "current": "../settings/PluginSettings",
+      "resolved": "src/backend/core/settings/PluginSettings",
+      "suggested": "@backend/core/settings/PluginSettings",
+      "category": "parent",
+      "fullLine": "import type { PluginSettings } from '../settings/PluginSettings';"
+    },
+    {
+      "file": "src/backend/core/services/TaskCreationService.ts",
+      "line": 11,
+      "current": "../models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import { createTask as createTaskLegacy } from '../models/Task';"
+    },
+    {
+      "file": "src/backend/core/services/TaskCreationService.ts",
+      "line": 13,
+      "current": "../migration/FrequencyToRecurrenceConverter",
+      "resolved": "src/backend/core/migration/FrequencyToRecurrenceConverter",
+      "suggested": "@backend/core/migration/FrequencyToRecurrenceConverter",
+      "category": "parent",
+      "fullLine": "import { FrequencyToRecurrenceConverter, type LegacyFrequency } from '../migration/FrequencyToRecurrenceConverter';"
+    },
+    {
+      "file": "src/backend/core/sync/BlockAttributeBatchSync.ts",
+      "line": 10,
+      "current": "../api/SiYuanApiAdapter",
+      "resolved": "src/backend/core/api/SiYuanApiAdapter",
+      "suggested": "@backend/core/api/SiYuanApiAdapter",
+      "category": "parent",
+      "fullLine": "import type { SiYuanBlockAPI } from '../api/SiYuanApiAdapter';"
+    },
+    {
+      "file": "src/backend/core/utils/FrequencyConverter.ts",
+      "line": 12,
+      "current": "../migration/FrequencyToRecurrenceConverter",
+      "resolved": "src/backend/core/migration/FrequencyToRecurrenceConverter",
+      "suggested": "@backend/core/migration/FrequencyToRecurrenceConverter",
+      "category": "parent",
+      "fullLine": "import { FrequencyToRecurrenceConverter, type LegacyFrequency } from '../migration/FrequencyToRecurrenceConverter';"
+    },
+    {
+      "file": "src/backend/intelligence/CompletionPredictor.ts",
+      "line": 6,
+      "current": "../core/models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../core/models/Task';"
+    },
+    {
+      "file": "src/backend/intelligence/CompletionPredictor.ts",
+      "line": 7,
+      "current": "./PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "same-dir",
+      "fullLine": "import { PatternAnalyzer, type CompletionStats } from './PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/intelligence/PatternAnalyzer.ts",
+      "line": 9,
+      "current": "../core/models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../core/models/Task';"
+    },
+    {
+      "file": "src/backend/intelligence/SmartRecurrenceSuggester.ts",
+      "line": 6,
+      "current": "../core/models/Task",
+      "resolved": "src/backend/core/models/Task",
+      "suggested": "@backend/core/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../core/models/Task';"
+    },
+    {
+      "file": "src/backend/intelligence/SmartRecurrenceSuggester.ts",
+      "line": 7,
+      "current": "./PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "same-dir",
+      "fullLine": "import { PatternAnalyzer, type CompletionPattern } from './PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/CompletionPredictor.test.ts",
+      "line": 2,
+      "current": "../CompletionPredictor",
+      "resolved": "src/backend/intelligence/CompletionPredictor",
+      "suggested": "@backend/intelligence/CompletionPredictor",
+      "category": "parent",
+      "fullLine": "import { CompletionPredictor, type CompletionPrediction } from '../CompletionPredictor';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/CompletionPredictor.test.ts",
+      "line": 3,
+      "current": "../PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "parent",
+      "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/intelligence-integration.test.ts",
+      "line": 2,
+      "current": "../PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "parent",
+      "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/intelligence-integration.test.ts",
+      "line": 3,
+      "current": "../SmartRecurrenceSuggester",
+      "resolved": "src/backend/intelligence/SmartRecurrenceSuggester",
+      "suggested": "@backend/intelligence/SmartRecurrenceSuggester",
+      "category": "parent",
+      "fullLine": "import { SmartRecurrenceSuggester } from '../SmartRecurrenceSuggester';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/intelligence-integration.test.ts",
+      "line": 4,
+      "current": "../CompletionPredictor",
+      "resolved": "src/backend/intelligence/CompletionPredictor",
+      "suggested": "@backend/intelligence/CompletionPredictor",
+      "category": "parent",
+      "fullLine": "import { CompletionPredictor } from '../CompletionPredictor';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/PatternAnalyzer.test.ts",
+      "line": 2,
+      "current": "../PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "parent",
+      "fullLine": "import { PatternAnalyzer, type CompletionPattern, type CompletionStats } from '../PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/performance-benchmarks.test.ts",
+      "line": 2,
+      "current": "../PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "parent",
+      "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/performance-benchmarks.test.ts",
+      "line": 3,
+      "current": "../SmartRecurrenceSuggester",
+      "resolved": "src/backend/intelligence/SmartRecurrenceSuggester",
+      "suggested": "@backend/intelligence/SmartRecurrenceSuggester",
+      "category": "parent",
+      "fullLine": "import { SmartRecurrenceSuggester } from '../SmartRecurrenceSuggester';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/performance-benchmarks.test.ts",
+      "line": 4,
+      "current": "../CompletionPredictor",
+      "resolved": "src/backend/intelligence/CompletionPredictor",
+      "suggested": "@backend/intelligence/CompletionPredictor",
+      "category": "parent",
+      "fullLine": "import { CompletionPredictor } from '../CompletionPredictor';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/SmartRecurrenceSuggester.test.ts",
+      "line": 2,
+      "current": "../SmartRecurrenceSuggester",
+      "resolved": "src/backend/intelligence/SmartRecurrenceSuggester",
+      "suggested": "@backend/intelligence/SmartRecurrenceSuggester",
+      "category": "parent",
+      "fullLine": "import { SmartRecurrenceSuggester, type RecurrenceSuggestion } from '../SmartRecurrenceSuggester';"
+    },
+    {
+      "file": "src/backend/intelligence/__tests__/SmartRecurrenceSuggester.test.ts",
+      "line": 3,
+      "current": "../PatternAnalyzer",
+      "resolved": "src/backend/intelligence/PatternAnalyzer",
+      "suggested": "@backend/intelligence/PatternAnalyzer",
+      "category": "parent",
+      "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+    },
+    {
+      "file": "src/backend/logging/performance-profiler.ts",
+      "line": 6,
+      "current": "./logger",
+      "resolved": "src/backend/logging/logger",
+      "suggested": "@backend/logging/logger",
+      "category": "same-dir",
+      "fullLine": "import * as logger from \"./logger\";"
+    },
+    {
+      "file": "src/domain/models/Settings.ts",
+      "line": 6,
+      "current": "./TaskStatus",
+      "resolved": "src/domain/models/TaskStatus",
+      "suggested": "@domain/models/TaskStatus",
+      "category": "same-dir",
+      "fullLine": "import type { Status } from './TaskStatus';"
+    },
+    {
+      "file": "src/domain/models/Task.ts",
+      "line": 7,
+      "current": "./Recurrence",
+      "resolved": "src/domain/models/Recurrence",
+      "suggested": "@domain/models/Recurrence",
+      "category": "same-dir",
+      "fullLine": "import type { Recurrence } from './Recurrence';"
+    },
+    {
+      "file": "src/domain/query/AdvancedQuery.ts",
+      "line": 11,
+      "current": "../models/Task",
+      "resolved": "src/domain/models/Task",
+      "suggested": "@domain/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Task } from '../models/Task';"
+    },
+    {
+      "file": "src/domain/query/AdvancedQuery.ts",
+      "line": 12,
+      "current": "../models/Task",
+      "resolved": "src/domain/models/Task",
+      "suggested": "@domain/models/Task",
+      "category": "parent",
+      "fullLine": "import { isTaskCompleted, isTaskOverdue } from '../models/Task';"
+    },
+    {
+      "file": "src/domain/recurrence/RuleParser.ts",
+      "line": 17,
+      "current": "../models/Task",
+      "resolved": "src/domain/models/Task",
+      "suggested": "@domain/models/Task",
+      "category": "parent",
+      "fullLine": "import type { Frequency } from '../models/Task';"
+    },
+    {
+      "file": "src/frontend/components/analytics/widgets/DragDropManager.ts",
+      "line": 6,
+      "current": "./WidgetTypes",
+      "resolved": "src/frontend/components/analytics/widgets/WidgetTypes",
+      "suggested": "@frontend/components/analytics/widgets/WidgetTypes",
+      "category": "same-dir",
+      "fullLine": "import type { Widget, DragDropState } from './WidgetTypes';"
+    },
+    {
+      "file": "src/frontend/components/shared/EditInstructions/DateInstructions.ts",
+      "line": 3,
+      "current": "./TaskEditingInstruction",
+      "resolved": "src/frontend/components/shared/EditInstructions/TaskEditingInstruction",
+      "suggested": "@frontend/components/shared/EditInstructions/TaskEditingInstruction",
+      "category": "same-dir",
+      "fullLine": "import type { TaskEditingInstruction } from \"./TaskEditingInstruction\";"
+    },
+    {
+      "file": "src/frontend/components/shared/EditInstructions/PriorityInstructions.ts",
+      "line": 2,
+      "current": "./TaskEditingInstruction",
+      "resolved": "src/frontend/components/shared/EditInstructions/TaskEditingInstruction",
+      "suggested": "@frontend/components/shared/EditInstructions/TaskEditingInstruction",
+      "category": "same-dir",
+      "fullLine": "import type { TaskEditingInstruction } from \"./TaskEditingInstruction\";"
+    },
+    {
+      "file": "src/frontend/components/shared/EditInstructions/StatusInstructions.ts",
+      "line": 6,
+      "current": "./TaskEditingInstruction",
+      "resolved": "src/frontend/components/shared/EditInstructions/TaskEditingInstruction",
+      "suggested": "@frontend/components/shared/EditInstructions/TaskEditingInstruction",
+      "category": "same-dir",
+      "fullLine": "import type { TaskEditingInstruction } from \"./TaskEditingInstruction\";"
+    },
+    {
+      "file": "src/frontend/stores/Settings.store.ts",
+      "line": 7,
+      "current": "../domain/models/Settings",
+      "resolved": "src/frontend/domain/models/Settings",
+      "suggested": "@frontend/domain/models/Settings",
+      "category": "parent",
+      "fullLine": "import { Settings, getDefaultSettings } from '../domain/models/Settings';"
+    },
+    {
+      "file": "src/frontend/stores/Task.store.ts",
+      "line": 11,
+      "current": "../domain/models/Settings",
+      "resolved": "src/frontend/domain/models/Settings",
+      "suggested": "@frontend/domain/models/Settings",
+      "category": "parent",
+      "fullLine": "import { Settings } from '../domain/models/Settings';"
+    },
+    {
+      "file": "src/migration/Migrator.ts",
+      "line": 12,
+      "current": "../domain/models/Settings",
+      "resolved": "src/domain/models/Settings",
+      "suggested": "@domain/models/Settings",
+      "category": "parent",
+      "fullLine": "import type { Settings } from '../domain/models/Settings';"
+    },
+    {
+      "file": "src/migration/Migrator.ts",
+      "line": 14,
+      "current": "../domain/models/Settings",
+      "resolved": "src/domain/models/Settings",
+      "suggested": "@domain/models/Settings",
+      "category": "parent",
+      "fullLine": "import { getDefaultSettings } from '../domain/models/Settings';"
+    },
+    {
+      "file": "src/shared/utils/compat/daily-notes-compat.ts",
+      "line": 9,
+      "current": "./siyuan-compat",
+      "resolved": "src/shared/utils/compat/siyuan-compat",
+      "suggested": "@shared/utils/compat/siyuan-compat",
+      "category": "same-dir",
+      "fullLine": "import type { TFile } from \"./siyuan-compat\";"
+    }
+  ],
+  "byCategory": {
+    "same-dir": [
+      {
+        "file": "src/backend/analytics/AnalyticsReporter.ts",
+        "line": 2,
+        "current": "./ProductivityAnalyzer",
+        "resolved": "src/backend/analytics/ProductivityAnalyzer",
+        "suggested": "@backend/analytics/ProductivityAnalyzer",
+        "category": "same-dir",
+        "fullLine": "import { ProductivityAnalyzer, type ProductivityMetrics, type ProductivityComparison, type ProductivityInsights } from './ProductivityAnalyzer';"
+      },
+      {
+        "file": "src/backend/analytics/AnalyticsReporter.ts",
+        "line": 3,
+        "current": "./TrendAnalyzer",
+        "resolved": "src/backend/analytics/TrendAnalyzer",
+        "suggested": "@backend/analytics/TrendAnalyzer",
+        "category": "same-dir",
+        "fullLine": "import { TrendAnalyzer, type TrendReport, type TrendAnalysis, type TrendDataPoint } from './TrendAnalyzer';"
+      },
+      {
+        "file": "src/backend/analytics/TrendAnalyzer.ts",
+        "line": 2,
+        "current": "./ProductivityAnalyzer",
+        "resolved": "src/backend/analytics/ProductivityAnalyzer",
+        "suggested": "@backend/analytics/ProductivityAnalyzer",
+        "category": "same-dir",
+        "fullLine": "import type { ProductivityMetrics } from './ProductivityAnalyzer';"
+      },
+      {
+        "file": "src/backend/core/ai/PredictiveScheduler.ts",
+        "line": 7,
+        "current": "./scoring/TimeSlotScorer",
+        "resolved": "src/backend/core/ai/scoring/TimeSlotScorer",
+        "suggested": "@backend/core/ai/scoring/TimeSlotScorer",
+        "category": "same-dir",
+        "fullLine": "import { TimeSlotScorer } from './scoring/TimeSlotScorer';"
+      },
+      {
+        "file": "src/backend/core/analytics/CompletionProbabilityCalculator.ts",
+        "line": 9,
+        "current": "./PredictiveEngine",
+        "resolved": "src/backend/core/analytics/PredictiveEngine",
+        "suggested": "@backend/core/analytics/PredictiveEngine",
+        "category": "same-dir",
+        "fullLine": "import { predictiveEngine, type CompletionProbability, type PredictiveInsights } from './PredictiveEngine';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+        "line": 25,
+        "current": "./RRuleCache",
+        "resolved": "src/backend/core/engine/recurrence/RRuleCache",
+        "suggested": "@backend/core/engine/recurrence/RRuleCache",
+        "category": "same-dir",
+        "fullLine": "import { RRuleCache } from './RRuleCache';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+        "line": 26,
+        "current": "./RecurrenceValidator",
+        "resolved": "src/backend/core/engine/recurrence/RecurrenceValidator",
+        "suggested": "@backend/core/engine/recurrence/RecurrenceValidator",
+        "category": "same-dir",
+        "fullLine": "import { RecurrenceValidator } from './RecurrenceValidator';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+        "line": 27,
+        "current": "./RecurrenceExplainer",
+        "resolved": "src/backend/core/engine/recurrence/RecurrenceExplainer",
+        "suggested": "@backend/core/engine/recurrence/RecurrenceExplainer",
+        "category": "same-dir",
+        "fullLine": "import { RecurrenceExplainer } from './RecurrenceExplainer';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceEngine.ts",
+        "line": 28,
+        "current": "./utils",
+        "resolved": "src/backend/core/engine/recurrence/utils",
+        "suggested": "@backend/core/engine/recurrence/utils",
+        "category": "same-dir",
+        "fullLine": "import { generateCacheKey } from './utils';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceExplainer.ts",
+        "line": 13,
+        "current": "./recurrence.types",
+        "resolved": "src/backend/core/engine/recurrence/recurrence.types",
+        "suggested": "@backend/core/engine/recurrence/recurrence.types",
+        "category": "same-dir",
+        "fullLine": "import type { RecurrenceExplanation, ExplanationStep, RecurrenceMode } from './recurrence.types';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceValidator.ts",
+        "line": 13,
+        "current": "./recurrence.types",
+        "resolved": "src/backend/core/engine/recurrence/recurrence.types",
+        "suggested": "@backend/core/engine/recurrence/recurrence.types",
+        "category": "same-dir",
+        "fullLine": "import type { ValidationResult } from './recurrence.types';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceValidator.ts",
+        "line": 14,
+        "current": "./utils",
+        "resolved": "src/backend/core/engine/recurrence/utils",
+        "suggested": "@backend/core/engine/recurrence/utils",
+        "category": "same-dir",
+        "fullLine": "import { extractRRuleOptions } from './utils';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RRuleCache.ts",
+        "line": 12,
+        "current": "./recurrence.types",
+        "resolved": "src/backend/core/engine/recurrence/recurrence.types",
+        "suggested": "@backend/core/engine/recurrence/recurrence.types",
+        "category": "same-dir",
+        "fullLine": "import type { CacheEntry, CacheStats } from './recurrence.types';"
+      },
+      {
+        "file": "src/backend/core/engine/recurrence/RRuleCache.ts",
+        "line": 13,
+        "current": "./utils",
+        "resolved": "src/backend/core/engine/recurrence/utils",
+        "suggested": "@backend/core/engine/recurrence/utils",
+        "category": "same-dir",
+        "fullLine": "import { extractRRuleOptions } from './utils';"
+      },
+      {
+        "file": "src/backend/core/engine/Scheduler.ts",
+        "line": 4,
+        "current": "./TimezoneHandler",
+        "resolved": "src/backend/core/engine/TimezoneHandler",
+        "suggested": "@backend/core/engine/TimezoneHandler",
+        "category": "same-dir",
+        "fullLine": "import { TimezoneHandler } from \"./TimezoneHandler\";"
+      },
+      {
+        "file": "src/backend/core/engine/Scheduler.ts",
+        "line": 5,
+        "current": "./OnCompletion",
+        "resolved": "src/backend/core/engine/OnCompletion",
+        "suggested": "@backend/core/engine/OnCompletion",
+        "category": "same-dir",
+        "fullLine": "import { OnCompletionHandler } from \"./OnCompletion\";"
+      },
+      {
+        "file": "src/backend/core/engine/Scheduler.ts",
+        "line": 6,
+        "current": "./SchedulerEvents",
+        "resolved": "src/backend/core/engine/SchedulerEvents",
+        "suggested": "@backend/core/engine/SchedulerEvents",
+        "category": "same-dir",
+        "fullLine": "import type { SchedulerEventListener, SchedulerEventType, TaskDueEvent } from \"./SchedulerEvents\";"
+      },
+      {
+        "file": "src/backend/core/managers/index.ts",
+        "line": 1,
+        "current": "./TaskManager",
+        "resolved": "src/backend/core/managers/TaskManager",
+        "suggested": "@backend/core/managers/TaskManager",
+        "category": "same-dir",
+        "fullLine": "import { TaskManager } from \"./TaskManager\";"
+      },
+      {
+        "file": "src/backend/core/models/RecurrencePatterns.ts",
+        "line": 3,
+        "current": "./Frequency",
+        "resolved": "src/backend/core/models/Frequency",
+        "suggested": "@backend/core/models/Frequency",
+        "category": "same-dir",
+        "fullLine": "import type { Frequency } from './Frequency';"
+      },
+      {
+        "file": "src/backend/core/models/Task.ts",
+        "line": 1,
+        "current": "./Frequency",
+        "resolved": "src/backend/core/models/Frequency",
+        "suggested": "@backend/core/models/Frequency",
+        "category": "same-dir",
+        "fullLine": "import type { Frequency } from \"./Frequency\";"
+      },
+      {
+        "file": "src/backend/core/models/Task.ts",
+        "line": 3,
+        "current": "./Frequency",
+        "resolved": "src/backend/core/models/Frequency",
+        "suggested": "@backend/core/models/Frequency",
+        "category": "same-dir",
+        "fullLine": "import { isValidFrequency } from \"./Frequency\";"
+      },
+      {
+        "file": "src/backend/core/query/ExplanationCache.ts",
+        "line": 14,
+        "current": "./QueryExplainer",
+        "resolved": "src/backend/core/query/QueryExplainer",
+        "suggested": "@backend/core/query/QueryExplainer",
+        "category": "same-dir",
+        "fullLine": "import type { Explanation, TaskExplanation } from \"./QueryExplainer\";"
+      },
+      {
+        "file": "src/backend/core/query/ExplanationCache.ts",
+        "line": 15,
+        "current": "./QueryParser",
+        "resolved": "src/backend/core/query/QueryParser",
+        "suggested": "@backend/core/query/QueryParser",
+        "category": "same-dir",
+        "fullLine": "import type { QueryAST } from \"./QueryParser\";"
+      },
+      {
+        "file": "src/backend/core/query/ExplanationDiagramGenerator.ts",
+        "line": 14,
+        "current": "./QueryParser",
+        "resolved": "src/backend/core/query/QueryParser",
+        "suggested": "@backend/core/query/QueryParser",
+        "category": "same-dir",
+        "fullLine": "import type { QueryAST, FilterNode } from \"./QueryParser\";"
+      },
+      {
+        "file": "src/backend/core/query/ExplanationDiagramGenerator.ts",
+        "line": 15,
+        "current": "./QueryExplainer",
+        "resolved": "src/backend/core/query/QueryExplainer",
+        "suggested": "@backend/core/query/QueryExplainer",
+        "category": "same-dir",
+        "fullLine": "import type { Explanation, TaskExplanation } from \"./QueryExplainer\";"
+      },
+      {
+        "file": "src/backend/core/query/ExplanationDiff.ts",
+        "line": 14,
+        "current": "./QueryExplainer",
+        "resolved": "src/backend/core/query/QueryExplainer",
+        "suggested": "@backend/core/query/QueryExplainer",
+        "category": "same-dir",
+        "fullLine": "import type { Explanation, TaskExplanation } from \"./QueryExplainer\";"
+      },
+      {
+        "file": "src/backend/core/query/SuggestedFixGenerator.ts",
+        "line": 13,
+        "current": "./QueryExplainer",
+        "resolved": "src/backend/core/query/QueryExplainer",
+        "suggested": "@backend/core/query/QueryExplainer",
+        "category": "same-dir",
+        "fullLine": "import type { TaskExplanation, FilterExplanation } from \"./QueryExplainer\";"
+      },
+      {
+        "file": "src/backend/intelligence/CompletionPredictor.ts",
+        "line": 7,
+        "current": "./PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "same-dir",
+        "fullLine": "import { PatternAnalyzer, type CompletionStats } from './PatternAnalyzer';"
+      },
+      {
+        "file": "src/backend/intelligence/SmartRecurrenceSuggester.ts",
+        "line": 7,
+        "current": "./PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "same-dir",
+        "fullLine": "import { PatternAnalyzer, type CompletionPattern } from './PatternAnalyzer';"
+      },
+      {
+        "file": "src/backend/logging/performance-profiler.ts",
+        "line": 6,
+        "current": "./logger",
+        "resolved": "src/backend/logging/logger",
+        "suggested": "@backend/logging/logger",
+        "category": "same-dir",
+        "fullLine": "import * as logger from \"./logger\";"
+      },
+      {
+        "file": "src/domain/models/Settings.ts",
+        "line": 6,
+        "current": "./TaskStatus",
+        "resolved": "src/domain/models/TaskStatus",
+        "suggested": "@domain/models/TaskStatus",
+        "category": "same-dir",
+        "fullLine": "import type { Status } from './TaskStatus';"
+      },
+      {
+        "file": "src/domain/models/Task.ts",
+        "line": 7,
+        "current": "./Recurrence",
+        "resolved": "src/domain/models/Recurrence",
+        "suggested": "@domain/models/Recurrence",
+        "category": "same-dir",
+        "fullLine": "import type { Recurrence } from './Recurrence';"
+      },
+      {
+        "file": "src/frontend/components/analytics/widgets/DragDropManager.ts",
+        "line": 6,
+        "current": "./WidgetTypes",
+        "resolved": "src/frontend/components/analytics/widgets/WidgetTypes",
+        "suggested": "@frontend/components/analytics/widgets/WidgetTypes",
+        "category": "same-dir",
+        "fullLine": "import type { Widget, DragDropState } from './WidgetTypes';"
+      },
+      {
+        "file": "src/frontend/components/shared/EditInstructions/DateInstructions.ts",
+        "line": 3,
+        "current": "./TaskEditingInstruction",
+        "resolved": "src/frontend/components/shared/EditInstructions/TaskEditingInstruction",
+        "suggested": "@frontend/components/shared/EditInstructions/TaskEditingInstruction",
+        "category": "same-dir",
+        "fullLine": "import type { TaskEditingInstruction } from \"./TaskEditingInstruction\";"
+      },
+      {
+        "file": "src/frontend/components/shared/EditInstructions/PriorityInstructions.ts",
+        "line": 2,
+        "current": "./TaskEditingInstruction",
+        "resolved": "src/frontend/components/shared/EditInstructions/TaskEditingInstruction",
+        "suggested": "@frontend/components/shared/EditInstructions/TaskEditingInstruction",
+        "category": "same-dir",
+        "fullLine": "import type { TaskEditingInstruction } from \"./TaskEditingInstruction\";"
+      },
+      {
+        "file": "src/frontend/components/shared/EditInstructions/StatusInstructions.ts",
+        "line": 6,
+        "current": "./TaskEditingInstruction",
+        "resolved": "src/frontend/components/shared/EditInstructions/TaskEditingInstruction",
+        "suggested": "@frontend/components/shared/EditInstructions/TaskEditingInstruction",
+        "category": "same-dir",
+        "fullLine": "import type { TaskEditingInstruction } from \"./TaskEditingInstruction\";"
+      },
+      {
+        "file": "src/shared/utils/compat/daily-notes-compat.ts",
+        "line": 9,
+        "current": "./siyuan-compat",
+        "resolved": "src/shared/utils/compat/siyuan-compat",
+        "suggested": "@shared/utils/compat/siyuan-compat",
+        "category": "same-dir",
+        "fullLine": "import type { TFile } from \"./siyuan-compat\";"
+      }
+    ],
+    "parent": [
+      {
+        "file": "src/backend/analytics/AnalyticsReporter.ts",
+        "line": 1,
+        "current": "../core/models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../core/models/Task';"
+      },
+      {
+        "file": "src/backend/analytics/ProductivityAnalyzer.ts",
+        "line": 1,
+        "current": "../core/models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../core/models/Task';"
+      },
+      {
+        "file": "src/backend/analytics/TrendAnalyzer.ts",
+        "line": 1,
+        "current": "../core/models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../core/models/Task';"
+      },
+      {
+        "file": "src/backend/core/ai/scoring/TimeSlotScorer.ts",
+        "line": 6,
+        "current": "../PredictiveScheduler",
+        "resolved": "src/backend/core/ai/PredictiveScheduler",
+        "suggested": "@backend/core/ai/PredictiveScheduler",
+        "category": "parent",
+        "fullLine": "import type { SchedulingContext } from '../PredictiveScheduler';"
+      },
+      {
+        "file": "src/backend/core/ai/__tests__/smart-suggestion-engine.test.ts",
+        "line": 6,
+        "current": "../SmartSuggestionEngine",
+        "resolved": "src/backend/core/ai/SmartSuggestionEngine",
+        "suggested": "@backend/core/ai/SmartSuggestionEngine",
+        "category": "parent",
+        "fullLine": "import { SmartSuggestionEngine } from '../SmartSuggestionEngine';"
+      },
+      {
+        "file": "src/backend/core/dependencies/__tests__/DependencyGraph.test.ts",
+        "line": 2,
+        "current": "../DependencyGraph",
+        "resolved": "src/backend/core/dependencies/DependencyGraph",
+        "suggested": "@backend/core/dependencies/DependencyGraph",
+        "category": "parent",
+        "fullLine": "import { DependencyGraph, type DependencyGraphOptions } from '../DependencyGraph';"
+      },
+      {
+        "file": "src/backend/core/dependencies/__tests__/DependencyGraph.test.ts",
+        "line": 3,
+        "current": "../CycleDetector",
+        "resolved": "src/backend/core/dependencies/CycleDetector",
+        "suggested": "@backend/core/dependencies/CycleDetector",
+        "category": "parent",
+        "fullLine": "import { CycleDetector } from '../CycleDetector';"
+      },
+      {
+        "file": "src/backend/core/dependencies/__tests__/DependencyGraph.test.ts",
+        "line": 4,
+        "current": "../DependencyIndex",
+        "resolved": "src/backend/core/dependencies/DependencyIndex",
+        "suggested": "@backend/core/dependencies/DependencyIndex",
+        "category": "parent",
+        "fullLine": "import { DependencyIndex } from '../DependencyIndex';"
+      },
+      {
+        "file": "src/backend/core/engine/__tests__/dependency-graph.test.ts",
+        "line": 2,
+        "current": "../DependencyGraph",
+        "resolved": "src/backend/core/engine/DependencyGraph",
+        "suggested": "@backend/core/engine/DependencyGraph",
+        "category": "parent",
+        "fullLine": "import { DependencyGraph } from '../DependencyGraph';"
+      },
+      {
+        "file": "src/backend/core/engine/__tests__/on-completion.test.ts",
+        "line": 2,
+        "current": "../OnCompletion",
+        "resolved": "src/backend/core/engine/OnCompletion",
+        "suggested": "@backend/core/engine/OnCompletion",
+        "category": "parent",
+        "fullLine": "import { OnCompletionHandler } from '../OnCompletion';"
+      },
+      {
+        "file": "src/backend/core/indexing/TaskIndexManager.ts",
+        "line": 14,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task, TaskPriority } from '../models/Task';"
+      },
+      {
+        "file": "src/backend/core/migration/FrequencyToRecurrenceConverter.ts",
+        "line": 13,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../models/Task';"
+      },
+      {
+        "file": "src/backend/core/migration/FrequencyToRecurrenceConverter.ts",
+        "line": 14,
+        "current": "../engine/recurrence/RecurrenceEngine",
+        "resolved": "src/backend/core/engine/recurrence/RecurrenceEngine",
+        "suggested": "@backend/core/engine/recurrence/RecurrenceEngine",
+        "category": "parent",
+        "fullLine": "import { RecurrenceEngine } from '../engine/recurrence/RecurrenceEngine';"
+      },
+      {
+        "file": "src/backend/core/migration/__tests__/FrequencyToRecurrenceConverter.test.ts",
+        "line": 10,
+        "current": "../FrequencyToRecurrenceConverter",
+        "resolved": "src/backend/core/migration/FrequencyToRecurrenceConverter",
+        "suggested": "@backend/core/migration/FrequencyToRecurrenceConverter",
+        "category": "parent",
+        "fullLine": "import { FrequencyToRecurrenceConverter } from '../FrequencyToRecurrenceConverter';"
+      },
+      {
+        "file": "src/backend/core/query/__tests__/MultiFieldSort.test.ts",
+        "line": 7,
+        "current": "../QueryEngine",
+        "resolved": "src/backend/core/query/QueryEngine",
+        "suggested": "@backend/core/query/QueryEngine",
+        "category": "parent",
+        "fullLine": "import { QueryEngine } from '../QueryEngine';"
+      },
+      {
+        "file": "src/backend/core/query/__tests__/MultiFieldSort.test.ts",
+        "line": 8,
+        "current": "../QueryParser",
+        "resolved": "src/backend/core/query/QueryParser",
+        "suggested": "@backend/core/query/QueryParser",
+        "category": "parent",
+        "fullLine": "import { QueryParser } from '../QueryParser';"
+      },
+      {
+        "file": "src/backend/core/recurrence/RecurrenceEngine.ts",
+        "line": 11,
+        "current": "../models/Frequency",
+        "resolved": "src/backend/core/models/Frequency",
+        "suggested": "@backend/core/models/Frequency",
+        "category": "parent",
+        "fullLine": "import type { Frequency } from '../models/Frequency';"
+      },
+      {
+        "file": "src/backend/core/scheduling/DualEngineScheduler.ts",
+        "line": 37,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../models/Task';"
+      },
+      {
+        "file": "src/backend/core/scheduling/DualEngineScheduler.ts",
+        "line": 41,
+        "current": "../utils/FrequencyConverter",
+        "resolved": "src/backend/core/utils/FrequencyConverter",
+        "suggested": "@backend/core/utils/FrequencyConverter",
+        "category": "parent",
+        "fullLine": "import { FrequencyConverter } from '../utils/FrequencyConverter';"
+      },
+      {
+        "file": "src/backend/core/services/AutoMigrationService.ts",
+        "line": 8,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../models/Task';"
+      },
+      {
+        "file": "src/backend/core/services/AutoMigrationService.ts",
+        "line": 9,
+        "current": "../settings/PluginSettings",
+        "resolved": "src/backend/core/settings/PluginSettings",
+        "suggested": "@backend/core/settings/PluginSettings",
+        "category": "parent",
+        "fullLine": "import type { PluginSettings } from '../settings/PluginSettings';"
+      },
+      {
+        "file": "src/backend/core/services/AutoMigrationService.ts",
+        "line": 10,
+        "current": "../utils/FrequencyConverter",
+        "resolved": "src/backend/core/utils/FrequencyConverter",
+        "suggested": "@backend/core/utils/FrequencyConverter",
+        "category": "parent",
+        "fullLine": "import { FrequencyConverter } from '../utils/FrequencyConverter';"
+      },
+      {
+        "file": "src/backend/core/services/RecurrencePreviewService.ts",
+        "line": 13,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from \"../models/Task\";"
+      },
+      {
+        "file": "src/backend/core/services/TaskCreationService.ts",
+        "line": 8,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../models/Task';"
+      },
+      {
+        "file": "src/backend/core/services/TaskCreationService.ts",
+        "line": 10,
+        "current": "../settings/PluginSettings",
+        "resolved": "src/backend/core/settings/PluginSettings",
+        "suggested": "@backend/core/settings/PluginSettings",
+        "category": "parent",
+        "fullLine": "import type { PluginSettings } from '../settings/PluginSettings';"
+      },
+      {
+        "file": "src/backend/core/services/TaskCreationService.ts",
+        "line": 11,
+        "current": "../models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import { createTask as createTaskLegacy } from '../models/Task';"
+      },
+      {
+        "file": "src/backend/core/services/TaskCreationService.ts",
+        "line": 13,
+        "current": "../migration/FrequencyToRecurrenceConverter",
+        "resolved": "src/backend/core/migration/FrequencyToRecurrenceConverter",
+        "suggested": "@backend/core/migration/FrequencyToRecurrenceConverter",
+        "category": "parent",
+        "fullLine": "import { FrequencyToRecurrenceConverter, type LegacyFrequency } from '../migration/FrequencyToRecurrenceConverter';"
+      },
+      {
+        "file": "src/backend/core/sync/BlockAttributeBatchSync.ts",
+        "line": 10,
+        "current": "../api/SiYuanApiAdapter",
+        "resolved": "src/backend/core/api/SiYuanApiAdapter",
+        "suggested": "@backend/core/api/SiYuanApiAdapter",
+        "category": "parent",
+        "fullLine": "import type { SiYuanBlockAPI } from '../api/SiYuanApiAdapter';"
+      },
+      {
+        "file": "src/backend/core/utils/FrequencyConverter.ts",
+        "line": 12,
+        "current": "../migration/FrequencyToRecurrenceConverter",
+        "resolved": "src/backend/core/migration/FrequencyToRecurrenceConverter",
+        "suggested": "@backend/core/migration/FrequencyToRecurrenceConverter",
+        "category": "parent",
+        "fullLine": "import { FrequencyToRecurrenceConverter, type LegacyFrequency } from '../migration/FrequencyToRecurrenceConverter';"
+      },
+      {
+        "file": "src/backend/intelligence/CompletionPredictor.ts",
+        "line": 6,
+        "current": "../core/models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../core/models/Task';"
+      },
+      {
+        "file": "src/backend/intelligence/PatternAnalyzer.ts",
+        "line": 9,
+        "current": "../core/models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../core/models/Task';"
+      },
+      {
+        "file": "src/backend/intelligence/SmartRecurrenceSuggester.ts",
+        "line": 6,
+        "current": "../core/models/Task",
+        "resolved": "src/backend/core/models/Task",
+        "suggested": "@backend/core/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../core/models/Task';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/CompletionPredictor.test.ts",
+        "line": 2,
+        "current": "../CompletionPredictor",
+        "resolved": "src/backend/intelligence/CompletionPredictor",
+        "suggested": "@backend/intelligence/CompletionPredictor",
+        "category": "parent",
+        "fullLine": "import { CompletionPredictor, type CompletionPrediction } from '../CompletionPredictor';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/CompletionPredictor.test.ts",
+        "line": 3,
+        "current": "../PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "parent",
+        "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/intelligence-integration.test.ts",
+        "line": 2,
+        "current": "../PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "parent",
+        "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/intelligence-integration.test.ts",
+        "line": 3,
+        "current": "../SmartRecurrenceSuggester",
+        "resolved": "src/backend/intelligence/SmartRecurrenceSuggester",
+        "suggested": "@backend/intelligence/SmartRecurrenceSuggester",
+        "category": "parent",
+        "fullLine": "import { SmartRecurrenceSuggester } from '../SmartRecurrenceSuggester';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/intelligence-integration.test.ts",
+        "line": 4,
+        "current": "../CompletionPredictor",
+        "resolved": "src/backend/intelligence/CompletionPredictor",
+        "suggested": "@backend/intelligence/CompletionPredictor",
+        "category": "parent",
+        "fullLine": "import { CompletionPredictor } from '../CompletionPredictor';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/PatternAnalyzer.test.ts",
+        "line": 2,
+        "current": "../PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "parent",
+        "fullLine": "import { PatternAnalyzer, type CompletionPattern, type CompletionStats } from '../PatternAnalyzer';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/performance-benchmarks.test.ts",
+        "line": 2,
+        "current": "../PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "parent",
+        "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/performance-benchmarks.test.ts",
+        "line": 3,
+        "current": "../SmartRecurrenceSuggester",
+        "resolved": "src/backend/intelligence/SmartRecurrenceSuggester",
+        "suggested": "@backend/intelligence/SmartRecurrenceSuggester",
+        "category": "parent",
+        "fullLine": "import { SmartRecurrenceSuggester } from '../SmartRecurrenceSuggester';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/performance-benchmarks.test.ts",
+        "line": 4,
+        "current": "../CompletionPredictor",
+        "resolved": "src/backend/intelligence/CompletionPredictor",
+        "suggested": "@backend/intelligence/CompletionPredictor",
+        "category": "parent",
+        "fullLine": "import { CompletionPredictor } from '../CompletionPredictor';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/SmartRecurrenceSuggester.test.ts",
+        "line": 2,
+        "current": "../SmartRecurrenceSuggester",
+        "resolved": "src/backend/intelligence/SmartRecurrenceSuggester",
+        "suggested": "@backend/intelligence/SmartRecurrenceSuggester",
+        "category": "parent",
+        "fullLine": "import { SmartRecurrenceSuggester, type RecurrenceSuggestion } from '../SmartRecurrenceSuggester';"
+      },
+      {
+        "file": "src/backend/intelligence/__tests__/SmartRecurrenceSuggester.test.ts",
+        "line": 3,
+        "current": "../PatternAnalyzer",
+        "resolved": "src/backend/intelligence/PatternAnalyzer",
+        "suggested": "@backend/intelligence/PatternAnalyzer",
+        "category": "parent",
+        "fullLine": "import { PatternAnalyzer } from '../PatternAnalyzer';"
+      },
+      {
+        "file": "src/domain/query/AdvancedQuery.ts",
+        "line": 11,
+        "current": "../models/Task",
+        "resolved": "src/domain/models/Task",
+        "suggested": "@domain/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Task } from '../models/Task';"
+      },
+      {
+        "file": "src/domain/query/AdvancedQuery.ts",
+        "line": 12,
+        "current": "../models/Task",
+        "resolved": "src/domain/models/Task",
+        "suggested": "@domain/models/Task",
+        "category": "parent",
+        "fullLine": "import { isTaskCompleted, isTaskOverdue } from '../models/Task';"
+      },
+      {
+        "file": "src/domain/recurrence/RuleParser.ts",
+        "line": 17,
+        "current": "../models/Task",
+        "resolved": "src/domain/models/Task",
+        "suggested": "@domain/models/Task",
+        "category": "parent",
+        "fullLine": "import type { Frequency } from '../models/Task';"
+      },
+      {
+        "file": "src/frontend/stores/Settings.store.ts",
+        "line": 7,
+        "current": "../domain/models/Settings",
+        "resolved": "src/frontend/domain/models/Settings",
+        "suggested": "@frontend/domain/models/Settings",
+        "category": "parent",
+        "fullLine": "import { Settings, getDefaultSettings } from '../domain/models/Settings';"
+      },
+      {
+        "file": "src/frontend/stores/Task.store.ts",
+        "line": 11,
+        "current": "../domain/models/Settings",
+        "resolved": "src/frontend/domain/models/Settings",
+        "suggested": "@frontend/domain/models/Settings",
+        "category": "parent",
+        "fullLine": "import { Settings } from '../domain/models/Settings';"
+      },
+      {
+        "file": "src/migration/Migrator.ts",
+        "line": 12,
+        "current": "../domain/models/Settings",
+        "resolved": "src/domain/models/Settings",
+        "suggested": "@domain/models/Settings",
+        "category": "parent",
+        "fullLine": "import type { Settings } from '../domain/models/Settings';"
+      },
+      {
+        "file": "src/migration/Migrator.ts",
+        "line": 14,
+        "current": "../domain/models/Settings",
+        "resolved": "src/domain/models/Settings",
+        "suggested": "@domain/models/Settings",
+        "category": "parent",
+        "fullLine": "import { getDefaultSettings } from '../domain/models/Settings';"
+      }
+    ],
+    "grandparent": [
+      {
+        "file": "src/backend/core/engine/recurrence/RecurrenceEngineRRULE.ts",
+        "line": 3,
+        "current": "../../models/Frequency",
+        "resolved": "src/backend/core/models/Frequency",
+        "suggested": "@backend/core/models/Frequency",
+        "category": "grandparent",
+        "fullLine": "import type { Frequency } from \"../../models/Frequency\";"
+      }
+    ],
+    "deep": []
+  }
+}

@@ -1,7 +1,7 @@
 import { QueryParser, type QueryAST } from '@backend/core/query/QueryParser';
 import { QuerySyntaxError } from '@backend/core/query/QueryError';
 import { DateParser } from '@backend/core/parsers/DateParser';
-import { StatusType } from '@backend/core/models/Status';
+import { StatusType } from '@shared/constants/statuses/Status';
 
 /**
  * NaturalLanguageQueryParser - Natural language overlay on AST parser

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Smart Suggestion Engine - AI-driven task recommendations
  */
@@ -90,13 +89,13 @@ export class SmartSuggestionEngine {
 
     // Check for frequency optimization
     const completionRate = this.calculateCompletionRate(task);
-    if (completionRate > 1.5 && task.frequency.type !== 'custom') {
+    if (completionRate > 1.5 && task.frequency?.type !== 'custom') {
       suggestions.push({
         id: `${task.id}-frequency-${Date.now()}`,
         taskId: task.id,
         type: 'frequency',
         confidence: 0.75,
-        reason: `You complete this ${task.frequency.type} task ${completionRate.toFixed(1)}x more often than scheduled. Consider increasing frequency.`,
+        reason: `You complete this ${task.frequency?.type ?? 'recurring'} task ${completionRate.toFixed(1)}x more often than scheduled. Consider increasing frequency.`,
         action: {
           type: 'adjustFrequency',
           parameters: { multiplier: Math.floor(completionRate), taskId: task.id }
@@ -316,7 +315,7 @@ export class SmartSuggestionEngine {
     if (totalOccurrences === 0) return 1;
 
     // Calculate how many times task was completed vs expected
-    if (task.frequency.type === 'daily') {
+    if (task.frequency?.type === 'daily') {
       // For daily tasks, check if completing more than once per day on average
       const recentCompletions = task.recentCompletions || [];
       if (recentCompletions.length < 2) return 1;

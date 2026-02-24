@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NaturalLanguageQueryParser } from "@backend/core/query/NaturalLanguageQueryParser";
 import { QueryEngine } from "@backend/core/query/QueryEngine";
-import { QueryExplainer } from "@backend/core/query/QueryExplainer";
+import { QueryExplainer } from "@backend/core/query/QueryExplanation";
 import { SavedQueryStore, type SavedQuery } from "@backend/core/query/SavedQueryStore";
 import { Task } from "@backend/core/models/Task";
 import type { QueryAST } from "@backend/core/query/QueryTypes";

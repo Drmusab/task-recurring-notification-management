@@ -1,7 +1,5 @@
 // @ts-nocheck
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { randomBytes } from 'crypto';
+import { fetchSyncPost } from 'siyuan';
 import {
   WebhookSubscription,
   CreateSubscriptionData,
@@ -12,13 +10,14 @@ import * as logger from "@backend/logging/logger";
 
 /**
  * Manages webhook subscriptions
+ * Uses SiYuan's native storage API (Phase 4 §4.6 compliant)
  */
 export class EventSubscriptionManager {
   private subscriptions: Map<string, WebhookSubscription> = new Map();
-  private storagePath: string;
+  private storageFilename: string;
 
   constructor(dataDir: string) {
-    this.storagePath = path.join(dataDir, 'webhook-subscriptions.json');
+    this.storageFilename = 'webhook-subscriptions.json';
   }
 
   /**
@@ -26,30 +25,24 @@ export class EventSubscriptionManager {
    */
   async init(): Promise<void> {
     try {
-      const data = await fs.readFile(this.storagePath, 'utf-8');
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((sub) => {
-          if (sub && typeof sub.id === 'string') {
-            this.subscriptions.set(sub.id, sub);
-          }
-        });
-      } else {
-        logger.warn('Webhook subscription storage corrupted; resetting cache', {
-          storagePath: this.storagePath,
-        });
-        this.subscriptions = new Map();
+      const resp = await fetchSyncPost('/api/file/getFile', { path: `/data/storage/petal/task-recurring-notification-management/${this.storageFilename}` });
+      if (resp && resp.code === 0 && resp.data) {
+        const parsed = typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data;
+        if (Array.isArray(parsed)) {
+          parsed.forEach((sub) => {
+            if (sub && typeof sub.id === 'string') {
+              this.subscriptions.set(sub.id, sub);
+            }
+          });
+        } else {
+          logger.warn('Webhook subscription storage corrupted; resetting cache');
+          this.subscriptions = new Map();
+        }
+        logger.info(`Loaded ${this.subscriptions.size} webhook subscriptions`);
       }
-      logger.info(`Loaded ${this.subscriptions.size} webhook subscriptions`);
     } catch (error) {
-      // No subscriptions yet
-      const err = error as NodeJS.ErrnoException;
-      if (err?.code !== 'ENOENT') {
-        logger.warn('Failed to load webhook subscriptions; starting fresh', {
-          storagePath: this.storagePath,
-          error,
-        });
-      }
+      // No subscriptions yet or file doesn't exist
+      logger.warn('Failed to load webhook subscriptions; starting fresh', { error });
       this.subscriptions = new Map();
     }
   }
@@ -278,31 +271,37 @@ export class EventSubscriptionManager {
   }
 
   /**
-   * Generate subscription ID
+   * Generate subscription ID using browser crypto API
    */
   private generateId(): string {
-    return `sub_${randomBytes(12).toString('hex')}`;
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    return `sub_${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}`;
   }
 
   /**
-   * Generate webhook secret
+   * Generate webhook secret using browser crypto API
    */
   private generateSecret(): string {
-    return randomBytes(32).toString('hex');
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   /**
-   * Persist to disk
+   * Persist to SiYuan storage (Phase 4 §4.6 compliant)
    */
   private async persist(): Promise<void> {
     const subscriptions = Array.from(this.subscriptions.values());
     try {
-      await fs.writeFile(this.storagePath, JSON.stringify(subscriptions, null, 2), 'utf-8');
+      const content = JSON.stringify(subscriptions, null, 2);
+      const file = new Blob([content], { type: 'application/json' });
+      const formData = new FormData();
+      formData.append('path', `/data/storage/petal/task-recurring-notification-management/${this.storageFilename}`);
+      formData.append('file', file);
+      await fetch('/api/file/putFile', { method: 'POST', body: formData });
     } catch (error) {
-      logger.error('Failed to persist webhook subscriptions', {
-        storagePath: this.storagePath,
-        error,
-      });
+      logger.error('Failed to persist webhook subscriptions', { error });
     }
   }
 }

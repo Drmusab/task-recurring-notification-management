@@ -13,6 +13,7 @@ export default mergeConfig(
         'src/__tests__/**/*.test.ts',
         'src/parser/**/*.test.ts',
         'src/utils/**/*.test.ts',
+        'src/shared/**/*.test.ts',  // Include shared utils tests
         'src/features/**/*.test.ts',
         'src/backend/**/*.test.ts',  // Add Phase 2 tests
         'tests/**/*.test.ts',

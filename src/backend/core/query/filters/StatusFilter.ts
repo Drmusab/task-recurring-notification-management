@@ -1,7 +1,7 @@
 import { Filter } from "@backend/core/query/filters/FilterBase";
 import type { Task } from '@backend/core/models/Task';
-import { StatusType } from '@backend/core/models/Status';
-import { StatusRegistry } from '@backend/core/models/StatusRegistry';
+import { StatusType } from '@shared/constants/statuses/Status';
+import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry';
 
 export class StatusTypeFilter extends Filter {
   constructor(private statusType: StatusType, private negate = false) {
@@ -11,7 +11,7 @@ export class StatusTypeFilter extends Filter {
   matches(task: Task): boolean {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     const result = status.type === this.statusType;
     return this.negate ? !result : result;
   }
@@ -24,14 +24,14 @@ export class StatusTypeFilter extends Filter {
   explainMatch(task: Task): string {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return `Task "${task.name}" has status type ${status.type} ${this.negate ? '(not ' + this.statusType + ')' : '(= ' + this.statusType + ')'}`;
   }
 
   explainMismatch(task: Task): string {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return `Task "${task.name}" has status type ${status.type} ${this.negate ? '(same as ' + this.statusType + ')' : '(!= ' + this.statusType + ')'}`;
   }
 }
@@ -44,7 +44,7 @@ export class StatusNameFilter extends Filter {
   matches(task: Task): boolean {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     const result = status.name.toLowerCase().includes(this.name.toLowerCase());
     return this.negate ? !result : result;
   }
@@ -57,14 +57,14 @@ export class StatusNameFilter extends Filter {
   explainMatch(task: Task): string {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return `Task "${task.name}" has status name "${status.name}" which ${this.negate ? 'does NOT contain' : 'contains'} "${this.name}"`;
   }
 
   explainMismatch(task: Task): string {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return `Task "${task.name}" has status name "${status.name}" which ${this.negate ? 'contains' : 'does NOT contain'} "${this.name}"`;
   }
 }
@@ -104,7 +104,7 @@ export class DoneFilter extends Filter {
     }
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return status.type === StatusType.DONE;
   }
 
@@ -120,7 +120,7 @@ export class DoneFilter extends Filter {
   explainMismatch(task: Task): string {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return `Task "${task.name}" has status ${status.type} (not done)`;
   }
 }
@@ -132,7 +132,7 @@ export class NotDoneFilter extends Filter {
     }
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return status.type !== StatusType.DONE;
   }
 
@@ -144,7 +144,7 @@ export class NotDoneFilter extends Filter {
   explainMatch(task: Task): string {
     const registry = StatusRegistry.getInstance();
     const statusSymbol = task.statusSymbol || ' ';
-    const status = registry.get(statusSymbol);
+    const status = registry.bySymbol(statusSymbol);
     return `Task "${task.name}" has status ${status.type} (not done)`;
   }
 

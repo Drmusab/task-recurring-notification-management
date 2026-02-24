@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { QueryExplainer, type Explanation } from "@backend/core/query/QueryExplainer";
+import { QueryExplainer, type Explanation } from "@backend/core/query/QueryExplanation";
 import { QueryEngine } from "@backend/core/query/QueryEngine";
 import { Task } from "@backend/core/models/Task";
 import { PriorityFilter } from "@backend/core/query/filters/PriorityFilter";

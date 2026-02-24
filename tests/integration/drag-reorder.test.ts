@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { updateTaskOrder, ensureTaskOrder, sortByOrder } from '@shared/utils/task/reorder-tasks';
+import { updateTaskOrder, ensureTaskOrder, sortByOrder } from '@backend/utils/task/reorder-tasks';
 import { reorderTasks, sortTasksByOrder, initializeTaskOrder } from '@stores/TaskOrder.store';
 import type { Task } from '@backend/core/models/Task';
 import { createTask } from '@backend/core/models/Task';

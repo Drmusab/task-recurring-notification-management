@@ -10,8 +10,8 @@
    * @module QueryExplanationPanel
    */
 
-  import type { Explanation, TaskExplanation } from "@backend/core/query/QueryExplainer";
-  import { QueryExplainer } from "@backend/core/query/QueryExplainer";
+  import type { Explanation, TaskExplanation } from "@backend/core/query/QueryExplanation";
+  import { QueryExplainer } from "@backend/core/query/QueryExplanation";
 
   // Props
   export let explanation: Explanation | null = null;

@@ -1,9 +1,6 @@
-// @ts-nocheck
 /**
  * Plugin settings for Phase 2+ features
  */
-import type { GlobalFilterProfile } from '@backend/core/filtering/FilterRule';
-
 import type { FilenameDateConfig } from "@backend/core/settings/FilenameDate";
 import type { GlobalFilterConfig, GlobalFilterProfile } from '@backend/core/filtering/FilterRule';
 import type { GlobalQueryConfig } from '@backend/core/query/GlobalQuery';

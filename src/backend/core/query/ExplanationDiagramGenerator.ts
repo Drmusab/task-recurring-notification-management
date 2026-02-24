@@ -12,7 +12,7 @@
  */
 
 import type { QueryAST, FilterNode } from "./QueryParser";
-import type { Explanation, TaskExplanation } from "./QueryExplainer";
+import type { Explanation, TaskExplanation } from "./QueryExplanation";
 
 export interface DiagramOptions {
   /** Diagram type to generate */

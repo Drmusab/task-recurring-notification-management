@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as chrono from 'chrono-node';
 import { setTime, addDays } from "@shared/utils/date/date";
 

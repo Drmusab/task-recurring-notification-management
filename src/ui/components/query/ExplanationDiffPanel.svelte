@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { ExplanationDiff } from "@backend/core/query/ExplanationDiff";
-  import type { Explanation } from "@backend/core/query/QueryExplainer";
-  import type { ExplanationDiff as DiffType, TaskDiffEntry } from "@backend/core/query/ExplanationDiff";
+  import { ExplanationDiffUtils } from "@backend/core/query/QueryExplanation";
+  import type { Explanation } from "@backend/core/query/QueryExplanation";
+  import type { ExplanationDiff as DiffType, TaskDiffEntry } from "@backend/core/query/QueryExplanation";
 
   // Props
   export let beforeExplanation: Explanation | null = null;
@@ -15,14 +15,14 @@
   // Reactive diff calculation
   $: {
     if (beforeExplanation && afterExplanation) {
-      diff = ExplanationDiff.diff(beforeExplanation, afterExplanation);
+      diff = ExplanationDiffUtils.diff(beforeExplanation, afterExplanation);
     } else {
       diff = null;
     }
   }
 
   // Get summary text
-  $: summaryText = diff ? ExplanationDiff.getSummaryText(diff) : "No changes";
+  $: summaryText = diff ? ExplanationDiffUtils.getSummaryText(diff) : "No changes";
 
   // Get impact color
   $: impactColor = getImpactColor(diff?.summary.impactLevel);
@@ -60,7 +60,7 @@
   // Export markdown
   function exportMarkdown() {
     if (!diff) return;
-    const markdown = ExplanationDiff.toMarkdown(diff);
+    const markdown = ExplanationDiffUtils.toMarkdown(diff);
     downloadText(markdown, "query-diff.md");
   }
 
@@ -216,7 +216,7 @@
     {#if showDetails}
       <div class="detailed-view">
         <h4>Detailed Analysis</h4>
-        <pre>{ExplanationDiff.toMarkdown(diff)}</pre>
+        <pre>{ExplanationDiffUtils.toMarkdown(diff)}</pre>
       </div>
     {/if}
   {/if}

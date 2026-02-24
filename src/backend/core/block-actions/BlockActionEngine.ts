@@ -2,7 +2,7 @@
 import type { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngine";
 import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 import type { Task } from "@backend/core/models/Task";
-import type { TaskRepositoryProvider } from "@backend/core/storage/TaskRepository";
+import type { TaskRepositoryProvider } from "@backend/core/storage/TaskStorage";
 import { CompletionHandler } from "@backend/core/actions/CompletionHandler";
 import * as logger from "@backend/logging/logger";
 import {
@@ -17,7 +17,7 @@ import { BlockActionExplainer } from "@backend/core/block-actions/BlockActionExp
 interface BlockActionEngineOptions {
   repository: TaskRepositoryProvider;
   settingsProvider: () => PluginSettings;
-  recurrenceEngine?: RecurrenceEngineRRULE;
+  recurrenceEngine?: RecurrenceEngine;
 }
 
 export class BlockActionEngine {

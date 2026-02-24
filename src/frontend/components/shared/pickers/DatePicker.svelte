@@ -4,8 +4,9 @@
  */
 
 import { createEventDispatcher } from 'svelte';
-import { parseNaturalDate, toISODate, formatRelativeDate } from '../../domain/utils/DateUtils';
-import { generateAriaId, announceToScreenReader } from '../../../utils/accessibility';
+import { parseNaturalDate, toISODate } from '@domain/index';
+import { formatDateRelative } from '@frontend/utils/dateFormatters';
+import { generateAriaId, announceToScreenReader } from '@frontend/utils/accessibility';
 
 export let value: string | undefined = undefined;
 export let placeholder: string = 'Enter a date...';
@@ -51,7 +52,7 @@ $: if (value && !inputValue) {
 function formatDateValue(dateStr: string): string {
   try {
     const date = new Date(dateStr);
-    return formatRelativeDate(date);
+    return formatDateRelative(date);
   } catch {
     return dateStr;
   }
@@ -63,7 +64,7 @@ function handleInput(event: Event) {
   
   // Try to parse natural language
   if (inputValue.trim()) {
-    parsedDate = parseNaturalDate(inputValue);
+    parsedDate = parseNaturalDate(inputValue, new Date());
     showSuggestions = true;
   } else {
     parsedDate = null;
@@ -80,9 +81,9 @@ function handleBlur() {
     // Update value if valid date parsed
     if (parsedDate) {
       value = toISODate(parsedDate);
-      inputValue = formatRelativeDate(parsedDate);
+      inputValue = formatDateRelative(parsedDate);
       dispatch('change', value);
-      announceToScreenReader(`Date selected: ${formatRelativeDate(parsedDate)}`, 'polite');
+      announceToScreenReader(`Date selected: ${formatDateRelative(parsedDate)}`, 'polite');
     }
   }, 200);
 }
@@ -102,11 +103,11 @@ $: suggestionItems = [
 
 function selectShortcut(shortcut: typeof shortcuts[0]) {
   inputValue = shortcut.value;
-  parsedDate = parseNaturalDate(shortcut.value);
+  parsedDate = parseNaturalDate(shortcut.value, new Date());
   
   if (parsedDate) {
     value = toISODate(parsedDate);
-    inputValue = formatRelativeDate(parsedDate);
+    inputValue = formatDateRelative(parsedDate);
     dispatch('change', value);
   }
   
@@ -147,9 +148,9 @@ function handleKeydown(event: KeyboardEvent) {
       const item = suggestionItems[focusedIndex];
       if (item && item.type === 'parsed' && 'date' in item) {
         value = toISODate(item.date);
-        inputValue = formatRelativeDate(item.date);
+        inputValue = formatDateRelative(item.date);
         dispatch('change', value);
-        announceToScreenReader(`Date selected: ${formatRelativeDate(item.date)}`, 'polite');
+        announceToScreenReader(`Date selected: ${formatDateRelative(item.date)}`, 'polite');
       } else if (item && item.type === 'shortcut' && 'shortcut' in item) {
         selectShortcut(item.shortcut);
       }
@@ -157,7 +158,7 @@ function handleKeydown(event: KeyboardEvent) {
       focusedIndex = -1;
     } else if (parsedDate) {
       value = toISODate(parsedDate);
-      inputValue = formatRelativeDate(parsedDate);
+      inputValue = formatDateRelative(parsedDate);
       dispatch('change', value);
       showSuggestions = false;
     }
@@ -234,7 +235,7 @@ function handleKeydown(event: KeyboardEvent) {
         >
           <span class="suggestion-icon" aria-hidden="true">✅</span>
           <div class="suggestion-content">
-            <span class="suggestion-label">{formatRelativeDate(parsedDate)}</span>
+            <span class="suggestion-label">{formatDateRelative(parsedDate)}</span>
             <span class="suggestion-detail">{toISODate(parsedDate)}</span>
           </div>
         </div>

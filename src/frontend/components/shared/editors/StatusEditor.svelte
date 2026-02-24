@@ -1,69 +1,60 @@
 <script lang="ts">
-    import type { TasksDate } from "@shared/utils/dateTime/tasks-date";
-    import type { Status } from "@shared/types/Status";
-    import type { Task } from "@shared/utils/task/Task";
+    /**
+     * Status Editor Component
+     * 
+     * Allows selecting task status from dropdown.
+     * Updates completion/cancellation dates automatically based on status.
+     */
+    import { Status } from "@shared/constants/statuses/Status";
+    import type { Task } from "@backend/core/models/Task";
     import type { EditableTask } from "@components/shared/utils/editableTask";
     import { labelContentWithAccessKey } from "@components/shared/utils/taskEditHelpers";
-    import { t } from '@stores/i18n.store';
+    import { t } from '@stores/I18n.store';
 
     export let task: Task;
     export let editableTask: EditableTask;
     export let statusOptions: Status[];
     export let accesskey: string | null;
 
-    let statusSymbol = task.status.symbol;
+    let statusSymbol = task.status ? editableTask.status?.symbol || ' ' : ' ';
 
-    function setStatusRelatedDate(currentValue: string, isInStatus: boolean, editedValue: TasksDate) {
-        const dateFieldIsEmpty = currentValue === '';
+    /**
+     * Handle status change and auto-update related date fields
+     */
+    function handleStatusChange() {
+        const selectedStatus = statusOptions.find((s) => s.symbol === statusSymbol);
+        if (!selectedStatus) return;
+        
+        editableTask.status = selectedStatus;
 
-        if (isInStatus && dateFieldIsEmpty) {
-            // the date field is empty and the status was set (set the date from the task with the applied status)
-            return editedValue.formatAsDate();
-        }
+        // Auto-fill dates based on status transition
+        const today = new Date().toISOString().split('T')[0] || '';
 
-        if (!isInStatus && !dateFieldIsEmpty) {
-            // the date field is not empty but another status was set (clean the date field)
-            return '';
-        }
-
-        return currentValue;
-    }
-
-    const _onStatusChange = () => {
-        // Use statusSymbol to find the status to save to editableTask.status
-        const selectedStatus: Status | undefined = statusOptions.find((s) => s.symbol === statusSymbol);
-        if (selectedStatus) {
-            editableTask.status = selectedStatus;
+        if (selectedStatus.isCompleted()) {
+            // Set done date if empty, clear cancelled date
+            if (!editableTask.doneDate) {
+                editableTask.doneDate = today;
+            }
+            editableTask.cancelledDate = '';
+        } else if (selectedStatus.isCancelled()) {
+            // Set cancelled date if empty, clear done date
+            if (!editableTask.cancelledDate) {
+                editableTask.cancelledDate = today;
+            }
+            editableTask.doneDate = '';
         } else {
-            // Status not found — this shouldn't happen but is recoverable
-            return;
+            // Clear both completion dates for active statuses
+            editableTask.doneDate = '';
+            editableTask.cancelledDate = '';
         }
-
-        // Obtain a temporary task with the new status applied, to see what would
-        // happen to the done date:
-        const taskWithEditedStatusApplied = task.handleNewStatus(selectedStatus).pop();
-
-        if (taskWithEditedStatusApplied) {
-            editableTask.doneDate = setStatusRelatedDate(
-                editableTask.doneDate,
-                selectedStatus.isCompleted(),
-                taskWithEditedStatusApplied.done,
-            );
-
-            editableTask.cancelledDate = setStatusRelatedDate(
-                editableTask.cancelledDate,
-                selectedStatus.isCancelled(),
-                taskWithEditedStatusApplied.cancelled,
-            );
-        }
-    };
+    }
 </script>
 
 <label for="status" id="status">{@html labelContentWithAccessKey($t('status.label'), accesskey)}</label>
 <!-- svelte-ignore a11y-accesskey -->
 <select
     bind:value={statusSymbol}
-    on:change={_onStatusChange}
+    on:change={handleStatusChange}
     id="status-type"
     class="status-editor-status-selector"
     {accesskey}

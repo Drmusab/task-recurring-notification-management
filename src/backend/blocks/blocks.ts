@@ -1,3 +1,12 @@
+/**
+ * SiYuan Block Operations
+ * 
+ * Provides utilities for fetching block content and HTML from SiYuan API.
+ * 
+ * NOTE: These functions are currently unused but provided for future integration.
+ * Consider removing if not needed by v2.0.0 release.
+ */
+
 import { fetchPost } from "siyuan";
 import * as logger from "@backend/logging/logger";
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Task order store for managing drag-and-drop task ordering
  */

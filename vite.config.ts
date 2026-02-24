@@ -2,11 +2,15 @@ import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import zipPack from "vite-plugin-zip-pack";
+import livereload from "rollup-plugin-livereload";
+import fg from "fast-glob";
 import { resolve } from "path";
 
 const isWatch = process.argv.includes("--watch");
+const isDev = process.env.NODE_ENV === "development";
 const mode = process.env.NODE_ENV || "production";
 const isTest = !!process.env.VITEST;
+const outputDir = isDev ? "dev" : "dist";
 
 // Custom plugin to handle SVG imports as URLs
 function svgUrlPlugin() {
@@ -50,29 +54,25 @@ export default defineConfig({
         { src: "src/assets/icons", dest: "./assets" },
       ],
     }),
-    ...(!isWatch
-      ? [
-          zipPack({
-            inDir: "./dist",
-            outDir: "./",
-            outFileName: "package.zip",
-          }),
-        ]
-      : []),
+
   ],
+  define: {
+    "process.env.DEV_MODE": JSON.stringify(isDev),
+    "process.env.NODE_ENV": JSON.stringify(mode),
+  },
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
       "@backend": resolve(__dirname, "src/backend"),
       "@frontend": resolve(__dirname, "src/frontend"),
       "@shared": resolve(__dirname, "src/shared"),
+      "@domain": resolve(__dirname, "src/domain"),
       "@infrastructure": resolve(__dirname, "src/infrastructure"),
       "@components": resolve(__dirname, "src/frontend/components"),
       "@stores": resolve(__dirname, "src/frontend/stores"),
       "@hooks": resolve(__dirname, "src/frontend/hooks"),
       "@modals": resolve(__dirname, "src/frontend/modals"),
       "@views": resolve(__dirname, "src/frontend/views"),
-      "path": "path-browserify",
       ...(isTest
         ? {
             siyuan: resolve(__dirname, "src/__tests__/siyuan-stub.ts"),
@@ -83,22 +83,46 @@ export default defineConfig({
     ...(isTest ? { conditions: ["browser"] } : {}),
   },
   build: {
-    outDir: "dist",
-    emptyOutDir: true,
-    minify: mode === "production",
-    sourcemap: mode === "development" ? "inline" : false,
+    outDir: outputDir,
+    emptyOutDir: !isWatch,
+    minify: !isDev,
+    sourcemap: isDev ? "inline" : false,
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       fileName: "index",
       formats: ["cjs"],
     },
     rollupOptions: {
-      external: ["siyuan", "express", "http", "https", "net", "tls", "fs", "os", "crypto"],
+      plugins: [
+        ...(isDev
+          ? [
+              livereload(outputDir),
+              {
+                name: "watch-external",
+                async buildStart() {
+                  const files = await fg([
+                    "i18n/**",
+                    "./README*.md",
+                    "./plugin.json",
+                  ]);
+                  for (const file of files) {
+                    this.addWatchFile(file);
+                  }
+                },
+              },
+            ]
+          : [
+              zipPack({
+                inDir: "./dist",
+                outDir: "./",
+                outFileName: "package.zip",
+              }),
+            ]),
+      ],
+      external: ["siyuan", "process"],
       output: {
-        entryFileNames: "index.js",
+        entryFileNames: "[name].js",
         format: "cjs",
-        exports: "default",
-        footer: "if (typeof module !== 'undefined' && module.exports) { module.exports = module.exports.default || module.exports; }",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name === "style.css") {
             return "index.css";

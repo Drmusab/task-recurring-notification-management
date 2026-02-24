@@ -1,19 +1,18 @@
 // @ts-nocheck
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { fetchSyncPost } from 'siyuan';
 import { EventDeliveryRecord } from "@backend/events/types/EventTypes";
 import * as logger from "@backend/logging/logger";
 
 /**
- * Persistent event queue
+ * Persistent event queue using SiYuan's native storage API (Phase 4 §4.6 compliant)
  */
 export class EventQueue {
   private queue: EventDeliveryRecord[] = [];
-  private persistPath: string;
+  private storageFilename: string;
   private persistEnabled: boolean;
 
   constructor(dataDir: string, persistEnabled: boolean = true) {
-    this.persistPath = path.join(dataDir, 'event-queue.json');
+    this.storageFilename = 'event-queue.json';
     this.persistEnabled = persistEnabled;
   }
 
@@ -26,26 +25,20 @@ export class EventQueue {
     }
 
     try {
-      const data = await fs.readFile(this.persistPath, 'utf-8');
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) {
-        this.queue = parsed;
-      } else {
-        this.queue = [];
-        logger.warn('Event queue storage corrupted; resetting queue', {
-          persistPath: this.persistPath,
-        });
+      const resp = await fetchSyncPost('/api/file/getFile', { path: `/data/storage/petal/task-recurring-notification-management/${this.storageFilename}` });
+      if (resp && resp.code === 0 && resp.data) {
+        const parsed = typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data;
+        if (Array.isArray(parsed)) {
+          this.queue = parsed;
+        } else {
+          this.queue = [];
+          logger.warn('Event queue storage corrupted; resetting queue');
+        }
+        logger.info(`Loaded ${this.queue.length} events from queue`);
       }
-      logger.info(`Loaded ${this.queue.length} events from queue`);
     } catch (error) {
       // Queue file doesn't exist yet
-      const err = error as NodeJS.ErrnoException;
-      if (err?.code !== 'ENOENT') {
-        logger.warn('Failed to load event queue; starting fresh', {
-          persistPath: this.persistPath,
-          error,
-        });
-      }
+      logger.warn('Failed to load event queue; starting fresh', { error });
       this.queue = [];
     }
   }
@@ -144,7 +137,7 @@ export class EventQueue {
   }
 
   /**
-   * Persist queue to disk
+   * Persist queue to SiYuan storage (Phase 4 §4.6 compliant)
    */
   private async persist(): Promise<void> {
     if (!this.persistEnabled) {
@@ -152,12 +145,14 @@ export class EventQueue {
     }
 
     try {
-      await fs.writeFile(this.persistPath, JSON.stringify(this.queue, null, 2), 'utf-8');
+      const content = JSON.stringify(this.queue, null, 2);
+      const file = new Blob([content], { type: 'application/json' });
+      const formData = new FormData();
+      formData.append('path', `/data/storage/petal/task-recurring-notification-management/${this.storageFilename}`);
+      formData.append('file', file);
+      await fetch('/api/file/putFile', { method: 'POST', body: formData });
     } catch (error) {
-      logger.error('Failed to persist event queue', {
-        persistPath: this.persistPath,
-        error,
-      });
+      logger.error('Failed to persist event queue', { error });
     }
   }
 }

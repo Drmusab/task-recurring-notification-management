@@ -1,4 +1,4 @@
-import type { StatusType } from '@backend/core/models/Status';
+import type { StatusType } from '@shared/constants/statuses/Status';
 
 export type FilterRuleType = 'tag' | 'regex' | 'path' | 'marker';
 

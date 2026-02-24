@@ -6,8 +6,8 @@
  * system to the new RRule-based Recurrence system.
  */
 
-import type { Task } from '../../../domain/models/Task';
-import type { Recurrence } from '../../../domain/models/Recurrence';
+import type { Task } from '@domain/models/Task';
+import type { Recurrence } from '@domain/models/Recurrence';
 import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';
 import { FrequencyToRecurrenceConverter, type LegacyFrequency } from '../migration/FrequencyToRecurrenceConverter';
 

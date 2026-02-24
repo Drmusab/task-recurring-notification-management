@@ -1,6 +1,9 @@
 import { StatusConfiguration, StatusType } from "@shared/constants/statuses/StatusConfiguration";
 import type { StatusCollectionEntry } from "@shared/constants/statuses/StatusCollection";
 
+// Re-export StatusType for convenience
+export { StatusType };
+
 /**
  * Tracks the possible states that a task can be in.
  *

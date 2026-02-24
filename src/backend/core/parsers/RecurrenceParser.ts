@@ -3,6 +3,39 @@ import type { Frequency } from "@backend/core/models/Frequency";
 import { RRule, Frequency as RRuleFreq } from "rrule";
 
 /**
+ * RecurrenceParser - DEPRECATED
+ * 
+ * @deprecated This parser converts natural language to the DEPRECATED Frequency model.
+ * 
+ * **Status:** LEGACY - Keep for external dependency
+ * **Issue:** Works with deprecated Frequency type instead of RRULE
+ * **External Dependency:** backend/parsers/InlineTaskParser.ts uses parseRecurrenceRule()
+ * **Replacement:** RecurrenceEngine with direct RRULE strings
+ * **Action:** Keep until InlineTaskParser migrates to RRULE
+ * 
+ * This module must remain until all external parsers are updated.
+ * 
+ * New code should use RRULE strings directly with RecurrenceEngine.
+ * 
+ * Example migration:
+ * ```typescript
+ * // Old (deprecated):
+ * const result = RecurrenceParser.parse("every 3 days");
+ * if (result.isValid) {
+ *   task.frequency = result.frequency;
+ * }
+ * 
+ * // New (recommended):
+ * const rrule = "FREQ=DAILY;INTERVAL=3";
+ * task.recurrence = { rrule, mode: 'fixed', referenceDate: new Date() };
+ * const next = engine.next(task, ref);
+ * ```
+ * 
+ * @see RecurrenceEngine for RRULE-based recurrence
+ * @see https://datatracker.ietf.org/doc/html/rfc5545 for RRULE specification
+ */
+
+/**
  * Parsed recurrence result
  */
 export interface ParsedRecurrence {

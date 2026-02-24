@@ -1,7 +1,7 @@
 // @ts-nocheck
 import type { Task, CompletionHistoryEntry } from '@backend/core/models/Task';
 import type { Frequency } from '@backend/core/models/Frequency';
-import type { TaskRepositoryProvider } from '@backend/core/storage/TaskRepository';
+import type { TaskRepositoryProvider } from '@backend/core/storage/TaskStorage';
 import { GlobalFilter } from '@backend/core/filtering/GlobalFilter';
 import type { SmartRecurrenceSettings } from '@backend/core/settings/PluginSettings';
 import type { PatternLearnerStore, PatternLearnerState, TaskPatternHistory } from '@backend/core/ml/PatternLearnerStore';

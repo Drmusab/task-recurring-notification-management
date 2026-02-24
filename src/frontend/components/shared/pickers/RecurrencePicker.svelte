@@ -1,11 +1,11 @@
 <script lang="ts">
 /**
- * RecurrencePicker - Recurrence rule input with natural language
+ * Recurrence Picker - Recurrence rule input with natural language
  */
 
 import { createEventDispatcher } from 'svelte';
-import { parseRecurrenceRule, serializeRecurrenceRule } from '../../domain/recurrence/RuleParser';
-import type { Frequency } from '../../domain/models/Task';
+import { parseRecurrenceRule, serializeRecurrenceRule } from '@domain/index';
+import type { Frequency } from '@domain/index';
 
 export let value: Frequency | undefined = undefined;
 
