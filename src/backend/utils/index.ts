@@ -1,37 +1,44 @@
 /**
- * Backend Utilities
- * 
- * Backend-specific utilities that depend on backend models, services, or infrastructure.
- * These utilities are NOT meant to be shared with frontend/shared layers.
- * 
- * Architecture Note: These files were moved from shared/utils to enforce
- * proper layer separation. Shared utilities should remain truly generic.
+ * Backend Utilities — Runtime-Pure Function Layer
+ *
+ * This barrel exports two categories:
+ *
+ * 1. Legacy task utilities (markdown/Obsidian-compat, pre-existing)
+ *    - snooze, task-templates, on-completion, occurrence, link, priority,
+ *      signifiers, task-regular-expressions, log-tasks-helper
+ *
+ * 2. NEW: Runtime-deterministic pure functions (Session 21)
+ *    - dateUtils        — UTC-anchored date normalization
+ *    - recurrenceUtils  — Instance-based recurrence comparison
+ *    - taskIdUtils      — Deterministic task ID generation
+ *    - comparisonUtils  — Immutable model comparison + deepClone
+ *    - debounceUtils    — Backend-safe debounce/throttle
+ *    - serializationUtils — Schema-safe pre-save validation
+ *    - timezoneUtils    — Pure timezone conversion
+ *    - guardUtils       — Type/value guards for runtime safety
+ *
+ * FORBIDDEN: Frontend components MUST NOT import from this barrel.
  */
 
-// Task utilities (backend-dependent)
+// ─── Legacy Task Utilities (pre-existing) ─────────────────────
 export * from '@backend/utils/task/snooze';
-export * from '@backend/utils/task/task-dependency';
 export * from '@backend/utils/task/task-templates';
-export * from '@backend/utils/task/urgency';
-export * from '@backend/utils/task/reorder-tasks';
 export * from '@backend/utils/task/on-completion';
 export * from '@backend/utils/task/occurrence';
 export * from '@backend/utils/task/link';
 export * from '@backend/utils/task/priority';
-export * from '@backend/utils/task/recurrence';
-export * from '@backend/utils/task/list-item';
-export * from '@backend/utils/task/task-location';
 export * from '@backend/utils/task/signifiers';
 export * from '@backend/utils/task/task-regular-expressions';
 
-// DateTime utilities (backend-dependent)
-export * from '@backend/utils/dateTime/date-fallback';
-export * from '@backend/utils/dateTime/date-field-types';
-export * from '@backend/utils/dateTime/postponer';
-export * from '@backend/utils/dateTime/tasks-date';
-
-// Search utilities (backend-dependent)
-export * from '@backend/utils/search/fuzzy-search';
-
-// Lib utilities (backend-dependent)
+// ─── Legacy Lib Utilities ─────────────────────────────────────
 export * from '@backend/utils/lib/log-tasks-helper';
+
+// ─── Runtime-Deterministic Pure Functions (Session 21) ────────
+export * from './dateUtils';
+export * from './recurrenceUtils';
+export * from './taskIdUtils';
+export * from './comparisonUtils';
+export * from './debounceUtils';
+export * from './serializationUtils';
+export * from './timezoneUtils';
+export * from './guardUtils';

@@ -1,6 +1,6 @@
-// @ts-nocheck
 import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import { DateTime, Time } from "@backend/core/reminders/time";
+import * as logger from "@backend/logging/logger";
 
 export class Reminder {
   // To avoid duplicate notification, set this flag true before notification and set false on notification done.
@@ -75,11 +75,13 @@ export class Reminders {
   }
 
   public removeReminder(reminder: Reminder) {
-    console.debug("Remove reminder: %o", reminder);
-    this.reminders.remove(reminder);
+    logger.debug("Remove reminder: %o", reminder);
+    const idx = this.reminders.indexOf(reminder);
+    if (idx > -1) this.reminders.splice(idx, 1);
     const file = this.fileToReminders.get(reminder.file);
     if (file) {
-      file.remove(reminder);
+      const fIdx = file.indexOf(reminder);
+      if (fIdx > -1) file.splice(fIdx, 1);
       if (file.length === 0) {
         this.fileToReminders.delete(reminder.file);
       }

@@ -15,14 +15,15 @@
    */
 
   import { onMount } from "svelte";
-  import { SavedQueryStore, type SavedQuery } from "@backend/core/query/SavedQueryStore";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import type { SavedQueryDTO } from "../../services/DTOs";
 
   // Props
   export let onTagSelect: (tag: string | null) => void = () => {};
   export let selectedTag: string | null = null;
 
   // State
-  let queries: SavedQuery[] = [];
+  let queries: SavedQueryDTO[] = [];
   let allTags: string[] = [];
   let tagCounts: Record<string, number> = {};
   let searchTerm = "";
@@ -46,8 +47,7 @@
 
   // Computed: Tag statistics
   $: {
-    queries = SavedQueryStore.load();
-    computeTagStats();
+    uiQueryService.selectSavedQueries().then(q => { queries = q; computeTagStats(); });
   }
 
   $: filteredTags = searchTerm
@@ -65,8 +65,8 @@
     loadData();
   });
 
-  function loadData() {
-    queries = SavedQueryStore.load();
+  async function loadData() {
+    queries = await uiQueryService.selectSavedQueries();
     computeTagStats();
   }
 
@@ -114,7 +114,7 @@
     showRenameDialog = true;
   }
 
-  function confirmRenameTag() {
+  async function confirmRenameTag() {
     if (!renamingTag || !newTagName.trim()) return;
     if (renamingTag === newTagName.trim()) {
       showRenameDialog = false;
@@ -122,17 +122,17 @@
     }
 
     // Update all queries with this tag
-    queries.forEach(query => {
+    for (const query of queries) {
       if (query.tags && query.tags.includes(renamingTag!)) {
         const updatedTags = query.tags.map(t => 
           t === renamingTag ? newTagName.trim() : t
         );
-        SavedQueryStore.save({
+        await uiQueryService.saveSavedQuery({
           ...query,
           tags: updatedTags
         });
       }
-    });
+    }
 
     if (selectedTag === renamingTag) {
       handleSelectTag(newTagName.trim());
@@ -143,22 +143,22 @@
     renamingTag = null;
   }
 
-  function handleDeleteTag(tag: string) {
+  async function handleDeleteTag(tag: string) {
     const confirm = window.confirm(
       `Remove tag "${tag}" from ${tagCounts[tag]} queries?`
     );
     if (!confirm) return;
 
     // Remove tag from all queries
-    queries.forEach(query => {
+    for (const query of queries) {
       if (query.tags && query.tags.includes(tag)) {
         const updatedTags = query.tags.filter(t => t !== tag);
-        SavedQueryStore.save({
+        await uiQueryService.saveSavedQuery({
           ...query,
           tags: updatedTags
         });
       }
-    });
+    }
 
     if (selectedTag === tag) {
       handleSelectTag(null);

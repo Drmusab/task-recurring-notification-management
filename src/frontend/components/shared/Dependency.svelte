@@ -1,14 +1,62 @@
 <script lang="ts">
+    /**
+     * Dependency Editor Component — Session 27 Refactored (DTO-driven)
+     * 
+     * BEFORE (violations):
+     *   ❌ import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry'
+     *   ❌ StatusRegistry.getInstance().bySymbol() — domain singleton access
+     *
+     * AFTER (clean):
+     *   ✅ TaskDTO from services/DTOs — no domain import
+     *   ✅ Static status symbol lookup — no StatusRegistry
+     *   ✅ Local editableTask array mutation — persistence via parent onSubmit
+     *   ✅ No direct TaskService calls (parent routes through UITaskMutationService)
+     */
     import { computePosition, flip, offset, shift, size } from '@floating-ui/dom';
-    import type { Task } from "@backend/core/models/Task";
-    import type { EditableTask } from "@components/shared/utils/editableTask";
-    import { descriptionAdjustedForDependencySearch, searchForCandidateTasksForDependency } from "@components/shared/utils/dependencyHelpers";
+    import type { TaskDTO } from '../../services/DTOs';
+    type Task = TaskDTO;
     import { labelContentWithAccessKey } from "@components/shared/utils/taskEditHelpers";
     import { t } from '@stores/I18n.store';
-    import { StatusRegistry } from '@shared/constants/statuses/StatusRegistry';
+
+    /**
+     * Local dependency search helper — replaces missing dependencyHelpers module.
+     * Filters allTasks by description match, excluding the current task and existing dependencies.
+     */
+    function searchForCandidateTasksForDependency(
+        query: string,
+        allTasks: Task[],
+        currentTask: Task,
+        blockedBy: Task[],
+        blocking: Task[],
+    ): Task[] {
+        const lowerQuery = query.toLowerCase();
+        const excludeIds = new Set([
+            currentTask.id,
+            ...blockedBy.map(t => t.id),
+            ...blocking.map(t => t.id),
+        ]);
+        return allTasks.filter(t =>
+            !excludeIds.has(t.id) &&
+            (t.name?.toLowerCase().includes(lowerQuery) || !query)
+        ).slice(0, 20);
+    }
+
+    /**
+     * Local description helper — replaces missing dependencyHelpers module.
+     * Returns a display-safe task description for dependency search results.
+     */
+    function descriptionAdjustedForDependencySearch(task: Task): string {
+        const name = task.name || '';
+        // Truncate long descriptions for display
+        return name.length > 80 ? name.substring(0, 80) + '...' : name;
+    }
 
     export let task: Task;
-    export let editableTask: EditableTask;
+    /**
+     * Reactive adapter object from TaskEditModal — NOT the deleted EditableTask class.
+     * Typed as any for adapter compatibility (has blockedBy/blocking arrays via getter/setter).
+     */
+    export let editableTask: any;
     export let allTasks: Task[];
     export let _onDescriptionKeyDown: (e: KeyboardEvent) => void;
     export let id: string;
@@ -27,10 +75,18 @@
     let input: HTMLElement;
     let dropdown: HTMLElement;
 
-    // Helper to get status symbol from status string
+    /**
+     * Get status symbol from task DTO — static lookup, no StatusRegistry.
+     * Uses statusSymbol field if present, falls back to status-based inference.
+     */
     function getStatusSymbol(task: Task): string {
-        if (!task.status) return ' ';
-        return StatusRegistry.getInstance().bySymbol(task.status).symbol;
+        if ((task as any).statusSymbol) return (task as any).statusSymbol;
+        switch (task.status) {
+            case 'done': return 'x';
+            case 'cancelled': return '-';
+            case 'doing': return '/';
+            default: return ' ';
+        }
     }
 
     function addTask(task: Task) {
@@ -40,7 +96,7 @@
     }
 
     function removeTask(task: Task) {
-        editableTask[type] = editableTask[type].filter((item) => item !== task);
+        editableTask[type] = editableTask[type].filter((item: any) => item !== task);
     }
 
     function taskKeydown(e: KeyboardEvent) {

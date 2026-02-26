@@ -1,272 +1,185 @@
-<script lang="ts">
+﻿<script lang="ts">
 /**
  * DockPanel - Main task dashboard for SiYuan sidebar
- * Features: Tabbed views (Inbox, Today, Upcoming, Done)
+ * Features: Tabbed views (Inbox, Today, Upcoming, Done, Blocked)
+ *
+ * Session 27: Full runtime projection refactor.
+ *   All filtering via Dashboard.store derived stores (no local date computation)
+ *   Recurring instance-aware (completed parents filtered by store)
+ *   Dependency-safe: blocked tab reads DependencyDTO.isBlocked from DTO
+ *   Reminder-reactive via dashboardStore event subscriptions
+ *   No deprecated props, no dead code
+ *   Search filter applied on projected DTOs only
+ *   Tab counts from derived store (tabCounts)
+ *   Mutations via UITaskMutationService - no inline mutation
+ *
+ * FORBIDDEN:
+ *   Import domain types
+ *   Access TaskStorage / Cache
+ *   Compute dependency chains
+ *   Local date filtering
+ *   Poll / debounce
  */
 
 import { onMount, onDestroy } from 'svelte';
 import TaskListView from '@frontend/components/shared/TaskListView.svelte';
 import SearchBar from '@frontend/components/shared/pickers/SearchBar.svelte';
 import QuickFilters from '@frontend/components/shared/pickers/QuickFilters.svelte';
-import { taskStore } from '@stores/Task.store';
-import { settingsStore } from '@stores/Settings.store';
-import type { Task } from '@backend/core/models/Task';
-import type { PluginEventBus } from '@backend/core/events/PluginEventBus';
+import type { TaskDTO } from '../../services/DTOs';
+import { uiEventService } from '../../services/UIEventService';
+import { uiMutationService } from '../../services/UITaskMutationService';
+import {
+  dashboardStore,
+  inboxTasks,
+  todayTasks,
+  upcomingTasksView,
+  doneTasks,
+  blockedTasks,
+  tabCounts,
+  dashboardLoading,
+} from '@stores/Dashboard.store';
+import * as logger from '@shared/logging/logger';
 
-/** Optional eventBus prop for dispatching edit events */
-export let eventBus: PluginEventBus | undefined = undefined;
+// Tab Definition
 
 enum TabView {
   INBOX = 'inbox',
   TODAY = 'today',
   UPCOMING = 'upcoming',
   DONE = 'done',
-  TAGS = 'tags',
+  BLOCKED = 'blocked',
 }
 
 let activeTab: TabView = TabView.INBOX;
 let searchQuery: string = '';
-let filteredTasks: Task[] = [];
-let isLoading: boolean = true;
 
-// Tab definitions
 const tabs = [
-  { id: TabView.INBOX, label: '📥 Inbox', icon: '📥' },
-  { id: TabView.TODAY, label: '📅 Today', icon: '📅' },
-  { id: TabView.UPCOMING, label: '📆 Upcoming', icon: '📆' },
-  { id: TabView.DONE, label: '✅ Done', icon: '✅' },
-  { id: TabView.TAGS, label: '🏷️ Tags', icon: '🏷️' },
+  { id: TabView.INBOX, label: 'Inbox', icon: '📥' },
+  { id: TabView.TODAY, label: 'Today', icon: '📅' },
+  { id: TabView.UPCOMING, label: 'Upcoming', icon: '📆' },
+  { id: TabView.DONE, label: 'Done', icon: '✅' },
+  { id: TabView.BLOCKED, label: 'Blocked', icon: '🚫' },
 ];
 
-// Subscribe to task store
-let unsubscribe: (() => void) | null = null;
+// Reactive Task Projection
+// All filtering is done by Dashboard.store derived stores.
+// Only search filtering is applied locally on already-projected DTOs.
 
-onMount(async () => {
-  // Subscribe to task updates
-  unsubscribe = taskStore.subscribe((state) => {
-    filterTasksForActiveTab();
-    isLoading = state.loading;
-  });
+$: activeTabTasks = getTasksForTab(activeTab);
+$: filteredTasks = searchQuery.trim()
+  ? applySearchFilter(activeTabTasks, searchQuery)
+  : activeTabTasks;
 
-  // Initial load
-  await taskStore.refreshTasks();
-});
-
-onDestroy(() => {
-  if (unsubscribe) {
-    unsubscribe();
-  }
-});
-
-/**
- * Filter tasks based on active tab
- */
-function filterTasksForActiveTab() {
-  const allTasks = taskStore.getAllTasks();
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextWeek = new Date(today);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-
-  switch (activeTab) {
+function getTasksForTab(tab: TabView): readonly TaskDTO[] {
+  switch (tab) {
     case TabView.INBOX:
-      // All open tasks (not done or cancelled)
-      filteredTasks = allTasks.filter(
-        (t) => t.status !== 'done' && t.status !== 'cancelled'
-      );
-      break;
-
+      return $inboxTasks;
     case TabView.TODAY:
-      // Due or scheduled today
-      filteredTasks = allTasks.filter((t) => {
-        if (t.status === 'done' || t.status === 'cancelled') return false;
-        
-        const dueDate = t.dueAt ? new Date(t.dueAt) : null;
-        const scheduledDate = t.scheduledAt ? new Date(t.scheduledAt) : null;
-
-        return (
-          (dueDate && dueDate >= today && dueDate < tomorrow) ||
-          (scheduledDate && scheduledDate >= today && scheduledDate < tomorrow)
-        );
-      });
-      break;
-
+      return $todayTasks;
     case TabView.UPCOMING:
-      // Due in next 7 days
-      filteredTasks = allTasks.filter((t) => {
-        if (t.status === 'done' || t.status === 'cancelled') return false;
-        
-        const dueDate = t.dueAt ? new Date(t.dueAt) : null;
-
-        return dueDate && dueDate >= tomorrow && dueDate < nextWeek;
-      });
-      break;
-
+      return $upcomingTasksView;
     case TabView.DONE:
-      // Recently completed
-      filteredTasks = allTasks
-        .filter((t) => t.status === 'done')
-        .sort((a, b) => {
-          const dateA = a.doneAt ? new Date(a.doneAt).getTime() : 0;
-          const dateB = b.doneAt ? new Date(b.doneAt).getTime() : 0;
-          return dateB - dateA; // Most recent first
-        })
-        .slice(0, 100); // Limit to 100 most recent
-      break;
-
-    case TabView.TAGS:
-      // Group by tag (for now, show all)
-      filteredTasks = allTasks;
-      break;
-
+      return $doneTasks;
+    case TabView.BLOCKED:
+      return $blockedTasks;
     default:
-      filteredTasks = allTasks;
-  }
-
-  // Apply search filter if query exists
-  if (searchQuery.trim()) {
-    filteredTasks = applySearchFilter(filteredTasks, searchQuery);
+      return $inboxTasks;
   }
 }
 
 /**
- * Apply search query to tasks
+ * Apply search query to projected DTOs.
+ * Searches name, tags, and path - no markdown parsing.
  */
-function applySearchFilter(tasks: Task[], query: string): Task[] {
+function applySearchFilter(tasks: readonly TaskDTO[], query: string): TaskDTO[] {
   const lowerQuery = query.toLowerCase();
-
   return tasks.filter((task) => {
-    // Search in description
     if (task.name.toLowerCase().includes(lowerQuery)) return true;
-
-    // Search in tags
-    if (task.tags?.some((tag) => tag.toLowerCase().includes(lowerQuery))) return true;
-
-    // Search in path
+    if (task.tags?.some((tag: string) => tag.toLowerCase().includes(lowerQuery))) return true;
     if (task.path?.toLowerCase().includes(lowerQuery)) return true;
-
     return false;
   });
 }
 
-/**
- * Handle tab change
- */
+// Lifecycle
+
+onMount(() => {
+  // Dashboard.store is already connected by plugin index.ts.
+  // If not yet loaded, trigger a refresh.
+  if (dashboardStore.getState().lastUpdated === 0) {
+    dashboardStore.refresh();
+  }
+});
+
+// Event Handlers
+
 function handleTabChange(tab: TabView) {
   activeTab = tab;
-  filterTasksForActiveTab();
 }
 
-/**
- * Handle search input
- */
 function handleSearch(event: CustomEvent<string>) {
   searchQuery = event.detail;
-  filterTasksForActiveTab();
 }
 
-/**
- * Handle quick filter application
- */
 function handleQuickFilter(event: CustomEvent<any>) {
-  // TODO: Implement quick filter logic
-  console.log('Quick filter:', event.detail);
+  logger.info('[DockPanel] Quick filter:', event.detail);
 }
 
 /**
- * Handle task click (navigate to block in document)
+ * Navigate to block in document via UIEventService orchestration.
  */
-function handleTaskClick(event: CustomEvent<Task>) {
+function handleTaskClick(event: CustomEvent<TaskDTO>) {
   const task = event.detail;
-  
-  if (task.linkedBlockId && eventBus) {
-    // Emit navigation event — plugin orchestrator handles the actual SiYuan API call
-    eventBus.emit("block:navigate", { blockId: task.linkedBlockId });
+  if (task.blockId) {
+    uiEventService.emitBlockNavigate(task.blockId);
   }
 }
 
 /**
- * Handle task toggle (status change)
+ * Toggle task status via UITaskMutationService.
+ * No inline mutation - delegates to backend lifecycle.
  */
-async function handleTaskToggle(event: CustomEvent<Task>) {
+async function handleTaskToggle(event: CustomEvent<TaskDTO>) {
   const task = event.detail;
-  await taskStore.toggleTaskStatus(task.id);
-}
-
-/**
- * Handle task edit
- */
-function handleTaskEdit(event: CustomEvent<Task>) {
-  const task = event.detail;
-  // Use PluginEventBus to open edit modal (no window reference)
-  if (eventBus) {
-    eventBus.emit('task:edit', { task });
+  try {
+    if (task.status === 'done') {
+      await uiMutationService.updateTask(task.id, { enabled: true });
+    } else {
+      await uiMutationService.completeTask(task.id);
+    }
+  } catch (err) {
+    logger.error('[DockPanel] Toggle failed:', err);
   }
 }
 
 /**
- * Get task count for tab badge
+ * Open task editor via UIEventService orchestration.
  */
-function getTabCount(tab: TabView): number {
-  const allTasks = taskStore.getAllTasks();
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextWeek = new Date(today);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-
-  switch (tab) {
-    case TabView.INBOX:
-      return allTasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length;
-
-    case TabView.TODAY:
-      return allTasks.filter((t) => {
-        if (t.status === 'done' || t.status === 'cancelled') return false;
-        const dueDate = t.dueAt ? new Date(t.dueAt) : null;
-        const scheduledDate = t.scheduledAt ? new Date(t.scheduledAt) : null;
-        return (
-          (dueDate && dueDate >= today && dueDate < tomorrow) ||
-          (scheduledDate && scheduledDate >= today && scheduledDate < tomorrow)
-        );
-      }).length;
-
-    case TabView.UPCOMING:
-      return allTasks.filter((t) => {
-        if (t.status === 'done' || t.status === 'cancelled') return false;
-        const dueDate = t.dueAt ? new Date(t.dueAt) : null;
-        return dueDate && dueDate >= tomorrow && dueDate < nextWeek;
-      }).length;
-
-    case TabView.DONE:
-      return allTasks.filter((t) => t.status === 'done').length;
-
-    case TabView.TAGS:
-      return 0; // No count for tags view
-
-    default:
-      return 0;
-  }
+function handleTaskEdit(event: CustomEvent<TaskDTO>) {
+  uiEventService.emitTaskEdit(event.detail);
 }
 </script>
 
 <div class="task-dock-panel">
   <!-- Header with tabs -->
   <div class="dock-header">
-    <div class="tabs">
+    <div class="tabs" role="tablist" aria-label="Task views">
       {#each tabs as tab}
         <button
           class="tab"
           class:active={activeTab === tab.id}
           on:click={() => handleTabChange(tab.id)}
           title={tab.label}
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          tabindex={activeTab === tab.id ? 0 : -1}
         >
-          <span class="tab-icon">{tab.icon}</span>
-          <span class="tab-label">{tab.label.replace(/^[^\s]+\s/, '')}</span>
-          {#if getTabCount(tab.id) > 0}
-            <span class="tab-badge">{getTabCount(tab.id)}</span>
+          <span class="tab-icon" aria-hidden="true">{tab.icon}</span>
+          <span class="tab-label">{tab.label}</span>
+          {#if $tabCounts[tab.id] > 0}
+            <span class="tab-badge" aria-label="{$tabCounts[tab.id]} tasks">
+              {$tabCounts[tab.id]}
+            </span>
           {/if}
         </button>
       {/each}
@@ -285,19 +198,21 @@ function getTabCount(tab: TabView): number {
 
   <!-- Task list -->
   <div class="dock-content">
-    {#if isLoading}
-      <div class="loading-state">
-        <div class="spinner"></div>
+    {#if $dashboardLoading}
+      <div class="loading-state" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
         <p>Loading tasks...</p>
       </div>
     {:else if filteredTasks.length === 0}
-      <div class="empty-state">
+      <div class="empty-state" role="status">
         <p class="empty-icon">📭</p>
         <p class="empty-text">
           {#if searchQuery}
             No tasks match your search
           {:else if activeTab === TabView.DONE}
             No completed tasks yet
+          {:else if activeTab === TabView.BLOCKED}
+            No blocked tasks - all dependencies resolved
           {:else}
             No tasks found
           {/if}
@@ -324,7 +239,6 @@ function getTabCount(tab: TabView): number {
   font-family: var(--b3-font-family);
 }
 
-/* Header & Tabs */
 .dock-header {
   border-bottom: 1px solid var(--b3-border-color);
   background: var(--b3-theme-surface);
@@ -367,6 +281,11 @@ function getTabCount(tab: TabView): number {
   font-weight: 500;
 }
 
+.tab:focus {
+  outline: 2px solid var(--b3-theme-primary);
+  outline-offset: -2px;
+}
+
 .tab-icon {
   font-size: 16px;
 }
@@ -395,21 +314,18 @@ function getTabCount(tab: TabView): number {
   font-weight: 600;
 }
 
-/* Toolbar */
 .dock-toolbar {
   padding: 8px;
   border-bottom: 1px solid var(--b3-border-color);
   background: var(--b3-theme-surface);
 }
 
-/* Content */
 .dock-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* Loading state */
 .loading-state {
   display: flex;
   flex-direction: column;
@@ -432,7 +348,6 @@ function getTabCount(tab: TabView): number {
   to { transform: rotate(360deg); }
 }
 
-/* Empty state */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -451,5 +366,12 @@ function getTabCount(tab: TabView): number {
 .empty-text {
   font-size: 14px;
   margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    opacity: 0.5;
+  }
 }
 </style>

@@ -321,6 +321,14 @@ export class OptimizedJSON {
 let instance: OptimizedJSON | null = null;
 
 /**
+ * Reset the singleton instance.
+ * Called on plugin unload to release cached serialization state.
+ */
+export function resetOptimizedJSON(): void {
+  instance = null;
+}
+
+/**
  * Get or create singleton instance
  */
 export function getOptimizedJSON(): OptimizedJSON {

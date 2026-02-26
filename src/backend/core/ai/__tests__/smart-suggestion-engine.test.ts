@@ -1,5 +1,8 @@
 /**
- * Tests for SmartSuggestionEngine
+ * Tests for SmartSuggestionEngine (event-driven refactor)
+ *
+ * The engine is now synchronous and takes a trigger string instead of allTasks.
+ * Cross-task patterns (consolidation/delegation) are handled by AIOrchestrator.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,22 +24,49 @@ describe('SmartSuggestionEngine', () => {
   });
 
   describe('analyzeTask', () => {
-    it('should detect abandonment candidates', async () => {
+    it('should detect abandonment candidates on task:complete', () => {
       const engine = new SmartSuggestionEngine();
       const task = createMockTask({
         missCount: 5,
         completionCount: 0,
       });
 
-      const suggestions = await engine.analyzeTask(task, []);
+      const suggestions = engine.analyzeTask(task, 'task:complete');
 
       expect(suggestions.length).toBeGreaterThan(0);
       const abandonSuggestion = suggestions.find(s => s.type === 'abandon');
       expect(abandonSuggestion).toBeDefined();
       expect(abandonSuggestion?.confidence).toBeGreaterThan(0.8);
+      expect(abandonSuggestion?.triggeredBy).toBe('task:complete');
     });
 
-    it('should suggest reschedule based on completion patterns', async () => {
+    it('should detect abandonment on task:skip', () => {
+      const engine = new SmartSuggestionEngine();
+      const task = createMockTask({
+        missCount: 5,
+        completionCount: 0,
+      });
+
+      const suggestions = engine.analyzeTask(task, 'task:skip');
+
+      const abandonSuggestion = suggestions.find(s => s.type === 'abandon');
+      expect(abandonSuggestion).toBeDefined();
+    });
+
+    it('should detect abandonment on task:missed', () => {
+      const engine = new SmartSuggestionEngine();
+      const task = createMockTask({
+        missCount: 5,
+        completionCount: 0,
+      });
+
+      const suggestions = engine.analyzeTask(task, 'task:missed');
+
+      const abandonSuggestion = suggestions.find(s => s.type === 'abandon');
+      expect(abandonSuggestion).toBeDefined();
+    });
+
+    it('should suggest reschedule based on completion patterns', () => {
       const engine = new SmartSuggestionEngine();
       const task = createMockTask({
         dueAt: new Date('2024-01-15T20:00:00Z').toISOString(),
@@ -48,38 +78,85 @@ describe('SmartSuggestionEngine', () => {
         ],
       });
 
-      const suggestions = await engine.analyzeTask(task, []);
+      const suggestions = engine.analyzeTask(task, 'task:complete');
 
       const rescheduleSuggestion = suggestions.find(s => s.type === 'reschedule');
       expect(rescheduleSuggestion).toBeDefined();
       expect(rescheduleSuggestion?.action.parameters.hour).toBe(9);
     });
 
-    it('should suggest urgency for tasks with high miss count', async () => {
+    it('should suggest urgency for tasks with high miss count', () => {
       const engine = new SmartSuggestionEngine();
       const task = createMockTask({
         missCount: 3,
         priority: 'medium',
       });
 
-      const suggestions = await engine.analyzeTask(task, []);
+      const suggestions = engine.analyzeTask(task, 'task:complete');
 
       const urgencySuggestion = suggestions.find(s => s.type === 'urgency');
       expect(urgencySuggestion).toBeDefined();
       expect(urgencySuggestion?.action.parameters.priority).toBe('high');
     });
 
-    it('should not suggest urgency if already high priority', async () => {
+    it('should not suggest urgency if already high priority', () => {
       const engine = new SmartSuggestionEngine();
       const task = createMockTask({
         missCount: 3,
         priority: 'high',
       });
 
-      const suggestions = await engine.analyzeTask(task, []);
+      const suggestions = engine.analyzeTask(task, 'task:complete');
 
       const urgencySuggestion = suggestions.find(s => s.type === 'urgency');
       expect(urgencySuggestion).toBeUndefined();
+    });
+
+    it('should run all checks with manual trigger', () => {
+      const engine = new SmartSuggestionEngine();
+      const task = createMockTask({
+        missCount: 5,
+        completionCount: 0,
+      });
+
+      const suggestions = engine.analyzeTask(task, 'manual');
+
+      // 'manual' runs all checks — should include abandon + urgency at minimum
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions.find(s => s.type === 'abandon')).toBeDefined();
+      expect(suggestions.find(s => s.type === 'urgency')).toBeDefined();
+    });
+
+    it('should only check urgency on task:overdue', () => {
+      const engine = new SmartSuggestionEngine();
+      const task = createMockTask({
+        missCount: 5,
+        completionCount: 0,
+        priority: 'low',
+      });
+
+      const suggestions = engine.analyzeTask(task, 'task:overdue');
+
+      // task:overdue only checks urgency
+      expect(suggestions.every(s => s.type === 'urgency')).toBe(true);
+    });
+
+    it('should include applied=false and dismissed=false on new suggestions', () => {
+      const engine = new SmartSuggestionEngine();
+      const task = createMockTask({
+        missCount: 5,
+        completionCount: 0,
+      });
+
+      const suggestions = engine.analyzeTask(task, 'task:complete');
+
+      for (const s of suggestions) {
+        expect(s.applied).toBe(false);
+        expect(s.dismissed).toBe(false);
+        expect(s.triggeredBy).toBe('task:complete');
+        expect(s.taskId).toBe(task.id);
+        expect(s.createdAt).toBeDefined();
+      }
     });
   });
 
@@ -140,9 +217,7 @@ describe('SmartSuggestionEngine', () => {
         completionCount: 0,
       });
 
-      const result = engine.detectAbandonmentCandidate(task);
-
-      expect(result).toBe(true);
+      expect(engine.detectAbandonmentCandidate(task)).toBe(true);
     });
 
     it('should detect tasks with very low completion rate', () => {
@@ -152,9 +227,7 @@ describe('SmartSuggestionEngine', () => {
         completionCount: 1,
       });
 
-      const result = engine.detectAbandonmentCandidate(task);
-
-      expect(result).toBe(true);
+      expect(engine.detectAbandonmentCandidate(task)).toBe(true);
     });
 
     it('should not flag tasks with good completion rate', () => {
@@ -164,9 +237,7 @@ describe('SmartSuggestionEngine', () => {
         completionCount: 10,
       });
 
-      const result = engine.detectAbandonmentCandidate(task);
-
-      expect(result).toBe(false);
+      expect(engine.detectAbandonmentCandidate(task)).toBe(false);
     });
   });
 
@@ -202,7 +273,7 @@ describe('SmartSuggestionEngine', () => {
       const similar = engine.findSimilarTasks(task, allTasks);
 
       expect(similar.length).toBeGreaterThan(0);
-      expect(similar[0].id).toBe('task-2');
+      expect(similar[0]!.id).toBe('task-2');
     });
 
     it('should find tasks in same category', () => {
@@ -219,47 +290,6 @@ describe('SmartSuggestionEngine', () => {
       const similar = engine.findSimilarTasks(task, allTasks);
 
       expect(similar.some(t => t.category === 'work')).toBe(true);
-    });
-  });
-
-  describe('analyzeCrossTaskPatterns', () => {
-    it('should suggest consolidation for similar tasks on same day', async () => {
-      const engine = new SmartSuggestionEngine();
-      const sameDay = new Date('2024-01-15T09:00:00Z').toISOString();
-      const tasks = [
-        createMockTask({ id: 'task-1', name: 'Review report A', dueAt: sameDay }),
-        createMockTask({ id: 'task-2', name: 'Review report B', dueAt: sameDay }),
-        createMockTask({ id: 'task-3', name: 'Review report C', dueAt: sameDay }),
-      ];
-
-      const suggestions = await engine.analyzeCrossTaskPatterns(tasks);
-
-      const consolidateSuggestion = suggestions.find(s => s.type === 'consolidate');
-      expect(consolidateSuggestion).toBeDefined();
-    });
-
-    it('should suggest delegation for consistently delayed tags', async () => {
-      const engine = new SmartSuggestionEngine();
-      const tasks = [
-        createMockTask({
-          id: 'task-1',
-          tags: ['review'],
-          completionTimes: [Date.now()],
-          completionContexts: [
-            { dayOfWeek: 1, hourOfDay: 9, wasOverdue: false, delayMinutes: 120 },
-            { dayOfWeek: 2, hourOfDay: 9, wasOverdue: false, delayMinutes: 150 },
-            { dayOfWeek: 3, hourOfDay: 9, wasOverdue: false, delayMinutes: 180 },
-            { dayOfWeek: 4, hourOfDay: 9, wasOverdue: false, delayMinutes: 140 },
-            { dayOfWeek: 5, hourOfDay: 9, wasOverdue: false, delayMinutes: 160 },
-          ],
-        }),
-      ];
-
-      const suggestions = await engine.analyzeCrossTaskPatterns(tasks);
-
-      const delegateSuggestion = suggestions.find(s => s.type === 'delegate');
-      expect(delegateSuggestion).toBeDefined();
-      expect(delegateSuggestion?.reason).toContain('review');
     });
   });
 });

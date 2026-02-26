@@ -1,27 +1,32 @@
 <script lang="ts">
   /**
-   * QueriesView Component - Extracted from Dashboard
-   * Handles advanced query and explanation functionality
+   * QueriesView Component — Session 25 Refactored (Runtime Projection Layer)
+   *
+   * BEFORE (violations):
+   *   ❌ import Task from @backend/core/models/Task
+   *   ❌ import NaturalLanguageQueryParser, QueryEngine, QueryExplainer from backend
+   *   ❌ new NaturalLanguageQueryParser() / new QueryEngine() direct instantiation
+   *   ❌ tasks: Task[] prop (raw domain array)
+   *
+   * AFTER (clean):
+   *   ✅ TaskDTO from services/DTOs
+   *   ✅ uiQueryService.executeQuery() / .executeQueryWithExplanation()
+   *   ✅ No backend imports, no engine instantiation
    */
-  import { onMount, onDestroy } from "svelte";
-  import type { Task } from "@backend/core/models/Task";
-  import type { PluginSettings } from "@backend/core/settings/PluginSettings";
-  import { QueryExplainer, type Explanation } from "@backend/core/query/QueryExplanation";
-  import { NaturalLanguageQueryParser } from "@backend/core/query/NaturalLanguageQueryParser";
-  import { QueryEngine } from "@backend/core/query/QueryEngine";
+  import { onDestroy } from "svelte";
+  import type { TaskDTO, QueryExplanationDTO } from "../../../services/DTOs";
+  import { uiQueryService } from "../../../services/UIQueryService";
   import QueryExplanationPanel from "@components/query/QueryExplanationPanel.svelte";
   import SavedQueriesDropdown from "@components/query/SavedQueriesDropdown.svelte";
 
-  // Props
-  export let tasks: Task[];
-  export let settings: PluginSettings;
+  // Props — NO backend types
   export let tabPanelId: string;
   export let queriesTabId: string;
 
   // Query state
   let queryString = "";
-  let queryResults: Task[] = [];
-  let queryExplanation: Explanation | null = null;
+  let queryResults: TaskDTO[] = [];
+  let queryExplanation: QueryExplanationDTO | null = null;
   let showExplanation = false;
   let isExecutingQuery = false;
   let queryError: string | null = null;
@@ -54,34 +59,14 @@
     statusMessage = "Executing query...";
 
     try {
-      // Parse natural language query
-      const nlParser = new NaturalLanguageQueryParser();
-      const ast = nlParser.parse(queryString);
-
-      // Check if aborted after parsing
-      if (signal.aborted) {
-        return;
-      }
-
-      // Create a simple task index from current tasks
-      const taskIndex = {
-        getAllTasks: () => tasks
-      };
-
-      // Execute query
-      const queryEngine = new QueryEngine(taskIndex, {
-        urgencySettings: settings.urgency,
-        escalationSettings: settings.escalation,
-        attentionSettings: settings.attention
-      });
-      
-      const result = queryEngine.execute(ast);
+      // Route through UIQueryService — NO direct engine instantiation
+      const results = await uiQueryService.executeQuery(queryString);
 
       // Only update if not aborted
       if (!signal.aborted) {
-        queryResults = result.tasks;
+        queryResults = results;
         queryError = null;
-        statusMessage = `Found ${result.tasks.length} task${result.tasks.length !== 1 ? 's' : ''}`;
+        statusMessage = `Found ${results.length} task${results.length !== 1 ? 's' : ''}`;
       }
     } catch (error: any) {
       if (error.name !== 'AbortError' && !signal.aborted) {
@@ -118,33 +103,13 @@
     statusMessage = "Analyzing query...";
 
     try {
-      // Parse natural language query
-      const nlParser = new NaturalLanguageQueryParser();
-      const ast = nlParser.parse(queryString);
-
-      // Check if aborted after parsing
-      if (signal.aborted) {
-        return;
-      }
-
-      // Create task index
-      const taskIndex = {
-        getAllTasks: () => tasks
-      };
-
-      // Execute query with explanation
-      const queryEngine = new QueryEngine(taskIndex, {
-        urgencySettings: settings.urgency,
-        escalationSettings: settings.escalation,
-        attentionSettings: settings.attention
-      });
-      
-      const { result, explanation } = queryEngine.executeWithExplanation(ast);
+      // Route through UIQueryService — NO direct engine instantiation
+      const { results, explanation } = await uiQueryService.executeQueryWithExplanation(queryString);
 
       // Only update if not aborted
       if (!signal.aborted) {
-        queryResults = result.tasks;
-        queryExplanation = explanation;
+        queryResults = results;
+        queryExplanation = explanation as any;
         showExplanation = true;
         queryError = null;
         statusMessage = "Query explanation ready";
@@ -181,7 +146,9 @@
     return date.toLocaleDateString();
   }
 
-  function getTaskStatus(task: Task): "overdue" | "today" | "upcoming" {
+  function getTaskStatus(task: TaskDTO): "overdue" | "today" | "upcoming" {
+    if (task.isOverdue) return "overdue";
+    if (!task.dueAt) return "upcoming";
     const now = new Date();
     const due = new Date(task.dueAt);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -280,7 +247,7 @@
               {/if}
               <div class="rtm-task-meta">
                 <span class="rtm-task-status" class:overdue={getTaskStatus(task) === "overdue"}>
-                  📅 {formatDueDate(task.dueAt)}
+                  📅 {task.dueAt ? formatDueDate(task.dueAt) : "No due date"}
                 </span>
                 {#if task.tags && task.tags.length > 0}
                   <span class="rtm-task-tags">

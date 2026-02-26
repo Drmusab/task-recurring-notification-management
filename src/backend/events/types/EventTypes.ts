@@ -8,6 +8,8 @@ export type EventType =
   | 'task.deleted'
   | 'task.due'
   | 'task.overdue'
+  | 'task.escalated'
+  | 'task.escalation.resolved'
   | 'recurrence.paused'
   | 'recurrence.resumed'
   | 'recurrence.regenerated'
@@ -43,7 +45,7 @@ export interface TaskCreatedEvent extends BaseEventPayload {
     title: string;
     description?: string;
     dueDate: string | null;
-    recurrencePattern: any | null;
+    recurrencePattern: string | null;
     tags: string[];
     priority: string;
   };
@@ -175,6 +177,35 @@ export interface NotificationSentEvent extends BaseEventPayload {
 }
 
 /**
+ * Task escalated event (fired when escalation threshold is reached)
+ */
+export interface TaskEscalatedEvent extends BaseEventPayload {
+  event: 'task.escalated';
+  payload: {
+    title: string;
+    escalationLevel: number;
+    reason: string;
+    dueDate: string;
+    overdueMinutes: number;
+    priority: string;
+    recurrenceInstance?: string;
+  };
+}
+
+/**
+ * Task escalation resolved event
+ */
+export interface TaskEscalationResolvedEvent extends BaseEventPayload {
+  event: 'task.escalation.resolved';
+  payload: {
+    title: string;
+    resolvedBy: 'completed' | 'rescheduled' | 'deleted' | 'manual';
+    previousLevel: number;
+    resolvedAt: string;
+  };
+}
+
+/**
  * Union type of all events
  */
 export type WebhookEvent =
@@ -188,7 +219,9 @@ export type WebhookEvent =
   | RecurrenceResumedEvent
   | RecurrenceRegeneratedEvent
   | RecurrenceSkippedEvent
-  | NotificationSentEvent;
+  | NotificationSentEvent
+  | TaskEscalatedEvent
+  | TaskEscalationResolvedEvent;
 
 /**
  * Event delivery record

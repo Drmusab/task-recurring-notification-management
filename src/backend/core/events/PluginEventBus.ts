@@ -1,4 +1,10 @@
 import type { Task } from "@backend/core/models/Task";
+import type { AISuggestion } from "@backend/core/ai/types/SuggestionTypes";
+import type {
+  AttentionDuePayload,
+  AttentionSuppressedPayload,
+  AttentionSuggestionPayload,
+} from "@backend/core/attention/AttentionGateTypes";
 import * as logger from "@backend/logging/logger";
 
 export type PluginEventMap = {
@@ -9,9 +15,9 @@ export type PluginEventMap = {
     linkedBlockContent?: string;
     suggestedTime?: string | null;
   };
-  'task:complete': { taskId: string };
-  'task:skip': { taskId: string };
-  'task:reschedule': { taskId: string; delayMinutes: number };
+  'task:complete': { taskId: string; task?: Task };
+  'task:skip': { taskId: string; task?: Task };
+  'task:reschedule': { taskId: string; delayMinutes: number; task?: Task };
   'task:snooze': { taskId: string; minutes: number };
   'task:settings': { action?: string };
   'task:refresh': void;
@@ -28,6 +34,10 @@ export type PluginEventMap = {
   'dashboard:filterToday': Record<string, never>;
   // Scheduler / notification events
   'task:due': { taskId?: string };
+  // Task overdue (from Scheduler)
+  'task:overdue': { taskId: string; task?: Task };
+  // Task missed (missed occurrence detection)
+  'task:missed': { taskId: string; task?: Task };
   // Navigation events
   'block:navigate': { blockId: string };
   // Block mutation events (from SiYuanRuntimeBridge → ReactiveBlockLayer)
@@ -39,6 +49,80 @@ export type PluginEventMap = {
   'workspace:changed': { workspaceId: string };
   'workspace:opened': { workspaceId: string };
   'workspace:closed': Record<string, never>;
+  // ─── AI Intelligence Events ─────────────────────────────────
+  /** Emitted when the AI engine generates new suggestions for a task */
+  'ai:suggestion': { taskId: string; suggestions: AISuggestion[] };
+  /** Emitted when a suggestion is applied by the user */
+  'ai:suggestion:applied': { taskId: string; suggestionId: string };
+  /** Emitted when a suggestion is dismissed by the user */
+  'ai:suggestion:dismissed': { taskId: string; suggestionId: string };
+  // ─── Attention-Aware Event Filtering ────────────────────────
+  /** Emitted when a task passes the attention gate (score ≥ ATTENTION_THRESHOLD) */
+  'task:attention:due': AttentionDuePayload;
+  /** Emitted for overdue tasks that pass the attention gate */
+  'task:attention:urgent': AttentionDuePayload;
+  /** Emitted when a task is suppressed or muted by the attention gate */
+  'task:attention:suppressed': AttentionSuppressedPayload;
+  /** AI suggestion filtered through attention relevance */
+  'ai:attention:suggestion': AttentionSuggestionPayload;
+  // ─── Cache Layer Events ─────────────────────────────────────
+  /** Emitted when a single task's cache entry is refreshed */
+  'cache:task:updated': { taskId: string };
+  /** Emitted when cache entries are invalidated (full or single scope) */
+  'cache:task:invalidated': { scope: 'full' | 'single' | 'due'; taskId?: string };
+  /** Emitted when analytics cache is refreshed */
+  'cache:analytics:updated': { scope: 'full' | 'task'; taskId?: string };
+  // ─── Dependency Layer Events ────────────────────────────────
+  /** Emitted when a task becomes blocked (all deps not met) */
+  'task:blocked': { taskId: string; blockers: string[] };
+  /** Emitted when a task becomes unblocked (all deps now met) */
+  'task:unblocked': { taskId: string };
+  /** Emitted when a dependency edge is resolved (dep completed) */
+  'dependency:resolved': { taskId: string; resolvedDepId: string };
+  /** Emitted when a circular dependency chain is detected */
+  'dependency:cycle:detected': { chain: string[]; rejectedEdge: { from: string; to: string } };
+  /** Emitted when a dependency is added successfully */
+  'dependency:added': { fromTaskId: string; toTaskId: string };
+  /** Emitted when a dependency is removed */
+  'dependency:removed': { fromTaskId: string; toTaskId: string };
+  // ─── Engine Runtime Events ──────────────────────────────────
+  /** Emitted when Scheduler confirms a task is due (post-dependency-guard) */
+  'task:runtime:due': { taskId: string; dueAt: string; task?: Task };
+  /** Emitted when a task is completed via Scheduler.markTaskDone() */
+  'task:runtime:completed': { taskId: string; completedAt: string; nextDueAt?: string };
+  /** Emitted when a task is rescheduled (delay / snooze / advance) */
+  'task:runtime:rescheduled': { taskId: string; previousDueAt: string; newDueAt: string; reason: string };
+  /** Emitted when RecurrenceEngine generates a next occurrence */
+  'task:runtime:recurrence': { taskId: string; nextDueAt: string; rrule: string };
+  /** Emitted when a task occurrence is skipped */
+  'task:runtime:skipped': { taskId: string; skippedDueAt: string; nextDueAt?: string };
+  /** Emitted when scheduler tick completes a full check cycle */
+  'engine:tick:complete': { processed: number; errors: number; durationMs: number };
+  // ─── Escalation Pipeline Events ─────────────────────────────
+  /** Emitted when an escalation fires for a missed/overdue task */
+  'task:escalated': { taskId: string; level: number; reason: string; timestamp: string };
+  /** Emitted when a webhook delivery is retried */
+  'task:escalation:retry': { taskId: string; attempt: number; nextRetryAt: string };
+  /** Emitted when an escalation is resolved (task completed/rescheduled) */
+  'task:escalation:resolved': { taskId: string; resolvedBy: 'completed' | 'rescheduled' | 'deleted' | 'manual' };
+  /** Emitted when escalation is blocked (dependency or block validation failed) */
+  'task:escalation:blocked': { taskId: string; reason: string; blockers?: string[] };
+  // ─── Webhook Pipeline Events ────────────────────────────────
+  /** Emitted when a webhook is successfully delivered to a target */
+  'task:webhook:fired': { taskId: string; eventType: string; deliveryId: string; target: string };
+  /** Emitted when a failed webhook delivery is retried */
+  'task:webhook:retry': { taskId: string; deliveryId: string; attempt: number; nextRetryAt: string };
+  /** Emitted when a webhook is suppressed by validation gates */
+  'task:webhook:suppressed': { taskId: string; reason: string; eventType?: string };
+  /** Emitted when pending webhook retries are resolved (task completed/deleted) */
+  'task:webhook:resolved': { taskId: string; resolvedBy: string };
+  // ─── Query Runtime Events ───────────────────────────────────
+  /** Emitted after TaskQueryEngine selects valid tasks (post-pipeline) */
+  'query:tasks:selected': { count: number; source: string; durationMs: number };
+  /** Emitted after filter pipeline narrows results */
+  'query:tasks:filtered': { before: number; after: number; filters: string[] };
+  /** Emitted when query cache is invalidated (e.g. task mutation, block update) */
+  'query:tasks:invalidated': { scope: 'full' | 'single'; taskId?: string; reason: string };
 };
 
 type EventHandler<T> = (data: T) => void;

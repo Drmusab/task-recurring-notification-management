@@ -7,6 +7,7 @@
 
 import type { Task } from '../models/Task';
 import type { Recurrence } from '@domain/models/Recurrence';
+import * as logger from '@backend/logging/logger';
 import type { PluginSettings } from '../settings/PluginSettings';
 import { createTask as createTaskLegacy } from '../models/Task';
 import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';
@@ -144,7 +145,7 @@ export class TaskCreationService {
       const conversionResult = FrequencyToRecurrenceConverter.convert(options.frequency, dueDate);
       
       if (!conversionResult.success || !conversionResult.rruleString) {
-        console.error('Failed to convert frequency to RRULE:', conversionResult.error);
+        logger.error('Failed to convert frequency to RRULE:', conversionResult.error);
         return {}; // Return no recurrence if conversion fails
       }
       

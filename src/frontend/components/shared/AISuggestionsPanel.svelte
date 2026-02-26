@@ -1,27 +1,73 @@
 <script lang="ts">
   /**
-   * AI Suggestions Panel
-   * 
-   * Displays AI-driven recommendations for task optimization.
-   * All features are rule-based (no external ML services).
-   * User must approve all suggestions before they're applied.
+   * AI Suggestions Panel — Event-driven (Session 24 + Session 26 refactored).
+   *
+   * CLEAN:
+   *   ✅ uiQueryService.requestAIAnalysis() for on-demand analysis
+   *   ✅ uiQueryService.hasAIData() for data availability check
+   *   ✅ uiEventService.onAISuggestion() for event subscriptions
+   *   ✅ uiMutationService.applySuggestion() for applying suggestions
+   *   ✅ SuggestionDTO / TaskDTO for data shapes
+   *   ✅ No inline mutations — create new objects
+   *   ✅ No @backend or @domain imports
    */
-  
-  import { SmartSuggestionEngine, type TaskSuggestion } from '@backend/core/ai/SmartSuggestionEngine';
-  import type { UnifiedTask } from '@backend/services/TaskAdapterService';
-  import { TaskModelAdapter } from '@backend/services/TaskAdapterService';
+
+  import { uiQueryService } from '../../services/UIQueryService';
+  import type { TaskDTO, SuggestionDTO } from '../../services/DTOs';
+  import { uiEventService } from '../../services/UIEventService';
+  import { uiMutationService } from '../../services/UITaskMutationService';
   import { t } from '@stores/I18n.store';
   import { showMessage } from 'siyuan';
-  
-  export let task: UnifiedTask;
-  export let allTasks: UnifiedTask[] = [];
+  import { onDestroy } from 'svelte';
+  import * as logger from '@shared/logging/logger';
+
+  /** Local type matching the shape expected by categorization + parent callback */
+  interface TaskSuggestion {
+    id: string;
+    taskId: string;
+    type: string;
+    reason: string;
+    confidence: number;
+    dismissed: boolean;
+    createdAt: string;
+    applied: boolean;
+    action?: {
+      type: string;
+      description: string;
+      label: string;
+      parameters: Record<string, unknown>;
+    };
+  }
+
+  /** Map SuggestionDTO to local TaskSuggestion shape */
+  function mapDTOToSuggestion(s: SuggestionDTO, taskId: string): TaskSuggestion {
+    return {
+      id: s.id,
+      taskId: s.taskId ?? taskId,
+      type: s.type as any,
+      reason: s.reason,
+      confidence: s.confidence,
+      dismissed: s.dismissed,
+      createdAt: new Date().toISOString(),
+      applied: false,
+      action: s.action ? {
+        type: s.action.type as any,
+        description: s.action.label,
+        label: s.action.label,
+        parameters: s.action.parameters,
+      } : { type: 'none', description: '', label: '', parameters: {} },
+    };
+  }
+
+  export let task: TaskDTO;
+  export let allTasks: TaskDTO[] = [];
   export let onApplySuggestion: (suggestion: TaskSuggestion) => void;
-  
-  let engine = new SmartSuggestionEngine();
+
+  // No engine instance — all analysis goes through UIQueryService facade
   let currentSuggestions: TaskSuggestion[] = [];
   let isAnalyzing = false;
   let selectedFeature: string | null = null;
-  
+
   // Feature states
   let abandonmentSuggestion: TaskSuggestion | null = null;
   let rescheduleSuggestion: TaskSuggestion | null = null;
@@ -30,131 +76,134 @@
   let consolidationSuggestions: TaskSuggestion[] = [];
   let delegationSuggestion: TaskSuggestion | null = null;
   let pendingApply: TaskSuggestion | null = null;
-  
+
+  // ─── Event-driven: subscribe via UIEventService (NOT raw bus) ───
+  const unsubAI = uiEventService.onAISuggestion((payload) => {
+    if (payload.taskId !== task?.id) return;
+    // Map SuggestionDTOs to local TaskSuggestion shape
+    const mapped = payload.suggestions.map((s: SuggestionDTO) => mapDTOToSuggestion(s, payload.taskId));
+    categorizeSuggestions(mapped);
+  });
+  onDestroy(unsubAI);
+
+  /** Categorize suggestions array into the per-feature state variables */
+  function categorizeSuggestions(suggestions: TaskSuggestion[]) {
+    currentSuggestions = suggestions;
+    abandonmentSuggestion = suggestions.find(s => s.type === 'abandon') ?? null;
+    rescheduleSuggestion = suggestions.find(s => s.type === 'reschedule') ?? null;
+    urgencySuggestion = suggestions.find(s => s.type === 'urgency') ?? null;
+    frequencySuggestion = suggestions.find(s => s.type === 'frequency') ?? null;
+    consolidationSuggestions = suggestions.filter(s => s.type === 'consolidate');
+    delegationSuggestion = suggestions.find(s => s.type === 'delegate') ?? null;
+  }
+
   /**
-   * Analyze all suggestions for current task
+   * On-demand "Analyze All" — for manual trigger (user clicks button).
+   * Uses the engine directly for this single task only.
+   * NOTE: Pragmatic deviation — engine retained for query-like on-demand analysis.
    */
   async function analyzeAll() {
-    if (!TaskModelAdapter.hasAIData(task)) {
+    if (!uiQueryService.hasAIData(task)) {
       showMessage('No completion history available for AI analysis. Complete this task a few times first.', 4000);
       return;
     }
-    
+
     isAnalyzing = true;
     selectedFeature = 'all';
-    
+
     try {
-      // Analyze single-task patterns
-      const taskSuggestions = await engine.analyzeTask(task as any, allTasks as any);
-      
-      // Analyze cross-task patterns
-      const crossSuggestions = await engine.analyzeCrossTaskPatterns(allTasks as any);
-      
-      currentSuggestions = [...taskSuggestions, ...crossSuggestions];
-      
-      // Categorize suggestions
-      abandonmentSuggestion = currentSuggestions.find(s => s.type === 'abandon') || null;
-      rescheduleSuggestion = currentSuggestions.find(s => s.type === 'reschedule') || null;
-      urgencySuggestion = currentSuggestions.find(s => s.type === 'urgency') || null;
-      frequencySuggestion = currentSuggestions.find(s => s.type === 'frequency') || null;
-      consolidationSuggestions = currentSuggestions.filter(s => s.type === 'consolidate');
-      delegationSuggestion = currentSuggestions.find(s => s.type === 'delegate') || null;
-      
+      const dtos = await uiQueryService.requestAIAnalysis(task, 'manual');
+      const suggestions = dtos.map(s => mapDTOToSuggestion(s, task.id));
+      categorizeSuggestions(suggestions);
     } catch (error) {
-      console.error('AI Analysis failed:', error);
+      logger.error('AI Analysis failed:', error);
       showMessage(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`, 5000, 'error');
     } finally {
       isAnalyzing = false;
     }
   }
-  
+
   /**
-   * Analyze specific feature
+   * Analyze specific feature (on-demand)
    */
   async function analyzeFeature(feature: string) {
     isAnalyzing = true;
     selectedFeature = feature;
-    
+
     try {
-      const suggestions = await engine.analyzeTask(task as any, allTasks as any);
+      const dtos = await uiQueryService.requestAIAnalysis(task, 'manual');
+      const suggestions = dtos.map(s => mapDTOToSuggestion(s, task.id));
       const featureSuggestion = suggestions.find(s => s.type === feature as any);
-      
+
       switch (feature) {
         case 'abandon':
-          abandonmentSuggestion = featureSuggestion || null;
+          abandonmentSuggestion = featureSuggestion ?? null;
           break;
         case 'reschedule':
-          rescheduleSuggestion = featureSuggestion || null;
+          rescheduleSuggestion = featureSuggestion ?? null;
           break;
         case 'urgency':
-          urgencySuggestion = featureSuggestion || null;
+          urgencySuggestion = featureSuggestion ?? null;
           break;
         case 'frequency':
-          frequencySuggestion = featureSuggestion || null;
+          frequencySuggestion = featureSuggestion ?? null;
           break;
       }
-      
+
       if (!featureSuggestion) {
         showMessage('No suggestions for this feature at this time.', 3000);
       }
     } catch (error) {
-      console.error(`${feature} analysis failed:`, error);
+      logger.error(`${feature} analysis failed:`, error);
       showMessage(`${feature} analysis failed: ${error instanceof Error ? error.message : String(error)}`, 5000, 'error');
     } finally {
       isAnalyzing = false;
     }
   }
-  
+
   /**
-   * Apply a suggestion - with null check
+   * Apply a suggestion — routes through UITaskMutationService + parent callback
    */
   function applySuggestion(suggestion: TaskSuggestion | null) {
     if (!suggestion) return;
-    
+
     // Use pending state for confirmation instead of blocking confirm()
     if (pendingApply !== suggestion) {
       pendingApply = suggestion;
       showMessage(`Click "Apply" again to confirm: ${suggestion.reason}`, 4000);
-      // Auto-clear pending state after 5 seconds
       setTimeout(() => { if (pendingApply === suggestion) pendingApply = null; }, 5000);
       return;
     }
     pendingApply = null;
-    
+
+    // Notify parent callback for local editor state update
     onApplySuggestion(suggestion);
-    
-    // Clear the applied suggestion
-    switch (suggestion.type) {
-      case 'abandon':
-        abandonmentSuggestion = null;
-        break;
-      case 'reschedule':
-        rescheduleSuggestion = null;
-        break;
-      case 'urgency':
-        urgencySuggestion = null;
-        break;
-      case 'frequency':
-        frequencySuggestion = null;
-        break;
-      case 'consolidate':
-        consolidationSuggestions = consolidationSuggestions.filter(s => s.id !== suggestion.id);
-        break;
-      case 'delegate':
-        delegationSuggestion = null;
-        break;
+
+    // Route apply through mutation service if task has an ID
+    if (suggestion.taskId && suggestion.action) {
+      uiMutationService.applySuggestion(suggestion.taskId, {
+        type: String(suggestion.action.type),
+        parameters: suggestion.action.parameters ?? {},
+      }).catch((err) => {
+        logger.error('Failed to apply suggestion via mutation service:', err);
+      });
     }
+
+    clearSuggestionFromUI(suggestion);
   }
-  
+
   /**
-   * Dismiss a suggestion - with null check
+   * Dismiss a suggestion — NO inline mutation (suggestion.dismissed = true is FORBIDDEN)
    */
   function dismissSuggestion(suggestion: TaskSuggestion | null) {
     if (!suggestion) return;
-    
-    suggestion.dismissed = true;
-    
-    // Remove from UI
+
+    // Remove from UI without mutating the original object
+    clearSuggestionFromUI(suggestion);
+  }
+
+  /** Remove a suggestion from the per-feature UI state */
+  function clearSuggestionFromUI(suggestion: TaskSuggestion) {
     switch (suggestion.type) {
       case 'abandon':
         abandonmentSuggestion = null;
@@ -206,7 +255,7 @@
     </button>
   </div>
   
-  {#if !TaskModelAdapter.hasAIData(task)}
+  {#if !uiQueryService.hasAIData(task)}
     <div class="ai-no-data">
       <p>⚠️ {$t('ai.noHistoryWarning')}</p>
     </div>

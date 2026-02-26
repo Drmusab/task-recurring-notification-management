@@ -51,8 +51,9 @@
 /**
  * Default focus outline for all interactive elements
  * Meets WCAG 2.1 contrast requirements
+ * Scoped to plugin container to avoid breaking SiYuan's own focus styles.
  */
-*:focus {
+.task-management-dock *:focus {
   outline: 2px solid var(--focus-outline-color, #4A90E2);
   outline-offset: 2px;
 }
@@ -61,11 +62,11 @@
  * Focus visible (keyboard navigation only)
  * Hides outline for mouse clicks, shows for keyboard
  */
-*:focus:not(:focus-visible) {
+.task-management-dock *:focus:not(:focus-visible) {
   outline: none;
 }
 
-*:focus-visible {
+.task-management-dock *:focus-visible {
   outline: 2px solid var(--focus-outline-color, #4A90E2);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.2);
@@ -74,8 +75,8 @@
 /**
  * Button focus states
  */
-button:focus-visible,
-[role="button"]:focus-visible {
+.task-management-dock button:focus-visible,
+.task-management-dock [role="button"]:focus-visible {
   outline: 2px solid var(--focus-outline-color, #4A90E2);
   outline-offset: 2px;
 }
@@ -83,9 +84,9 @@ button:focus-visible,
 /**
  * Input focus states with enhanced visibility
  */
-input:focus,
-textarea:focus,
-select:focus {
+.task-management-dock input:focus,
+.task-management-dock textarea:focus,
+.task-management-dock select:focus {
   outline: 2px solid var(--focus-outline-color, #4A90E2);
   outline-offset: 0;
   border-color: var(--focus-border-color, #4A90E2);
@@ -100,34 +101,34 @@ select:focus {
  * Ensures borders and text remain visible
  */
 @media (prefers-contrast: high) {
-  * {
+  .task-management-dock * {
     border-width: 1px;
     border-style: solid;
     border-color: currentColor;
   }
 
-  button,
-  [role="button"],
-  a {
+  .task-management-dock button,
+  .task-management-dock [role="button"],
+  .task-management-dock a {
     border-width: 2px;
   }
 
-  input,
-  textarea,
-  select {
+  .task-management-dock input,
+  .task-management-dock textarea,
+  .task-management-dock select {
     border-width: 2px;
     background: ButtonFace;
     color: ButtonText;
   }
 
   /* Task items with high contrast borders */
-  .task-list-item {
+  .task-management-dock .task-list-item {
     border: 2px solid currentColor !important;
   }
 
   /* Ensure focus is always visible */
-  *:focus,
-  *:focus-visible {
+  .task-management-dock *:focus,
+  .task-management-dock *:focus-visible {
     outline: 3px solid currentColor;
     outline-offset: 2px;
   }
@@ -239,9 +240,10 @@ select:focus {
 
 /**
  * Disabled state (WCAG 1.4.3 - sufficient contrast)
+ * Scoped to plugin container.
  */
-[disabled],
-[aria-disabled="true"] {
+.task-management-dock [disabled],
+.task-management-dock [aria-disabled="true"] {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -249,8 +251,8 @@ select:focus {
 /**
  * Pressed/active state for toggle buttons
  */
-[aria-pressed="true"],
-[aria-checked="true"] {
+.task-management-dock [aria-pressed="true"],
+.task-management-dock [aria-checked="true"] {
   background-color: var(--interactive-accent, #4A90E2);
   color: var(--text-on-accent, #fff);
 }
@@ -258,11 +260,11 @@ select:focus {
 /**
  * Expanded/collapsed state indicators
  */
-[aria-expanded="false"]::before {
+.task-management-dock [aria-expanded="false"]::before {
   content: "▶ ";
 }
 
-[aria-expanded="true"]::before {
+.task-management-dock [aria-expanded="true"]::before {
   content: "▼ ";
 }
 
@@ -273,12 +275,13 @@ select:focus {
 /**
  * Minimum touch target size: 44x44px
  * Ensures buttons are large enough for touch devices
+ * Scoped to plugin container to avoid breaking SiYuan's own layout.
  */
-button,
-[role="button"],
-a,
-input[type="checkbox"],
-input[type="radio"] {
+.task-management-dock button,
+.task-management-dock [role="button"],
+.task-management-dock a,
+.task-management-dock input[type="checkbox"],
+.task-management-dock input[type="radio"] {
   min-width: 44px;
   min-height: 44px;
   display: inline-flex;
@@ -287,15 +290,15 @@ input[type="radio"] {
 }
 
 /* Exception for inline text links */
-a:not([role="button"]) {
+.task-management-dock a:not([role="button"]) {
   min-width: auto;
   min-height: auto;
   display: inline;
 }
 
 /* Icon-only buttons need padding to reach 44px */
-button:empty,
-[role="button"]:empty {
+.task-management-dock button:empty,
+.task-management-dock [role="button"]:empty {
   padding: 12px;
 }
 
@@ -306,14 +309,15 @@ button:empty,
 /**
  * Support user text spacing overrides
  * Must not cause clipping or overlap
+ * Scoped to plugin container to avoid breaking SiYuan's own layout.
  */
-* {
+.task-management-dock * {
   line-height: 1.5 !important;
   letter-spacing: 0.12em !important;
   word-spacing: 0.16em !important;
 }
 
-p {
+.task-management-dock p {
   margin-bottom: 1em !important;
 }
 
@@ -410,14 +414,15 @@ p {
 
 /**
  * Loading state with aria-busy
+ * Scoped to plugin container.
  */
-[aria-busy="true"] {
+.task-management-dock [aria-busy="true"] {
   position: relative;
   pointer-events: none;
   opacity: 0.6;
 }
 
-[aria-busy="true"]::after {
+.task-management-dock [aria-busy="true"]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -431,20 +436,21 @@ p {
 
 /**
  * Text must be resizable up to 200% without loss of content
+ * Scoped to plugin container — do NOT override SiYuan root font-size.
  */
-html {
+.task-management-dock {
   font-size: 16px; /* Base font size */
 }
 
 @media (max-width: 768px) {
-  html {
+  .task-management-dock {
     font-size: 14px;
   }
 }
 
 /* Support text zoom */
 @media (min-resolution: 192dpi) {
-  html {
+  .task-management-dock {
     font-size: 18px;
   }
 }
@@ -455,28 +461,29 @@ html {
 
 /**
  * Form field error states
+ * Scoped to plugin container.
  */
-[aria-invalid="true"] {
+.task-management-dock [aria-invalid="true"] {
   border-color: #C41E3A !important;
   background-color: rgba(196, 30, 58, 0.05);
 }
 
-[aria-invalid="true"]:focus {
+.task-management-dock [aria-invalid="true"]:focus {
   outline-color: #C41E3A;
 }
 
 /**
  * Required field indicator
  */
-[aria-required="true"]::after,
-[required]::after {
+.task-management-dock [aria-required="true"]::after,
+.task-management-dock [required]::after {
   content: " *";
   color: #C41E3A;
   font-weight: bold;
 }
 
 /* Error message styling */
-[role="alert"].field-error {
+.task-management-dock [role="alert"].field-error {
   color: #C41E3A;
   font-size: 0.875em;
   margin-top: 4px;

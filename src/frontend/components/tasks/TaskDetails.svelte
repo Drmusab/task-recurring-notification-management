@@ -72,8 +72,9 @@
   $: startDateScreenReader = task.startDate ? formatDateForScreenReader(task.startDate) : '';
   $: completedDateScreenReader = task.completedDate ? formatDateForScreenReader(task.completedDate) : '';
   
-  // Check if overdue
-  $: isOverdue = task.dueDate && !task.completed && new Date(task.dueDate) < new Date();
+  // Overdue flag: read directly from DTO (pre-computed by UIQueryService)
+  // NEVER compute overdue from dates locally — that is domain logic.
+  $: isOverdue = (task as any).isOverdue ?? false;
   
   // Calculate completion percentage for subtasks
   $: completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;

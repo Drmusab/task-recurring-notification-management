@@ -258,6 +258,22 @@ export class TaskIndexManager {
   }
 
   /**
+   * Get the earliest due date present in the index.
+   * Returns undefined if the index is empty.
+   * Used to avoid scanning from epoch in range queries.
+   */
+  getEarliestDueDate(): Date | undefined {
+    if (this.dueDateIndex.size === 0) return undefined;
+    let earliest: string | undefined;
+    for (const dateKey of this.dueDateIndex.keys()) {
+      if (!earliest || dateKey < earliest) {
+        earliest = dateKey;
+      }
+    }
+    return earliest ? new Date(earliest) : undefined;
+  }
+
+  /**
    * Query tasks by date range
    * 
    * @param startDate - Start date (inclusive)

@@ -11,21 +11,22 @@
    */
 
   import { onMount } from "svelte";
-  import { SavedQueryStore, type SavedQuery, type SavedQueryFolder } from "@backend/core/query/SavedQueryStore";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import type { SavedQueryDTO, SavedQueryFolderDTO, SavedQueryStatsDTO } from "../../services/DTOs";
 
   // Props
-  export let onQuerySelected: (query: SavedQuery) => void;
+  export let onQuerySelected: (query: SavedQueryDTO) => void;
   export let currentQueryString = "";
 
   // State
-  let savedQueries: SavedQuery[] = [];
-  let folders: SavedQueryFolder[] = [];
+  let savedQueries: SavedQueryDTO[] = [];
+  let folders: SavedQueryFolderDTO[] = [];
   let isOpen = false;
   let showSaveDialog = false;
   let showEditDialog = false;
   let searchTerm = "";
   let selectedFolder: string | null = null;
-  let selectedQuery: SavedQuery | null = null;
+  let selectedQuery: SavedQueryDTO | null = null;
 
   // Save/Edit dialog fields
   let queryName = "";
@@ -61,20 +62,21 @@
     });
 
   // Stats
-  $: stats = SavedQueryStore.getStats();
+  let stats: SavedQueryStatsDTO = { totalQueries: 0, totalFolders: 0, totalUses: 0, averageUsesPerQuery: 0, oldestQuery: null, newestQuery: null };
+  $: { uiQueryService.selectSavedQueryStats().then(s => stats = s); }
 
   onMount(() => {
     loadQueries();
   });
 
-  function loadQueries() {
-    savedQueries = SavedQueryStore.load();
-    folders = SavedQueryStore.getFolders();
+  async function loadQueries() {
+    savedQueries = await uiQueryService.selectSavedQueries();
+    folders = await uiQueryService.selectSavedQueryFolders();
   }
 
-  function handleSelectQuery(query: SavedQuery) {
+  async function handleSelectQuery(query: SavedQueryDTO) {
     // Update use tracking
-    SavedQueryStore.update(query.id, {
+    await uiQueryService.updateSavedQuery(query.id, {
       useCount: (query.useCount || 0) + 1,
       lastUsedAt: new Date().toISOString()
     });
@@ -96,13 +98,13 @@
     pinQuery = false;
   }
 
-  function confirmSaveQuery() {
+  async function confirmSaveQuery() {
     if (!queryName.trim()) {
       alert("Query name is required.");
       return;
     }
 
-    const newQuery: SavedQuery = {
+    const newQuery: SavedQueryDTO = {
       id: crypto.randomUUID(),
       name: queryName.trim(),
       queryString: currentQueryString,
@@ -115,12 +117,12 @@
       pinned: pinQuery
     };
 
-    SavedQueryStore.save(newQuery);
+    await uiQueryService.saveSavedQuery(newQuery);
     loadQueries();
     showSaveDialog = false;
   }
 
-  function handleEditQuery(query: SavedQuery) {
+  function handleEditQuery(query: SavedQueryDTO) {
     selectedQuery = query;
     queryName = query.name;
     queryDescription = query.description || "";
@@ -130,10 +132,10 @@
     showEditDialog = true;
   }
 
-  function confirmEditQuery() {
+  async function confirmEditQuery() {
     if (!selectedQuery || !queryName.trim()) return;
 
-    SavedQueryStore.update(selectedQuery.id, {
+    await uiQueryService.updateSavedQuery(selectedQuery.id, {
       name: queryName.trim(),
       description: queryDescription.trim() || undefined,
       tags: queryTags ? queryTags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
@@ -147,24 +149,24 @@
     selectedQuery = null;
   }
 
-  function handleDeleteQuery(queryId: string, event: Event) {
+  async function handleDeleteQuery(queryId: string, event: Event) {
     event.stopPropagation();
     if (confirm("Are you sure you want to delete this saved query?")) {
-      SavedQueryStore.delete(queryId);
+      await uiQueryService.deleteSavedQuery(queryId);
       loadQueries();
     }
   }
 
-  function handleTogglePin(query: SavedQuery, event: Event) {
+  async function handleTogglePin(query: SavedQueryDTO, event: Event) {
     event.stopPropagation();
-    SavedQueryStore.update(query.id, {
+    await uiQueryService.updateSavedQuery(query.id, {
       pinned: !query.pinned
     });
     loadQueries();
   }
 
-  function handleExportQueries() {
-    const json = SavedQueryStore.export();
+  async function handleExportQueries() {
+    const json = await uiQueryService.exportSavedQueries();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -180,8 +182,8 @@
     if (!file) return;
 
     const text = await file.text();
-    const count = SavedQueryStore.import(text, false);
-    alert(`Imported ${count} queries successfully!`);
+    const result = await uiQueryService.importSavedQueries(text, false);
+    alert(`Imported ${result.imported} queries successfully!`);
     loadQueries();
     input.value = ''; // Reset input
   }

@@ -1,234 +1,111 @@
 /**
- * Smart Suggestion Engine - AI-driven task recommendations
+ * Smart Suggestion Engine — Event-driven AI task analysis.
+ *
+ * This engine is STATELESS and PURE:
+ *   - analyzeTask(task, trigger) → AISuggestion[]   (single-task, O(1) per event)
+ *   - No constructor side-effects, no polling, no scanning all tasks
+ *   - Called ONLY by AIOrchestrator in response to PluginEventBus events
+ *
+ * Trigger map:
+ *   task:complete    → abandonment, reschedule, urgency, frequency
+ *   task:reschedule  → reschedule, urgency
+ *   task:skip        → abandonment, urgency
+ *   task:missed      → abandonment, urgency
+ *   task:overdue     → urgency
  */
 
-import type { Task } from '@backend/core/models/Task';
+import type { Task } from "@backend/core/models/Task";
+import type {
+  AISuggestion,
+  SuggestionType,
+  SuggestionAction,
+} from "@backend/core/ai/types/SuggestionTypes";
 
-export type SuggestionType = 'reschedule' | 'urgency' | 'consolidate' | 'delegate' | 'frequency' | 'abandon';
+// Re-export types for backward compatibility with existing imports
+export type { AISuggestion as TaskSuggestion, SuggestionType, SuggestionAction };
 
-export interface TaskSuggestion {
-  id: string;
-  taskId: string;
-  type: SuggestionType;
-  confidence: number; // 0-1 score
-  reason: string;
-  action: SuggestionAction;
-  createdAt: string;
-  dismissed: boolean;
-}
-
-export interface SuggestionAction {
-  type: string;
-  parameters: Record<string, any>;
-}
-
-/**
- * Smart Suggestion Engine analyzes task patterns and generates recommendations
- */
 export class SmartSuggestionEngine {
+  // ─── Single-Task Analysis (event-driven) ──────────────────
+
   /**
-   * Analyze single task patterns and generate suggestions
+   * Analyze a single task in response to a lifecycle event.
+   * Returns only the suggestions relevant to the trigger.
+   *
+   * @param task – the task that triggered the event
+   * @param trigger – which event caused this analysis (default: 'manual')
    */
-  async analyzeTask(task: Task, allTasks: Task[]): Promise<TaskSuggestion[]> {
-    const suggestions: TaskSuggestion[] = [];
+  analyzeTask(
+    task: Task,
+    trigger: string = "manual"
+  ): AISuggestion[] {
+    const suggestions: AISuggestion[] = [];
 
-    // Check for abandonment candidate
-    if (this.detectAbandonmentCandidate(task)) {
-      suggestions.push({
-        id: `${task.id}-abandon-${Date.now()}`,
-        taskId: task.id,
-        type: 'abandon',
-        confidence: 0.85,
-        reason: `This task has never been completed in ${task.missCount || 0} occurrences. Consider removing it.`,
-        action: {
-          type: 'disable',
-          parameters: { taskId: task.id }
-        },
-        createdAt: new Date().toISOString(),
-        dismissed: false
-      });
-    }
+    switch (trigger) {
+      case "task:complete":
+        this.checkAbandonment(task, trigger, suggestions);
+        this.checkReschedule(task, trigger, suggestions);
+        this.checkUrgency(task, trigger, suggestions);
+        this.checkFrequency(task, trigger, suggestions);
+        break;
 
-    // Check for reschedule opportunity
-    const bestTime = this.predictBestTime(task);
-    if (bestTime.confidence > 0.7) {
-      const currentHour = task.dueAt ? new Date(task.dueAt).getHours() : 0;
-      if (Math.abs(currentHour - bestTime.hour) >= 2) {
-        suggestions.push({
-          id: `${task.id}-reschedule-${Date.now()}`,
-          taskId: task.id,
-          type: 'reschedule',
-          confidence: bestTime.confidence,
-          reason: `You usually complete this task around ${this.formatHour(bestTime.hour)}. Consider moving it from ${this.formatHour(currentHour)}.`,
-          action: {
-            type: 'updateTime',
-            parameters: { hour: bestTime.hour, taskId: task.id }
-          },
-          createdAt: new Date().toISOString(),
-          dismissed: false
-        });
-      }
-    }
+      case "task:reschedule":
+        this.checkReschedule(task, trigger, suggestions);
+        this.checkUrgency(task, trigger, suggestions);
+        break;
 
-    // Check for urgency alerts
-    if ((task.missCount || 0) >= 3 && task.priority !== 'high') {
-      suggestions.push({
-        id: `${task.id}-urgency-${Date.now()}`,
-        taskId: task.id,
-        type: 'urgency',
-        confidence: 0.9,
-        reason: `This recurring task has missed ${task.missCount} occurrences. Consider marking as high priority.`,
-        action: {
-          type: 'setPriority',
-          parameters: { priority: 'high', taskId: task.id }
-        },
-        createdAt: new Date().toISOString(),
-        dismissed: false
-      });
-    }
+      case "task:skip":
+      case "task:missed":
+        this.checkAbandonment(task, trigger, suggestions);
+        this.checkUrgency(task, trigger, suggestions);
+        break;
 
-    // Check for frequency optimization
-    const completionRate = this.calculateCompletionRate(task);
-    if (completionRate > 1.5 && task.frequency?.type !== 'custom') {
-      suggestions.push({
-        id: `${task.id}-frequency-${Date.now()}`,
-        taskId: task.id,
-        type: 'frequency',
-        confidence: 0.75,
-        reason: `You complete this ${task.frequency?.type ?? 'recurring'} task ${completionRate.toFixed(1)}x more often than scheduled. Consider increasing frequency.`,
-        action: {
-          type: 'adjustFrequency',
-          parameters: { multiplier: Math.floor(completionRate), taskId: task.id }
-        },
-        createdAt: new Date().toISOString(),
-        dismissed: false
-      });
+      case "task:overdue":
+        this.checkUrgency(task, trigger, suggestions);
+        break;
+
+      default:
+        // 'manual' or unknown trigger — run all checks
+        this.checkAbandonment(task, trigger, suggestions);
+        this.checkReschedule(task, trigger, suggestions);
+        this.checkUrgency(task, trigger, suggestions);
+        this.checkFrequency(task, trigger, suggestions);
+        break;
     }
 
     return suggestions;
   }
 
   /**
-   * Analyze cross-task patterns for consolidation and delegation
-   */
-  async analyzeCrossTaskPatterns(tasks: Task[]): Promise<TaskSuggestion[]> {
-    const suggestions: TaskSuggestion[] = [];
-
-    // Find similar tasks for consolidation
-    for (const task of tasks) {
-      const similarTasks = this.findSimilarTasks(task, tasks);
-      if (similarTasks.length >= 2) {
-        // Check if they're on the same day
-        const sameDayTasks = similarTasks.filter(t => {
-          const taskDate = new Date(task.dueAt).toDateString();
-          const otherDate = new Date(t.dueAt).toDateString();
-          return taskDate === otherDate;
-        });
-
-        if (sameDayTasks.length >= 2) {
-          suggestions.push({
-            id: `${task.id}-consolidate-${Date.now()}`,
-            taskId: task.id,
-            type: 'consolidate',
-            confidence: 0.65,
-            reason: `You have ${sameDayTasks.length + 1} similar tasks on the same day. Consider combining them.`,
-            action: {
-              type: 'consolidateTasks',
-              parameters: {
-                taskIds: [task.id, ...sameDayTasks.map(t => t.id)]
-              }
-            },
-            createdAt: new Date().toISOString(),
-            dismissed: false
-          });
-        }
-      }
-    }
-
-    // Detect delegation opportunities based on tags
-    const tagDelayMap = new Map<string, number[]>();
-    for (const task of tasks) {
-      if (task.tags && task.completionTimes && task.completionContexts) {
-        for (const tag of task.tags) {
-          if (!tagDelayMap.has(tag)) {
-            tagDelayMap.set(tag, []);
-          }
-          const delays = task.completionContexts
-            .filter(c => c.delayMinutes !== undefined)
-            .map(c => c.delayMinutes!);
-          tagDelayMap.get(tag)!.push(...delays);
-        }
-      }
-    }
-
-    // Check for consistently delayed tags
-    for (const [tag, delays] of tagDelayMap.entries()) {
-      if (delays.length >= 5) {
-        const avgDelay = delays.reduce((a, b) => a + b, 0) / delays.length;
-        if (avgDelay > 60) { // More than 1 hour average delay
-          const affectedTasks = tasks.filter(t => t.tags?.includes(tag));
-          for (const task of affectedTasks) {
-            suggestions.push({
-              id: `${task.id}-delegate-${Date.now()}`,
-              taskId: task.id,
-              type: 'delegate',
-              confidence: 0.7,
-              reason: `Tasks with tag #${tag} are often delayed by ${Math.round(avgDelay / 60)} hours. Consider delegating.`,
-              action: {
-                type: 'suggestDelegation',
-                parameters: { tag, taskId: task.id }
-              },
-              createdAt: new Date().toISOString(),
-              dismissed: false
-            });
-          }
-          break; // Only suggest once per tag
-        }
-      }
-    }
-
-    return suggestions;
-  }
-
-  /**
-   * Calculate optimal time based on completion history
+   * Predict the optimal time for a task based on completion history.
+   * Public so the UI can display the prediction.
    */
   predictBestTime(task: Task): { hour: number; dayOfWeek: number; confidence: number } {
     if (!task.completionContexts || task.completionContexts.length < 3) {
       return { hour: 9, dayOfWeek: 1, confidence: 0 };
     }
 
-    // Count completions by hour
     const hourCounts = new Map<number, number>();
-    for (const context of task.completionContexts) {
-      if (!context.wasOverdue) {
-        const count = hourCounts.get(context.hourOfDay) || 0;
-        hourCounts.set(context.hourOfDay, count + 1);
+    const dayOfWeekCounts = new Map<number, number>();
+
+    for (const ctx of task.completionContexts) {
+      if (!ctx.wasOverdue) {
+        hourCounts.set(ctx.hourOfDay, (hourCounts.get(ctx.hourOfDay) ?? 0) + 1);
+        dayOfWeekCounts.set(ctx.dayOfWeek, (dayOfWeekCounts.get(ctx.dayOfWeek) ?? 0) + 1);
       }
     }
 
-    // Find most common hour
     let bestHour = 9;
     let maxCount = 0;
-    for (const [hour, count] of hourCounts.entries()) {
+    for (const [hour, count] of hourCounts) {
       if (count > maxCount) {
         maxCount = count;
         bestHour = hour;
       }
     }
 
-    // Count completions by day of week
-    const dayOfWeekCounts = new Map<number, number>();
-    for (const context of task.completionContexts) {
-      if (!context.wasOverdue) {
-        const count = dayOfWeekCounts.get(context.dayOfWeek) || 0;
-        dayOfWeekCounts.set(context.dayOfWeek, count + 1);
-      }
-    }
-
     let bestDayOfWeek = 1;
     let maxDayCount = 0;
-    for (const [day, count] of dayOfWeekCounts.entries()) {
+    for (const [day, count] of dayOfWeekCounts) {
       if (count > maxDayCount) {
         maxDayCount = count;
         bestDayOfWeek = day;
@@ -236,133 +113,177 @@ export class SmartSuggestionEngine {
     }
 
     const confidence = Math.min(maxCount / task.completionContexts.length, 1);
-    
-    return {
-      hour: bestHour,
-      dayOfWeek: bestDayOfWeek,
-      confidence
-    };
+    return { hour: bestHour, dayOfWeek: bestDayOfWeek, confidence };
   }
 
   /**
-   * Detect if task should be abandoned (never completed)
+   * Detect if a task is an abandonment candidate.
+   * Public so tests can call it directly.
    */
   detectAbandonmentCandidate(task: Task): boolean {
-    const missCount = task.missCount || 0;
-    const completionCount = task.completionCount || 0;
-    
-    // Task has been missed at least 5 times and never completed
-    if (missCount >= 5 && completionCount === 0) {
-      return true;
-    }
+    const missCount = task.missCount ?? 0;
+    const completionCount = task.completionCount ?? 0;
 
-    // Task has very low completion rate (less than 10%)
+    if (missCount >= 5 && completionCount === 0) return true;
     if (missCount + completionCount >= 10) {
-      const completionRate = completionCount / (missCount + completionCount);
-      if (completionRate < 0.1) {
-        return true;
-      }
+      return completionCount / (missCount + completionCount) < 0.1;
     }
-
     return false;
   }
 
   /**
-   * Find similar tasks for consolidation
+   * Find tasks similar to the given task (name/tag/category overlap).
+   * Used by AIOrchestrator for limited cross-task checks.
    */
   findSimilarTasks(task: Task, allTasks: Task[]): Task[] {
     const similar: Task[] = [];
-
     for (const other of allTasks) {
       if (other.id === task.id) continue;
-
-      // Check name similarity (simple word overlap)
-      const similarity = this.calculateNameSimilarity(task.name, other.name);
-      if (similarity > 0.5) {
+      if (this.calculateNameSimilarity(task.name, other.name) > 0.5) {
         similar.push(other);
         continue;
       }
-
-      // Check tag overlap
       if (task.tags && other.tags) {
-        const commonTags = task.tags.filter(t => other.tags!.includes(t));
+        const commonTags = task.tags.filter((t) => other.tags!.includes(t));
         if (commonTags.length >= 2) {
           similar.push(other);
           continue;
         }
       }
-
-      // Check category match
       if (task.category && task.category === other.category) {
-        const nameSim = this.calculateNameSimilarity(task.name, other.name);
-        if (nameSim > 0.3) {
+        if (this.calculateNameSimilarity(task.name, other.name) > 0.3) {
           similar.push(other);
         }
       }
     }
-
     return similar;
   }
 
-  /**
-   * Calculate completion rate (completions per scheduled occurrence)
-   */
+  // ─── Individual checks ────────────────────────────────────
+
+  private checkAbandonment(
+    task: Task,
+    trigger: string,
+    out: AISuggestion[]
+  ): void {
+    if (!this.detectAbandonmentCandidate(task)) return;
+    out.push(
+      this.makeSuggestion(task, "abandon", 0.85, trigger, {
+        reason: `This task has never been completed in ${task.missCount ?? 0} occurrences. Consider removing it.`,
+        action: { type: "disable", parameters: { taskId: task.id } },
+      })
+    );
+  }
+
+  private checkReschedule(
+    task: Task,
+    trigger: string,
+    out: AISuggestion[]
+  ): void {
+    const best = this.predictBestTime(task);
+    if (best.confidence <= 0.7) return;
+    const currentHour = task.dueAt ? new Date(task.dueAt).getHours() : 0;
+    if (Math.abs(currentHour - best.hour) < 2) return;
+
+    out.push(
+      this.makeSuggestion(task, "reschedule", best.confidence, trigger, {
+        reason: `You usually complete this task around ${this.formatHour(best.hour)}. Consider moving it from ${this.formatHour(currentHour)}.`,
+        action: { type: "updateTime", parameters: { hour: best.hour, taskId: task.id } },
+      })
+    );
+  }
+
+  private checkUrgency(
+    task: Task,
+    trigger: string,
+    out: AISuggestion[]
+  ): void {
+    if ((task.missCount ?? 0) < 3 || task.priority === "high") return;
+    out.push(
+      this.makeSuggestion(task, "urgency", 0.9, trigger, {
+        reason: `This recurring task has missed ${task.missCount} occurrences. Consider marking as high priority.`,
+        action: { type: "setPriority", parameters: { priority: "high", taskId: task.id } },
+      })
+    );
+  }
+
+  private checkFrequency(
+    task: Task,
+    trigger: string,
+    out: AISuggestion[]
+  ): void {
+    const rate = this.calculateCompletionRate(task);
+    if (rate <= 1.5 || task.frequency?.type === "custom") return;
+    out.push(
+      this.makeSuggestion(task, "frequency", 0.75, trigger, {
+        reason: `You complete this ${task.frequency?.type ?? "recurring"} task ${rate.toFixed(1)}x more often than scheduled. Consider increasing frequency.`,
+        action: { type: "adjustFrequency", parameters: { multiplier: Math.floor(rate), taskId: task.id } },
+      })
+    );
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────
+
+  private makeSuggestion(
+    task: Task,
+    type: SuggestionType,
+    confidence: number,
+    trigger: string,
+    extra: { reason: string; action: SuggestionAction }
+  ): AISuggestion {
+    return {
+      id: `${task.id}-${type}-${Date.now()}`,
+      taskId: task.id,
+      type,
+      confidence,
+      reason: extra.reason,
+      action: extra.action,
+      createdAt: new Date().toISOString(),
+      dismissed: false,
+      applied: false,
+      triggeredBy: trigger,
+    };
+  }
+
   private calculateCompletionRate(task: Task): number {
-    const completionCount = task.completionCount || 0;
-    const missCount = task.missCount || 0;
-    const totalOccurrences = completionCount + missCount;
+    const completionCount = task.completionCount ?? 0;
+    const missCount = task.missCount ?? 0;
+    const total = completionCount + missCount;
+    if (total === 0) return 1;
 
-    if (totalOccurrences === 0) return 1;
-
-    // Calculate how many times task was completed vs expected
-    if (task.frequency?.type === 'daily') {
-      // For daily tasks, check if completing more than once per day on average
-      const recentCompletions = task.recentCompletions || [];
-      if (recentCompletions.length < 2) return 1;
-
-      // Calculate average days between completions
-      const dates = recentCompletions.map(c => new Date(c).getTime()).sort((a, b) => a - b);
+    if (task.frequency?.type === "daily") {
+      const recent = task.recentCompletions ?? [];
+      if (recent.length < 2) return 1;
+      const dates = recent
+        .map((c) => new Date(c).getTime())
+        .sort((a, b) => a - b);
       const intervals: number[] = [];
       for (let i = 1; i < dates.length; i++) {
-        intervals.push((dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24));
+        const curr = dates[i]!;
+        const prev = dates[i - 1]!;
+        intervals.push((curr - prev) / (1000 * 60 * 60 * 24));
       }
-
       if (intervals.length === 0) return 1;
-      const avgDaysBetween = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      return 1 / avgDaysBetween; // If completing every 0.5 days, rate is 2
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      return 1 / avg;
     }
 
-    return completionCount / totalOccurrences;
+    return completionCount / total;
   }
 
-  /**
-   * Calculate name similarity using simple word overlap
-   */
   private calculateNameSimilarity(name1: string, name2: string): number {
-    const words1 = name1.toLowerCase().split(/\s+/);
-    const words2 = name2.toLowerCase().split(/\s+/);
-
-    const set1 = new Set(words1);
-    const set2 = new Set(words2);
-
+    const set1 = new Set(name1.toLowerCase().split(/\s+/));
+    const set2 = new Set(name2.toLowerCase().split(/\s+/));
     let overlap = 0;
     for (const word of set1) {
-      if (set2.has(word) && word.length > 3) { // Only count significant words
-        overlap++;
-      }
+      if (set2.has(word) && word.length > 3) overlap++;
     }
-
     const maxSize = Math.max(set1.size, set2.size);
-    if (maxSize === 0) return 0;
-
-    return overlap / maxSize;
+    return maxSize === 0 ? 0 : overlap / maxSize;
   }
 
-  /**
-   * Format hour for display
-   */
   private formatHour(hour: number): string {
-    const period = hour >= 12 ? 'PM' : 'AM';
+    const period = hour >= 12 ? "PM" : "AM";
     const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     return `${displayHour}${period}`;
   }

@@ -188,3 +188,12 @@ export function getShortcutDefinition(id: ShortcutId): ShortcutDefinition | unde
 export function getAllShortcutDefinitions(): ShortcutDefinition[] {
   return SHORTCUT_DEFINITIONS;
 }
+
+/**
+ * Interface for keyboard shortcut manager instances.
+ * Used by KeyboardShortcutsHelp and KeyboardShortcutsDialog components.
+ */
+export interface KeyboardShortcutManager {
+  getAllShortcuts(): Array<{ id: string; shortcut: ShortcutDefinition }>;
+  formatShortcut(shortcut: ShortcutDefinition): string;
+}

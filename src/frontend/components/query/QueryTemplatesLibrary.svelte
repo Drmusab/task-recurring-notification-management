@@ -14,10 +14,11 @@
    * @module QueryTemplatesLibrary
    */
 
-  import { SavedQueryStore, type SavedQuery } from "@backend/core/query/SavedQueryStore";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import type { SavedQueryDTO } from "../../services/DTOs";
 
   // Props
-  export let onTemplateSelect: (query: SavedQuery) => void = () => {};
+  export let onTemplateSelect: (query: SavedQueryDTO) => void = () => {};
   export let onTemplateApply: (queryString: string) => void = () => {};
 
   // Template categories
@@ -182,9 +183,9 @@
     onTemplateApply(template.queryString);
   }
 
-  function handleSaveAsQuery(template: QueryTemplate) {
-    const newQuery: SavedQuery = {
-      id: SavedQueryStore.generateId(),
+  async function handleSaveAsQuery(template: QueryTemplate) {
+    const newQuery: SavedQueryDTO = {
+      id: `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: template.name,
       description: template.description,
       queryString: template.queryString,
@@ -194,7 +195,7 @@
       useCount: 0,
     };
 
-    SavedQueryStore.save(newQuery);
+    await uiQueryService.saveSavedQuery(newQuery);
     onTemplateSelect(newQuery);
   }
 

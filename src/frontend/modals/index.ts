@@ -2,4 +2,9 @@
  * Modals module exports
  */
 export { TaskModal } from "@frontend/modals/TaskModal";
-export { OptionsModal, type OptionsModalParams } from "@frontend/modals/OptionsModal";
+export {
+  openOptionsModal,
+  initOptionsStorage,
+  type OptionsModalParams,
+  type EditorFieldVisibility,
+} from "@frontend/modals/OptionsModal";

@@ -1,73 +1,61 @@
-<script lang="ts">
+﻿<script lang="ts">
   /**
-   * TasksView Component - Extracted from Dashboard
-   * Handles task listing, creation, editing, and deletion
+   * TasksView Component - Session 27 Refactored (Runtime Projection Layer)
+   *
+   * BEFORE (violations):
+   *   Local formatDueDate() date computation
+   *   Local getTaskStatus() duplicating DTO flags
+   *   Direct uiQueryService.selectDashboard() call
+   *   No recurring instance filtering
+   *   Shows completed recurring parent templates
+   *
+   * AFTER (clean):
+   *   Dashboard.store as data source (recurring-instance-filtered)
+   *   task.lifecycleState / task.isOverdue for status display
+   *   Mutations via uiMutationService only
+   *   Event refresh via dashboardStore (not separate subscription)
+   *   Blocked tasks shown with dependency indicator
    */
-  import type { Task } from "@backend/core/models/Task";
-  import type { TaskStorage } from "@backend/core/storage/TaskStorage";
-  import type { TaskCreationService } from "@backend/core/services/TaskCreationService";
-  import type { AutoMigrationService } from "@backend/core/services/AutoMigrationService";
-  import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
+  import type { TaskDTO } from "../../../services/DTOs";
+  import { uiMutationService } from "../../../services/UITaskMutationService";
+  import {
+    dashboardStore,
+    dashboardTasks,
+    dashboardLoading,
+  } from "@stores/Dashboard.store";
+  import * as logger from "@shared/logging/logger";
+  import { onMount } from "svelte";
 
-  // Props
-  export let taskStorage: TaskStorage;
-  export let taskCreationService: TaskCreationService;
-  export let autoMigrationService: AutoMigrationService;
-  export let eventBus: PluginEventBus;
+  // Props - NO backend types
   export let tabPanelId: string;
   export let tasksTabId: string;
 
-  // State
-  let tasks: Task[] = [];
-  let isLoading = true;
-  let editingTask: Task | null = null;
+  // State - driven by Dashboard.store
+  $: tasks = $dashboardTasks.filter(
+    (t) => t.status !== "done" && t.status !== "cancelled"
+  ) as TaskDTO[];
+  $: isLoading = $dashboardLoading;
+
+  let editingTask: TaskDTO | null = null;
   let isCreating = false;
 
   // Form state
   let editName = "";
   let editDueAt = "";
   let editDescription = "";
-  let validationError = ""; // Validation error for form
-
-  // Abort controller for cancellable operations
-  let loadTasksAbortController: AbortController | null = null;
+  let validationError = "";
 
   // Status announcements for screen readers
   let statusMessage = "";
 
-  async function loadTasks() {
-    // Cancel previous request
-    if (loadTasksAbortController) {
-      loadTasksAbortController.abort();
+  onMount(() => {
+    // Dashboard.store is already connected and refreshing.
+    // If somehow empty, trigger a refresh.
+    if (dashboardStore.getState().lastUpdated === 0) {
+      dashboardStore.refresh();
     }
-
-    loadTasksAbortController = new AbortController();
-    const { signal } = loadTasksAbortController;
-
-    isLoading = true;
-    statusMessage = "Loading tasks...";
-    
-    try {
-      const loadedTasks = await taskStorage.loadActive(signal);
-
-      // Only update state if not aborted
-      if (!signal.aborted) {
-        tasks = Array.from(loadedTasks.values());
-        statusMessage = `Loaded ${tasks.length} task${tasks.length !== 1 ? 's' : ''}`;
-      }
-    } catch (error: any) {
-      // Ignore abort errors
-      if (error.name !== 'AbortError' && !signal.aborted) {
-        console.error("[TasksView] Failed to load tasks:", error);
-        statusMessage = "Error loading tasks";
-      }
-    } finally {
-      if (!signal.aborted) {
-        isLoading = false;
-      }
-      loadTasksAbortController = null;
-    }
-  }
+    statusMessage = `Loaded ${tasks.length} task${tasks.length !== 1 ? 's' : ''}`;
+  });
 
   function handleCreateTask() {
     isCreating = true;
@@ -79,7 +67,7 @@
     statusMessage = "Creating new task";
   }
 
-  function handleEditTask(task: Task) {
+  function handleEditTask(task: TaskDTO) {
     editingTask = task;
     isCreating = false;
     editName = task.name;
@@ -90,50 +78,44 @@
   }
 
   async function handleSaveTask() {
-    // Validate task name
     if (!editName.trim()) {
       validationError = "Task name is required";
       statusMessage = "Validation error: Task name cannot be empty";
       return;
     }
-    
-    validationError = ""; // Clear any previous errors
-    
+
+    validationError = "";
+
     try {
       if (isCreating) {
-        // Create a new task
-        const newTask = taskCreationService.createTask({
+        const result = await uiMutationService.createTask({
           name: editName,
-          dueAt: editDueAt ? new Date(editDueAt) : new Date(),
-          frequency: { type: "daily", interval: 1 },
+          dueAt: editDueAt ? new Date(editDueAt).toISOString() : new Date().toISOString(),
+          enabled: true,
+        });
+        if (result.success) {
+          statusMessage = `Created task: ${editName}`;
+        } else {
+          statusMessage = `Failed to create task: ${result.error}`;
+        }
+      } else if (editingTask) {
+        const result = await uiMutationService.updateTask(editingTask.id, {
+          name: editName,
+          dueAt: editDueAt ? new Date(editDueAt).toISOString() : undefined,
           description: editDescription || undefined,
         });
-        await taskStorage.saveTask(newTask);
-        eventBus.emit("task:saved", { task: newTask, isNew: true });
-        statusMessage = `Created task: ${editName}`;
-      } else if (editingTask) {
-        let updatedTask: Task = {
-          ...editingTask,
-          name: editName,
-          dueAt: editDueAt ? new Date(editDueAt).toISOString() : editingTask.dueAt,
-          description: editDescription || undefined,
-        };
-        
-        // Auto-migrate task if needed
-        if (autoMigrationService.shouldAutoMigrate(updatedTask as any)) {
-          const migrationResult = autoMigrationService.migrateOnEdit(updatedTask as any);
-          if (migrationResult.migrated && migrationResult.migratedTask) {
-            updatedTask = migrationResult.migratedTask as any;
-            console.log('[TasksView] Task auto-migrated to RRule:', updatedTask.id);
-          }
+        if (result.success) {
+          statusMessage = `Saved task: ${editName}`;
+        } else {
+          statusMessage = `Failed to save task: ${result.error}`;
         }
-        
-        await taskStorage.saveTask(updatedTask);
-        eventBus.emit("task:saved", { task: updatedTask, isNew: false });
-        statusMessage = `Saved task: ${editName}`;
       }
+
+      // Dashboard.store will refresh automatically via event subscription
+      editingTask = null;
+      isCreating = false;
     } catch (error) {
-      console.error("[TasksView] Failed to save task:", error);
+      logger.error("[TasksView] Failed to save task:", error);
       statusMessage = "Error saving task";
     }
   }
@@ -141,23 +123,30 @@
   async function handleDeleteTask(taskId: string) {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    
+
     try {
-      await taskStorage.deleteTask(taskId);
-      tasks = tasks.filter((t: Task) => t.id !== taskId);
-      statusMessage = `Deleted task: ${task.name}`;
+      const result = await uiMutationService.deleteTask(taskId);
+      if (result.success) {
+        statusMessage = `Deleted task: ${task.name}`;
+      } else {
+        statusMessage = `Failed to delete task: ${result.error}`;
+      }
     } catch (error) {
-      console.error("[TasksView] Failed to delete task:", error);
+      logger.error("[TasksView] Failed to delete task:", error);
       statusMessage = "Error deleting task";
     }
   }
 
   async function handleCompleteTask(taskId: string) {
     const task = tasks.find(t => t.id === taskId);
-    eventBus.emit("task:complete", { taskId });
-    await loadTasks();
-    if (task) {
-      statusMessage = `Completed task: ${task.name}`;
+
+    try {
+      await uiMutationService.completeTask(taskId);
+      if (task) {
+        statusMessage = `Completed task: ${task.name}`;
+      }
+    } catch (error) {
+      logger.error("[TasksView] Failed to complete task:", error);
     }
   }
 
@@ -171,79 +160,42 @@
     statusMessage = "Cancelled editing";
   }
 
-  function formatDueDate(dueAt: string): string {
-    const date = new Date(dueAt);
+  /**
+   * Format due date display using DTO flags.
+   * Uses task.isOverdue and task.lifecycleState instead of manual date computation.
+   */
+  function formatDueDisplay(task: TaskDTO): string {
+    if (!task.dueAt) return "";
+    const date = new Date(task.dueAt);
     const now = new Date();
-    const diff = date.getTime() - now.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const diffMs = date.getTime() - now.getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (days < 0) return `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''}`;
+    // Use DTO isOverdue flag as source of truth
+    if (task.isOverdue) return `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''}`;
     if (days === 0) return "Due today";
     if (days === 1) return "Due tomorrow";
     if (days < 7) return `Due in ${days} days`;
     return date.toLocaleDateString();
   }
 
-  function getTaskStatus(task: Task): string {
-    const date = new Date(task.dueAt);
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days < 0) return "overdue";
-    if (days === 0) return "today";
-    return "upcoming";
+  /**
+   * Get CSS class for task card based on DTO lifecycleState.
+   * No local status recomputation.
+   */
+  function getStatusClass(task: TaskDTO): string {
+    switch (task.lifecycleState) {
+      case "overdue": return "overdue";
+      case "due": return "today";
+      case "blocked": return "blocked";
+      default: return "";
+    }
   }
-
-  // Event subscriptions
-  let unsubscribeRefresh: (() => void) | null = null;
-  let unsubscribeSaved: (() => void) | null = null;
-  let unsubscribeEdit: (() => void) | null = null;
-
-  // Lifecycle
-  import { onMount, onDestroy } from "svelte";
-
-  onMount(async () => {
-    await loadTasks();
-
-    // Subscribe to events
-    unsubscribeRefresh = eventBus.on("task:refresh", () => {
-      loadTasks();
-    });
-
-    unsubscribeSaved = eventBus.on("task:saved", ({ task, isNew }: { task: Task; isNew: boolean }) => {
-      if (isNew) {
-        tasks = [...tasks, task];
-      } else {
-        tasks = tasks.map((t: Task) => (t.id === task.id ? task : t));
-      }
-      editingTask = null;
-      isCreating = false;
-    });
-
-    unsubscribeEdit = eventBus.on("task:edit", (data) => {
-      if (data.task) {
-        handleEditTask(data.task);
-      } else {
-        handleCreateTask();
-      }
-    });
-  });
-
-  onDestroy(() => {
-    // Cancel any in-flight requests
-    loadTasksAbortController?.abort();
-
-    // Unsubscribe from events
-    unsubscribeRefresh?.();
-    unsubscribeSaved?.();
-    unsubscribeEdit?.();
-  });
 </script>
 
-<div 
-  class="rtm-tasks-panel" 
-  role="tabpanel" 
+<div
+  class="rtm-tasks-panel"
+  role="tabpanel"
   id={tabPanelId}
   aria-labelledby={tasksTabId}
   tabindex="0"
@@ -269,19 +221,18 @@
     <!-- Inline Task Editor -->
     <div class="rtm-edit-form">
       <h4>{isCreating ? "New Task" : "Edit Task"}</h4>
-      
-      <!-- Validation Error Display -->
+
       {#if validationError}
         <div class="rtm-validation-error" role="alert">
-          ⚠️ {validationError}
+          {validationError}
         </div>
       {/if}
-      
+
       <label class="rtm-field">
         <span>Name</span>
-        <input 
-          type="text" 
-          bind:value={editName} 
+        <input
+          type="text"
+          bind:value={editName}
           placeholder="Task name"
           aria-label="Task name"
           aria-required="true"
@@ -291,25 +242,25 @@
       </label>
       <label class="rtm-field">
         <span>Due Date</span>
-        <input 
-          type="datetime-local" 
+        <input
+          type="datetime-local"
           bind:value={editDueAt}
           aria-label="Due date"
         />
       </label>
       <label class="rtm-field">
         <span>Description</span>
-        <textarea 
-          bind:value={editDescription} 
-          placeholder="Optional description" 
+        <textarea
+          bind:value={editDescription}
+          placeholder="Optional description"
           rows="3"
           aria-label="Task description"
         ></textarea>
       </label>
       <div class="rtm-form-actions">
-        <button 
-          class="rtm-btn-primary" 
-          on:click={handleSaveTask} 
+        <button
+          class="rtm-btn-primary"
+          on:click={handleSaveTask}
           disabled={!editName.trim()}
         >
           {isCreating ? "Create" : "Save"}
@@ -318,8 +269,8 @@
           Cancel
         </button>
         {#if editingTask}
-          <button 
-            class="rtm-btn-danger-text" 
+          <button
+            class="rtm-btn-danger-text"
             on:click={() => { if (editingTask) handleDeleteTask(editingTask.id); }}
           >
             Delete
@@ -339,27 +290,45 @@
       {#each tasks as task (task.id)}
         <div
           class="rtm-task-card"
-          class:overdue={getTaskStatus(task) === "overdue"}
-          class:today={getTaskStatus(task) === "today"}
+          class:overdue={task.isOverdue}
+          class:today={task.lifecycleState === "due"}
+          class:blocked={task.isBlocked}
         >
           <div class="rtm-task-info">
-            <div class="rtm-task-name">{task.name}</div>
-            <div class="rtm-task-due">{formatDueDate(task.dueAt)}</div>
-            {#if (task as any).recurrence}
+            <div class="rtm-task-name">
+              {task.name}
+              {#if task.isBlocked}
+                <span class="rtm-blocked-badge" title="Blocked by dependency">🚫</span>
+              {/if}
+            </div>
+            {#if task.dueAt}
+              <div class="rtm-task-due">{formatDueDisplay(task)}</div>
+            {/if}
+            {#if task.isRecurring}
               <div class="rtm-task-recurrence">
-                🔄 {(task as any).recurrence.humanReadable || "Recurring"}
+                🔄 {task.recurrenceText || "Recurring"}
+                {#if task.occurrenceIndex != null}
+                  <span class="rtm-occurrence-badge">#{task.occurrenceIndex}</span>
+                {/if}
+              </div>
+            {/if}
+            {#if task.lifecycleState === "blocked"}
+              <div class="rtm-task-blocked-info">
+                Waiting on dependencies
               </div>
             {/if}
           </div>
           <div class="rtm-task-actions">
-            <button
-              class="rtm-btn-icon"
-              title="Complete"
-              aria-label={`Complete task: ${task.name}`}
-              on:click={() => handleCompleteTask(task.id)}
-            >
-              ✓
-            </button>
+            {#if !task.isBlocked}
+              <button
+                class="rtm-btn-icon"
+                title="Complete"
+                aria-label={`Complete task: ${task.name}`}
+                on:click={() => handleCompleteTask(task.id)}
+              >
+                ✓
+              </button>
+            {/if}
             <button
               class="rtm-btn-icon"
               title="Edit"
@@ -520,7 +489,6 @@
     text-decoration: underline;
   }
 
-  /* Validation Error Styles */
   .rtm-validation-error {
     padding: 12px;
     margin-bottom: 16px;
@@ -578,6 +546,11 @@
     border-left: 3px solid var(--b3-theme-primary);
   }
 
+  .rtm-task-card.blocked {
+    border-left: 3px solid var(--b3-card-warning-color, #f59e0b);
+    opacity: 0.85;
+  }
+
   .rtm-task-info {
     flex: 1;
   }
@@ -587,6 +560,13 @@
     font-weight: 500;
     color: var(--b3-theme-on-background);
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rtm-blocked-badge {
+    font-size: 12px;
   }
 
   .rtm-task-due {
@@ -598,6 +578,31 @@
   .rtm-task-recurrence {
     font-size: 11px;
     color: var(--b3-theme-on-surface-light);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .rtm-occurrence-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--b3-theme-on-surface-light);
+  }
+
+  .rtm-task-blocked-info {
+    font-size: 11px;
+    color: var(--b3-card-warning-color, #f59e0b);
+    font-style: italic;
+    margin-top: 2px;
   }
 
   .rtm-task-actions {

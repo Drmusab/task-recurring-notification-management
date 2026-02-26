@@ -34,6 +34,15 @@ let cachedVisibility: EditorFieldVisibility | null = null;
 let pluginRef: Plugin | null = null;
 
 /**
+ * Reset module-level state on plugin unload.
+ * Prevents stale plugin references from leaking across hot-reloads.
+ */
+export function resetOptionsStorage(): void {
+  pluginRef = null;
+  cachedVisibility = null;
+}
+
+/**
  * Initialize the OptionsModal storage bridge.
  * Must be called once during plugin onload() before any modal is opened.
  */

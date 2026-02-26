@@ -10,6 +10,8 @@
  * @module DockAdapter
  */
 
+import * as logger from "@shared/logging/logger";
+
 export interface DockInitResult {
   element: HTMLElement;
 }
@@ -38,7 +40,7 @@ export function resolveDockElement(dockArg: unknown): DockInitResult {
   }
 
   // Fallback: create a detached container to prevent crash
-  console.warn(
+  logger.warn(
     "[DockAdapter] Could not resolve dock element — using detached fallback.",
     { type: typeof dockArg }
   );
@@ -58,7 +60,7 @@ export function resolveDockElement(dockArg: unknown): DockInitResult {
 export function validateDockElement(el: HTMLElement): boolean {
   if (!el) return false;
   if (!el.isConnected) {
-    console.warn("[DockAdapter] Dock element is not connected to DOM");
+    logger.warn("[DockAdapter] Dock element is not connected to DOM");
     return false;
   }
   return true;

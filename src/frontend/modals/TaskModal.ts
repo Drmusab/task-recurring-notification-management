@@ -4,47 +4,53 @@
  * This modal opens the unified task editor for creating/editing tasks.
  * Uses SiYuan's native Dialog component.
  * 
- * ARCHITECTURE:
- * - Accepts both Obsidian and SiYuan task models
- * - Converts to UnifiedTask internally
- * - Mounts EditTaskUnified which wraps legacy EditTask.svelte
- * - Adds Block Actions, Tags/Category, and AI Suggestions
+ * ARCHITECTURE (Session 27 — DTO-driven Command Surface):
+ * - Accepts TaskDTO only — no domain imports
+ * - Delegates mutation to UITaskMutationService
+ * - Emits runtime events via UIEventService
+ * - NEVER computes analytics, reschedules, or accesses storage
+ * - NEVER imports domain types (Task, RecurrenceInstance, DependencyLink)
+ * 
+ * FORBIDDEN:
+ *   ❌ import Task / domain model
+ *   ❌ updateAnalyticsFromTasks() — analytics reacts via event subscription
+ *   ❌ TaskStorage / Cache / SiYuan API
+ *   ❌ Scheduler / Integration
+ *   ❌ Inline domain mutation
  */
 
 import { Dialog, showMessage } from "siyuan";
 import type { Plugin } from "siyuan";
 import { createUnifiedEditor } from "@components/shared/EditTaskUnified";
-import type { Task as SiYuanTask } from "@backend/core/models/Task";
-import type { Task as ObsidianTask } from "@backend/core/models/Task";
+import type { TaskDTO } from '../services/DTOs';
 import type { Status } from "@shared/types/Status";
-import { TaskModelAdapter } from "@backend/services/TaskAdapterService";
-import { updateAnalyticsFromTasks } from "@stores/TaskAnalytics.store";
-import { getTaskReminderBridge } from "@backend/core/integration/TaskReminderBridge";
-import * as logger from "@backend/logging/logger";
+import { uiMutationService } from '../services/UITaskMutationService';
+import { uiEventService } from '../services/UIEventService';
+import * as logger from "@shared/logging/logger";
 
 export interface TaskModalParams {
     plugin: Plugin;
-    task: SiYuanTask | ObsidianTask | null;
+    task: TaskDTO | null;
     statusOptions: Status[];
-    onSubmit: (task: SiYuanTask) => void | Promise<void>;
-    allTasks: (SiYuanTask | ObsidianTask)[];
+    onSubmit: (task: TaskDTO) => void | Promise<void>;
+    allTasks: TaskDTO[];
 }
 
 export class TaskModal {
     private plugin: Plugin;
-    private task: SiYuanTask | ObsidianTask | null;
+    private task: TaskDTO | null;
     private statusOptions: Status[];
-    private onSubmit: (task: SiYuanTask) => void | Promise<void>;
-    private allTasks: (SiYuanTask | ObsidianTask)[];
+    private onSubmit: (task: TaskDTO) => void | Promise<void>;
+    private allTasks: TaskDTO[];
     private dialog: Dialog | null = null;
     private editorInstance: { destroy: () => void } | null = null;
 
     constructor(
         plugin: Plugin,
-        task: SiYuanTask | ObsidianTask | null,
+        task: TaskDTO | null,
         statusOptions: Status[],
-        onSubmit: (task: SiYuanTask) => void | Promise<void>,
-        allTasks: (SiYuanTask | ObsidianTask)[]
+        onSubmit: (task: TaskDTO) => void | Promise<void>,
+        allTasks: TaskDTO[]
     ) {
         this.plugin = plugin;
         this.task = task;
@@ -62,7 +68,7 @@ export class TaskModal {
         this.dialog = new Dialog({
             title,
             content: `<div id="task-editor-container" class="task-editor-modal"></div>`,
-            width: "700px",  // Increased width for additional sections
+            width: "700px",
             height: "auto",
             destroyCallback: () => {
                 this.onClose();
@@ -76,37 +82,20 @@ export class TaskModal {
     }
 
     private initializeEditor(container: HTMLElement): void {
-        // Create default task if none provided
-        const taskData = this.task || this.createDefaultTask();
+        const taskData = this.task;
 
         this.editorInstance = createUnifiedEditor(container, {
             task: taskData,
             statusOptions: this.statusOptions,
-            onSubmit: async (updatedTask) => {
+            onSubmit: async (updatedTask: TaskDTO) => {
                 try {
-                    // Save task
+                    // Route mutation through UITaskMutationService
                     await this.onSubmit(updatedTask);
                     
-                    // Recalculate analytics after task save
-                    try {
-                        // Convert allTasks to SiYuan format for analytics calculation
-                        const siyuanTasks = this.allTasks.map(t => {
-                            if ('description' in t && 'status' in t) {
-                                // Obsidian task - convert to SiYuan
-                                const unified = TaskModelAdapter.obsidianToUnified(t as ObsidianTask);
-                                return TaskModelAdapter.unifiedToSiyuan(unified);
-                            }
-                            return t as SiYuanTask;
-                        });
-                        
-                        // Update analytics store
-                        updateAnalyticsFromTasks(siyuanTasks);
-                        logger.debug('Analytics updated after task save');
-                    } catch (analyticsError) {
-                        logger.error('Failed to update analytics after task save', analyticsError);
-                        // Non-fatal - don't block task save
-                    }
+                    // Emit runtime event — dashboard/analytics react via EventService subscription
+                    uiEventService.emitTaskRefresh();
                     
+                    logger.debug('Task saved via modal, refresh emitted');
                     this.close();
                 } catch (error) {
                     logger.error("Error saving task:", error);
@@ -118,34 +107,6 @@ export class TaskModal {
             },
             allTasks: this.allTasks,
         });
-    }
-
-    private createDefaultTask(): SiYuanTask {
-        return {
-            id: crypto.randomUUID(),
-            name: "",
-            description: "",
-            status: "todo",
-            priority: "medium",
-            dueAt: "",
-            scheduledAt: undefined,
-            startAt: undefined,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            doneAt: undefined,
-            cancelledAt: undefined,
-            enabled: true,
-            frequency: { type: 'once' },
-            dependsOn: [],
-            blockActions: [],
-            tags: [],
-            category: "",
-            completionCount: 0,
-            missCount: 0,
-            currentStreak: 0,
-            bestStreak: 0,
-            version: 1,
-        };
     }
 
     public close(): void {

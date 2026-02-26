@@ -272,6 +272,14 @@ export class TaskReminderBridge {
 let bridgeInstance: TaskReminderBridge | null = null;
 
 /**
+ * Reset the singleton bridge instance.
+ * Called on plugin unload to prevent stale state across hot-reloads.
+ */
+export function resetBridgeInstance(): void {
+  bridgeInstance = null;
+}
+
+/**
  * Get singleton bridge instance
  */
 export function getTaskReminderBridge(

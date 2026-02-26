@@ -1,147 +1,295 @@
-:root {
-    --tasks-details-icon: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M8.59 16.58L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.42z'/></svg>");
+/**
+ * renderer.scss — DTO-Driven Task Rendering Styles
+ *
+ * REFACTORED (Session 25): Replaced dead Obsidian Tasks plugin styles
+ * with DTO-driven task rendering classes consumed by SiYuan plugin components.
+ *
+ * All classes here map to pre-computed DTO fields:
+ *   - TaskDTO.lifecycleState  → .task-lifecycle--{state}
+ *   - TaskDTO.isBlocked       → .task--blocked
+ *   - TaskDTO.isOverdue       → .task--overdue
+ *   - TaskDTO.isRecurring     → .task--recurring
+ *   - TaskDTO.healthScore     → .task-health--{level}
+ *   - ReminderDTO.isOverdue   → .reminder--overdue / .reminder--upcoming
+ *   - DependencyDTO.isBlocked → .dependency--blocked / .dependency--satisfied
+ *   - SuggestionDTO.type      → .suggestion--{type}
+ *   - SuggestionDTO.confidence → .suggestion-confidence--{level}
+ *   - AnalyticsDTO streak     → .streak--{level}
+ *
+ * FORBIDDEN:
+ *   ❌ Compute overdue from dates
+ *   ❌ Derive lifecycle from status
+ *   ❌ Infer dependency state
+ *   ❌ Calculate urgency scores
+ *   ❌ Import domain types
+ *
+ * All styles are scoped under .task-management-dock
+ */
 
-}
+// ── Variables ──────────────────────────────────────────────────
 
-.plugin-tasks-query-explanation{
-    /* Prevent long explanation lines wrapping, so they are more readable,
-       especially on small screens.
+$lifecycle-idle: var(--b3-theme-on-surface-light);
+$lifecycle-due: #F39C12;
+$lifecycle-overdue: #C41E3A;
+$lifecycle-missed: #95A5A6;
+$lifecycle-completed: #27AE60;
+$lifecycle-rescheduled: #3498DB;
+$lifecycle-blocked: #7F8C8D;
+$lifecycle-cancelled: #BDC3C7;
 
-       A horizontal scroll bar will be displayed, if the explanation
-       is too wide to fit.
-     */
-    --code-white-space: pre;
-}
+// ── TaskDTO.lifecycleState → .task-lifecycle--{state} ──────────
+//
+// Components bind: class="task-lifecycle--{task.lifecycleState}"
+// The lifecycleState is pre-computed by UIQueryService.mapTaskToDTO()
 
-.plugin-tasks-toolbar {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    gap: var(--size-4-1);
+.task-management-dock {
 
-    label {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
+  .task-lifecycle--idle {
+    // Default — no extra decoration
+  }
 
-        input {
-            height: 100%;
-            padding-left: 24px;
-        }
+  .task-lifecycle--due {
+    border-left: 3px solid $lifecycle-due;
+    background: rgba(243, 156, 18, 0.04);
+  }
 
-        svg {
-            position: absolute;
-            transform: translateX(25%);
-        }
+  .task-lifecycle--overdue {
+    border-left: 3px solid $lifecycle-overdue;
+    background: rgba(196, 30, 58, 0.04);
+  }
+
+  .task-lifecycle--missed {
+    border-left: 3px solid $lifecycle-missed;
+    opacity: 0.7;
+    text-decoration: line-through;
+  }
+
+  .task-lifecycle--completed {
+    border-left: 3px solid $lifecycle-completed;
+    opacity: 0.6;
+
+    .task-item-name,
+    .task-name {
+      text-decoration: line-through;
     }
-}
+  }
 
-.tasks-count {
-    color: var(--text-faint);
-    padding-left: 20px;
-}
+  .task-lifecycle--rescheduled {
+    border-left: 3px solid $lifecycle-rescheduled;
+    opacity: 0.8;
+  }
 
-/* Tooltip pop up above the description in short mode */
-.tooltip.pop-up {
-    animation: pop-up-animation 200ms forwards ease-in-out;
-}
-@keyframes pop-up-animation {
-    0% {
-        opacity: 0;
-        transform: translateY(-100%) scale(1);
+  .task-lifecycle--blocked {
+    border-left: 3px solid $lifecycle-blocked;
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .task-lifecycle--cancelled {
+    border-left: 3px solid $lifecycle-cancelled;
+    opacity: 0.4;
+
+    .task-item-name,
+    .task-name {
+      text-decoration: line-through;
+      color: var(--b3-theme-on-surface-light);
     }
-    20% {
-        opacity: 0.7;
-        transform: translateY(-100%) scale(1.02);
+  }
+
+  // ── TaskDTO boolean flags → additive modifiers ───────────────
+  //
+  // These compose WITH lifecycle classes.
+  // Components bind: class:task--blocked={task.isBlocked}
+  //                  class:task--overdue={task.isOverdue}
+  //                  class:task--recurring={task.isRecurring}
+
+  .task--blocked {
+    border-left: 3px solid $lifecycle-blocked;
+    opacity: 0.65;
+    cursor: not-allowed;
+
+    &::before {
+      content: '🔒';
+      font-size: 11px;
+      margin-right: 4px;
+      vertical-align: middle;
     }
-    40% {
-        opacity: 1;
-        transform: translateY(-100%) scale(1.05);
+  }
+
+  .task--overdue {
+    .task-item-due,
+    .task-due,
+    .task-date {
+      color: $lifecycle-overdue;
+      font-weight: 600;
     }
-    100% {
-        opacity: 1;
-        transform: translateY(-100%) scale(1);
+  }
+
+  .task--recurring {
+    .task-item-name::after,
+    .task-name::after {
+      content: ' 🔁';
+      font-size: 10px;
+      opacity: 0.6;
     }
-}
+  }
 
-/* Date fields: make it obvious they can be clicked */
-/* TODO Introduce a CSS class for clickable things, to remove the need to list all the date fields here */
-.task-cancelled,
-.task-created,
-.task-done,
-.task-due,
-.task-scheduled,
-.task-start {
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-}
+  // ── TaskDTO.healthScore → .task-health--{level} ──────────────
+  //
+  // Components derive level from DTO: healthScore >= 80 → healthy, etc.
 
-/* Edit and postpone */
-.tasks-edit, .tasks-postpone {
-    width: 1em;
-    height: 1em;
-    vertical-align: middle;
-    margin-left: .33em;
-    cursor: pointer;
-    font-family: var(--font-interface);
-    color: var(--text-accent);
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-}
+  .task-health--healthy {
+    // No special styling — healthy is the default
+  }
 
-a.tasks-edit, a.tasks-postpone {
-    text-decoration: none;
-}
+  .task-health--moderate {
+    border-left-color: #F39C12;
+  }
 
-.tasks-edit::after {
-    content: '📝';
-}
+  .task-health--struggling {
+    border-left-color: $lifecycle-overdue;
+    background: rgba(196, 30, 58, 0.02);
+  }
 
-.tasks-postpone::after {
-    content: '⏩';
-}
+  // ── ReminderDTO → .reminder--{state} ─────────────────────────
+  //
+  // Components bind: class:reminder--overdue={reminder.isOverdue}
+  // minutesUntilDue is pre-computed — styles NEVER compare timestamps.
 
-/* Urgency score */
-.tasks-urgency {
-    font-size: var(--font-ui-smaller);
-    font-family: var(--font-interface);
-    padding: 2px 6px;
-    border-radius: var(--radius-s);
-    color: var(--text-normal);
-    background-color: var(--background-secondary);
-    margin-left: 0.5em;
-    line-height: 1;
-}
+  .reminder--overdue {
+    background: rgba(196, 30, 58, 0.06);
+    border-left: 3px solid $lifecycle-overdue;
 
-.internal-link.internal-link-short-mode {
-    text-decoration: none;
-}
+    .reminder-time {
+      color: $lifecycle-overdue;
+      font-weight: 700;
+    }
+  }
 
-.tasks-list-text {
-    position: relative;
-}
+  .reminder--upcoming {
+    background: rgba(243, 156, 18, 0.04);
+    border-left: 3px solid $lifecycle-due;
 
-.tasks-list-text .tooltip {
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    white-space: nowrap;
-}
+    .reminder-time {
+      color: $lifecycle-due;
+    }
+  }
 
-.task-list-item-checkbox {
-    cursor: pointer;
-}
+  .reminder--snoozed {
+    opacity: 0.6;
+    border-left: 3px solid var(--b3-theme-primary-lighter, #93c5fd);
+  }
 
-/* Hide tags that 1 recognises, if `hide tags` instruction was used. */
-.tasks-layout-hide-tags .task-description a.tag {
-    display: none;
-}
+  .reminder--max-snooze {
+    .reminder-snooze-btn {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
 
-/* Workaround for issue #2073: Enabling the plugin causes blockIds to be not hidden in reading view
-   https://github.com/1-tasks-group/1-tasks/issues/2073 */
-.task-list-item .task-block-link{
-    display: none;
-}
+  // ── DependencyDTO → .dependency--{state} ─────────────────────
+  //
+  // Components bind: class:dependency--blocked={dep.isBlocked}
+  // Styles NEVER compute dependency chains.
+
+  .dependency--blocked {
+    opacity: 0.55;
+    background: var(--b3-theme-background-light, rgba(0, 0, 0, 0.02));
+    border-left: 3px solid $lifecycle-blocked;
+
+    .dependency-status-icon::before {
+      content: '🔒';
+    }
+  }
+
+  .dependency--satisfied {
+    opacity: 0.8;
+    border-left: 3px solid $lifecycle-completed;
+
+    .dependency-status-icon::before {
+      content: '✅';
+    }
+  }
+
+  // ── SuggestionDTO → .suggestion--{type} / .suggestion-confidence--{level} ──
+  //
+  // Components bind: class="suggestion--{suggestion.type}"
+  // Urgency styling maps ONLY from SuggestionDTO.type — NEVER recomputes.
+
+  .suggestion--abandonment  { background: #ffebee; border-left: 3px solid #c62828; }
+  .suggestion--reschedule   { background: #e3f2fd; border-left: 3px solid #1565c0; }
+  .suggestion--urgency      { background: #fff3e0; border-left: 3px solid #ef6c00; }
+  .suggestion--frequency    { background: #f3e5f5; border-left: 3px solid #7b1fa2; }
+  .suggestion--consolidation { background: #e8f5e9; border-left: 3px solid #2e7d32; }
+  .suggestion--delegation   { background: #fce4ec; border-left: 3px solid #c2185b; }
+
+  .suggestion-confidence--high {
+    .suggestion-badge { background: #27AE60; color: white; }
+  }
+
+  .suggestion-confidence--medium {
+    .suggestion-badge { background: #F39C12; color: white; }
+  }
+
+  .suggestion-confidence--low {
+    .suggestion-badge { background: #95A5A6; color: white; }
+  }
+
+  // ── AnalyticsDTO streak → .streak--{level} ──────────────────
+  //
+  // Components derive from AnalyticsDTO.bestCurrentStreak.
+
+  .streak--none {
+    color: var(--b3-theme-on-surface-light);
+  }
+
+  .streak--building {
+    color: #F39C12;
+
+    &::before {
+      content: '🔥';
+      margin-right: 4px;
+    }
+  }
+
+  .streak--strong {
+    color: #27AE60;
+    font-weight: 600;
+
+    &::before {
+      content: '🔥';
+      margin-right: 4px;
+    }
+  }
+
+  // ── Runtime-Gated Visibility ─────────────────────────────────
+  //
+  // The .runtime-not-ready class is applied to .task-management-dock
+  // BEFORE RuntimeReady.emit() fires. After mount, it's removed.
+  // This prevents stale classes from rendering during load.
+
+  &.runtime-not-ready {
+    .task-lifecycle--overdue,
+    .task-lifecycle--due,
+    .task-lifecycle--blocked,
+    .task--blocked,
+    .task--overdue,
+    .reminder--overdue,
+    .reminder--upcoming,
+    .dependency--blocked,
+    .dependency--satisfied,
+    .suggestion--abandonment,
+    .suggestion--reschedule,
+    .suggestion--urgency,
+    .suggestion--frequency,
+    .suggestion--consolidation,
+    .suggestion--delegation {
+      // Suppress stale state styles until runtime data is confirmed
+      border-left-color: transparent !important;
+      background: transparent !important;
+      opacity: 1 !important;
+    }
+  }
+
+} // end .task-management-dock

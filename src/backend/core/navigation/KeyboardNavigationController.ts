@@ -1,5 +1,19 @@
 /**
  * Keyboard Navigation Controller - Vim-like navigation for task dashboard
+ *
+ * Data access contract:
+ *   - Reads ONLY from TaskCache, DependencyCache, AnalyticsCache
+ *   - NEVER imports or reads from TaskStorage directly
+ *   - Task indices come from the frontend's rendered cache snapshot
+ *
+ * Event integration:
+ *   - Local listeners for UI binding (kept for Svelte component integration)
+ *   - Optionally bridges to PluginEventBus via setEventBridge()
+ *
+ * FORBIDDEN:
+ *   - Import TaskStorage, Scheduler, or any storage module
+ *   - Direct SiYuan API calls
+ *   - Mutation of task data (read-only navigation)
  */
 
 export type NavigationMode = 'normal' | 'insert' | 'visual' | 'command';
@@ -10,6 +24,11 @@ export interface KeyboardEvent {
   shiftKey: boolean;
   altKey: boolean;
   metaKey: boolean;
+}
+
+/** Optional bridge to PluginEventBus for cross-system communication */
+export interface NavigationEventBridge {
+  emit(event: string, data: unknown): void;
 }
 
 /**
@@ -24,6 +43,16 @@ export class KeyboardNavigationController {
   private lastKeyTime = 0;
   private listeners = new Map<string, Set<Function>>();
   private maxTaskIndex = 0;
+  private eventBridge: NavigationEventBridge | null = null;
+
+  /**
+   * Set an optional event bridge (PluginEventBus adapter).
+   * When set, navigation actions are also emitted to the bridge
+   * so other subsystems can react (e.g., block:navigate event).
+   */
+  setEventBridge(bridge: NavigationEventBridge): void {
+    this.eventBridge = bridge;
+  }
 
   /**
    * Handle keyboard event and execute appropriate action
@@ -110,13 +139,15 @@ export class KeyboardNavigationController {
   }
 
   /**
-   * Emit event
+   * Emit event to local listeners and optional event bridge
    */
   private emit(event: string, data: any): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       callbacks.forEach(cb => cb(data));
     }
+    // Bridge to PluginEventBus if connected
+    this.eventBridge?.emit(`navigation:${event}`, data);
   }
 
   // Mode switching

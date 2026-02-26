@@ -9,13 +9,13 @@
  * @since February 13, 2026
  */
 
-import type { Task, TaskPriority, TaskStatus } from '@/domain/models/Task';
+import type { TaskDTO } from '../services/DTOs';
 
 /**
  * Generate accessible label for task items
  * 
  * @description Creates comprehensive screen reader text for tasks
- * @param task - Task object
+ * @param task - TaskDTO object
  * @returns Accessible label string
  * 
  * @example
@@ -24,7 +24,7 @@ import type { Task, TaskPriority, TaskStatus } from '@/domain/models/Task';
  * // "Incomplete task: Buy groceries. High priority. Due tomorrow. Recurring weekly."
  * ```
  */
-export function getTaskAriaLabel(task: Task): string {
+export function getTaskAriaLabel(task: TaskDTO): string {
   const parts: string[] = [];
   
   // Status
@@ -42,8 +42,7 @@ export function getTaskAriaLabel(task: Task): string {
   // Due date
   if (task.dueAt) {
     const dueText = formatDateForScreenReader(task.dueAt);
-    const isOverdue = new Date(task.dueAt) < new Date() && task.status !== 'done';
-    if (isOverdue) {
+    if (task.isOverdue) {
       parts.push(`Overdue: was due ${dueText}`);
     } else {
       parts.push(`Due ${dueText}`);
@@ -56,8 +55,8 @@ export function getTaskAriaLabel(task: Task): string {
   }
   
   // Recurrence
-  if (task.recurrence || task.frequency) {
-    const recText = task.recurrenceText || task.frequency || 'recurring';
+  if (task.isRecurring) {
+    const recText = task.recurrenceText || 'recurring';
     parts.push(`Recurring ${recText}`);
   }
   
@@ -72,7 +71,7 @@ export function getTaskAriaLabel(task: Task): string {
 /**
  * Get human-readable status text
  */
-export function getStatusText(status: TaskStatus): string {
+export function getStatusText(status: string): string {
   switch (status) {
     case 'done':
       return 'Completed';
@@ -88,7 +87,7 @@ export function getStatusText(status: TaskStatus): string {
 /**
  * Get human-readable priority text
  */
-export function getPriorityText(priority: TaskPriority): string {
+export function getPriorityText(priority: string): string {
   switch (priority) {
     case 'highest':
       return 'Highest';
@@ -168,7 +167,7 @@ export function getTaskCountLabel(count: number, filter?: string): string {
  */
 export function getTaskActionAnnouncement(
   action: 'created' | 'updated' | 'deleted' | 'completed' | 'snoozed',
-  task: Task
+  task: TaskDTO
 ): string {
   switch (action) {
     case 'created':

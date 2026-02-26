@@ -1,4 +1,5 @@
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../../../services/DTOs';
+type Task = TaskDTO;
 
 /**
  * Interface for task editing instructions used by TaskEditingMenu.

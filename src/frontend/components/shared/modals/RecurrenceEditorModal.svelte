@@ -1,9 +1,15 @@
 <script lang="ts">
   /**
-   * RecurrenceEditorModal Component
+   * RecurrenceEditorModal Component — Session 27 Refactored (DTO-driven)
    * WCAG 2.1 AA Compliant
    * 
-   * Modal dialog for editing task recurrence rules with preset options
+   * ARCHITECTURE:
+   * - Accepts optional taskId for service-routed saves
+   * - When taskId provided: routes save via uiMutationService.updateRecurrence()
+   * - When no taskId: dispatches 'save' event for parent to route
+   * - Emits task:runtime:recurrenceUpdated after successful save
+   * - NEVER imports domain types (RecurrenceInstance, Task)
+   * - NEVER mutates parent recurrence directly
    * 
    * @accessibility
    * - role="dialog" with aria-labelledby and aria-modal
@@ -18,8 +24,12 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import Button from '../Button.svelte';
   import Icon from '../Icon.svelte';
+  import { uiMutationService } from '../../../services/UITaskMutationService';
+  import { uiEventService } from '../../../services/UIEventService';
+  import * as logger from '@shared/logging/logger';
 
   export let initialRule: string = '';
+  export let taskId: string | undefined = undefined;
   export let onClose: () => void;
 
   const dispatch = createEventDispatcher();
@@ -82,7 +92,24 @@
       const preset = presets.find(p => p.id === selectedPreset);
       rule = preset?.rule || '';
     }
-    
+
+    // Route through UITaskMutationService when taskId is available
+    if (taskId) {
+      uiMutationService.updateRecurrence(taskId, rule)
+        .then((result) => {
+          if (result.success) {
+            uiEventService.emitTaskRefresh();
+            logger.debug('Recurrence updated via service', { taskId, rule });
+          } else {
+            logger.error('Failed to update recurrence', { error: result.error });
+          }
+        })
+        .catch((error) => {
+          logger.error('Recurrence update error', error);
+        });
+    }
+
+    // Always dispatch event for parent consumers
     dispatch('save', rule);
     announcementText = 'Recurrence rule saved';
     setTimeout(() => onClose(), 100);

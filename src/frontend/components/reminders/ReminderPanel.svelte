@@ -1,48 +1,46 @@
 <!--
   ReminderPanel.svelte - Persistent Reminder Display in SiYuan Dock
   
-  Displays active and upcoming reminders for tasks. Mounted inside 
-  a SiYuan dock panel via addDock() API.
+  Session 24: Pure Runtime Observer — all backend coupling removed.
   
-  Features:
-  - Active reminder list with snooze/dismiss controls
-  - Upcoming reminders timeline
-  - Quick task completion from reminder
-  - Mobile-responsive layout
+  BEFORE (violations):
+    ❌ taskStorage.loadActive()
+    ❌ taskStorage.saveTask({ ...task, status: "done" })
+    ❌ eventBus.on("task:refresh")
+  
+  AFTER (clean):
+    ✅ uiQueryService.selectReminders()
+    ✅ uiMutationService.completeTask(taskId)
+    ✅ uiMutationService.snoozeTask(taskId, minutes)
+    ✅ uiEventService.onTaskRefresh()
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import type { Task } from "@backend/core/models/Task";
-  import type { TaskStorage } from "@backend/core/storage/TaskStorage";
-  import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
+  import type { ReminderDTO } from "../../services/DTOs";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import { uiMutationService } from "../../services/UITaskMutationService";
+  import { uiEventService } from "../../services/UIEventService";
   import type { Plugin } from "siyuan";
 
-  // Props passed from dock init
-  export let taskStorage: TaskStorage;
-  export let eventBus: PluginEventBus;
+  // Props — NO backend types in the signature
   export let plugin: Plugin;
   void plugin; // Referenced externally
   export let isMobile: boolean = false;
 
-  let activeReminders: Task[] = [];
-  let upcomingReminders: Task[] = [];
+  let activeReminders: ReminderDTO[] = [];
+  let upcomingReminders: ReminderDTO[] = [];
   let loading = true;
   let error: string | null = null;
 
   // Cleanup references
   let unsubRefresh: (() => void) | null = null;
-  let unsubSaved: (() => void) | null = null;
   let refreshInterval: number | null = null;
 
   onMount(async () => {
-    await loadReminders();
-    
-    // Subscribe to task events for live updates
-    unsubRefresh = eventBus.on("task:refresh", () => {
-      loadReminders();
-    });
+    loadReminders();
 
-    unsubSaved = eventBus.on("task:saved", () => {
+    // Subscribe via UIEventService — NOT raw eventBus
+    unsubRefresh = uiEventService.onTaskRefresh(() => {
       loadReminders();
     });
 
@@ -54,50 +52,20 @@
 
   onDestroy(() => {
     unsubRefresh?.();
-    unsubSaved?.();
     if (refreshInterval !== null) {
       clearInterval(refreshInterval);
     }
   });
 
-  async function loadReminders(): Promise<void> {
+  function loadReminders(): void {
     try {
       loading = true;
       error = null;
 
-      const tasks = await taskStorage.loadActive();
-      const allTasks = Array.from(tasks.values());
-      const now = new Date();
-
-      // Active reminders: tasks that are due or overdue
-      activeReminders = allTasks
-        .filter((t) => {
-          if (!t.enabled || t.status === "done" || t.status === "cancelled") return false;
-          if (!t.dueAt) return false;
-          const due = new Date(t.dueAt);
-          return due <= now;
-        })
-        .sort((a, b) => {
-          const aDue = new Date(a.dueAt || 0).getTime();
-          const bDue = new Date(b.dueAt || 0).getTime();
-          return aDue - bDue;
-        });
-
-      // Upcoming reminders: tasks due within next 24 hours
-      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      upcomingReminders = allTasks
-        .filter((t) => {
-          if (!t.enabled || t.status === "done" || t.status === "cancelled") return false;
-          if (!t.dueAt) return false;
-          const due = new Date(t.dueAt);
-          return due > now && due <= tomorrow;
-        })
-        .sort((a, b) => {
-          const aDue = new Date(a.dueAt || 0).getTime();
-          const bDue = new Date(b.dueAt || 0).getTime();
-          return aDue - bDue;
-        });
-
+      // Read via UIQueryService — NOT taskStorage.loadActive()
+      const result = uiQueryService.selectReminders();
+      activeReminders = result.active;
+      upcomingReminders = result.upcoming;
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load reminders";
       console.error("[ReminderPanel] Load error:", err);
@@ -106,30 +74,34 @@
     }
   }
 
-  async function completeTask(task: Task): Promise<void> {
+  async function completeTask(reminder: ReminderDTO): Promise<void> {
     try {
-      const updated = { ...task, status: "done", doneAt: new Date().toISOString() };
-      await taskStorage.saveTask(updated as any);
-      eventBus.emit("task:refresh", undefined);
+      // Delegate to UITaskMutationService — NOT taskStorage.saveTask()
+      const result = await uiMutationService.completeTask(reminder.taskId);
+      if (!result.success) {
+        console.error("[ReminderPanel] Complete failed:", result.error);
+      }
+      // Refresh will happen via event subscription
     } catch (err) {
       console.error("[ReminderPanel] Complete error:", err);
     }
   }
 
-  async function snoozeTask(task: Task, minutes: number): Promise<void> {
+  async function snoozeTask(reminder: ReminderDTO, minutes: number): Promise<void> {
     try {
-      const newDue = new Date(Date.now() + minutes * 60 * 1000).toISOString();
-      const updated = { ...task, dueAt: newDue };
-      await taskStorage.saveTask(updated as any);
-      eventBus.emit("task:snooze", { taskId: task.id, minutes });
-      eventBus.emit("task:refresh", undefined);
+      // Delegate to UITaskMutationService — NOT taskStorage.saveTask()
+      const result = await uiMutationService.snoozeTask(reminder.taskId, minutes);
+      if (!result.success) {
+        console.error("[ReminderPanel] Snooze failed:", result.error);
+      }
+      // Refresh will happen via event subscription
     } catch (err) {
       console.error("[ReminderPanel] Snooze error:", err);
     }
   }
 
-  function dismissTask(task: Task): void {
-    activeReminders = activeReminders.filter((t) => t.id !== task.id);
+  function dismissTask(reminder: ReminderDTO): void {
+    activeReminders = activeReminders.filter((t) => t.taskId !== reminder.taskId);
   }
 
   function formatTimeAgo(dateStr: string): string {
@@ -189,7 +161,7 @@
           No active reminders
         </div>
       {:else}
-        {#each activeReminders as reminder (reminder.id)}
+        {#each activeReminders as reminder (reminder.taskId)}
           <div class="reminder-card" style="border-left-color: {getPriorityColor(reminder.priority)}">
             <div class="reminder-card__content">
               <div class="reminder-card__name">{reminder.name || "Untitled"}</div>
@@ -242,7 +214,7 @@
           No upcoming reminders in next 24h
         </div>
       {:else}
-        {#each upcomingReminders as reminder (reminder.id)}
+        {#each upcomingReminders as reminder (reminder.taskId)}
           <div class="reminder-card reminder-card--upcoming" style="border-left-color: {getPriorityColor(reminder.priority)}">
             <div class="reminder-card__content">
               <div class="reminder-card__name">{reminder.name || "Untitled"}</div>

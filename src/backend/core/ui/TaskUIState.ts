@@ -62,6 +62,18 @@ export class TaskUIStateManager {
     }
     return TaskUIStateManager.instance;
   }
+
+  /**
+   * Destroy the singleton instance, clearing all states and subscribers.
+   * Must be called on plugin unload to prevent leaks across hot-reloads.
+   */
+  public static resetInstance(): void {
+    if (TaskUIStateManager.instance) {
+      TaskUIStateManager.instance.states.clear();
+      TaskUIStateManager.instance.subscribers.clear();
+      TaskUIStateManager.instance = null;
+    }
+  }
   
   /**
    * Get UI state for a task

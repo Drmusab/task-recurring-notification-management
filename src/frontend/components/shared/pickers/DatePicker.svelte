@@ -4,9 +4,14 @@
  */
 
 import { createEventDispatcher } from 'svelte';
-import { parseNaturalDate, toISODate } from '@domain/index';
+import { uiQueryService } from '../../../services/UIQueryService';
 import { formatDateRelative } from '@frontend/utils/dateFormatters';
 import { generateAriaId, announceToScreenReader } from '@frontend/utils/accessibility';
+
+/** Inline ISO date formatter (replaces @domain/utils/DateCalculations.toISODate) */
+function toISODate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
 
 export let value: string | undefined = undefined;
 export let placeholder: string = 'Enter a date...';
@@ -58,13 +63,13 @@ function formatDateValue(dateStr: string): string {
   }
 }
 
-function handleInput(event: Event) {
+async function handleInput(event: Event) {
   const target = event.target as HTMLInputElement;
   inputValue = target.value;
   
   // Try to parse natural language
   if (inputValue.trim()) {
-    parsedDate = parseNaturalDate(inputValue, new Date());
+    parsedDate = await uiQueryService.parseNaturalDate(inputValue, new Date());
     showSuggestions = true;
   } else {
     parsedDate = null;
@@ -101,9 +106,9 @@ $: suggestionItems = [
   ...(!inputValue ? shortcuts.map(s => ({ type: 'shortcut', shortcut: s })) : [])
 ];
 
-function selectShortcut(shortcut: typeof shortcuts[0]) {
+async function selectShortcut(shortcut: typeof shortcuts[0]) {
   inputValue = shortcut.value;
-  parsedDate = parseNaturalDate(shortcut.value, new Date());
+  parsedDate = await uiQueryService.parseNaturalDate(shortcut.value, new Date());
   
   if (parsedDate) {
     value = toISODate(parsedDate);

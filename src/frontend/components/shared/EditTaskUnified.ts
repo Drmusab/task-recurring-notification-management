@@ -21,20 +21,27 @@ import EditTaskLegacy from "@components/shared/EditTask.svelte";
 import BlockActionsEditor from "@components/shared/editors/BlockActionsEditor.svelte";
 import TagsCategoryEditor from "@components/shared/editors/TagsCategoryEditor.svelte";
 import AISuggestionsPanel from "@components/shared/AISuggestionsPanel.svelte";
-import type { Task as ObsidianTask } from '@backend/core/models/Task';
-import type { Task as SiYuanTask } from '@backend/core/models/Task';
-import { TaskModelAdapter, type UnifiedTask } from '@backend/services/TaskAdapterService';
+import type { TaskDTO } from '../../services/DTOs';
+import { uiQueryService } from '../../services/UIQueryService';
 import type { Status } from '@shared/types/Status';
-import type { TaskSuggestion } from '@backend/core/ai/SmartSuggestionEngine';
-import type { BlockLinkedAction } from '@backend/core/block-actions/BlockActionTypes';
-import * as logger from "@backend/logging/logger";
+import * as logger from "@shared/logging/logger";
+
+// Local type aliases for the bridge layer
+type Task = TaskDTO;
+type UnifiedTask = Record<string, any>;
+type TaskSuggestion = {
+  type: string;
+  action: { type: string; parameters: Record<string, any>; description?: string; label?: string };
+  [key: string]: any;
+};
+type BlockLinkedAction = Record<string, any>;
 
 export interface EditTaskUnifiedProps {
-  task: SiYuanTask | ObsidianTask;
+  task: Task;
   statusOptions: Status[];
-  onSubmit: (task: SiYuanTask) => void | Promise<void>;
+  onSubmit: (task: Task) => void | Promise<void>;
   onCancel: () => void;
-  allTasks: (SiYuanTask | ObsidianTask)[];
+  allTasks: Task[];
 }
 
 /**
@@ -58,21 +65,17 @@ export function createUnifiedEditor(
   container: HTMLElement, 
   props: EditTaskUnifiedProps
 ): { destroy: () => void } {
-  // Convert to unified format
+  // Convert to unified format via service facade
   const isObsidian = 'description' in props.task && 'status' in props.task;
-  let unifiedTask: UnifiedTask;
+  let unifiedTask: UnifiedTask = props.task as any;
   
-  if (isObsidian) {
-    unifiedTask = TaskModelAdapter.obsidianToUnified(props.task as ObsidianTask);
-  } else {
-    unifiedTask = TaskModelAdapter.siyuanToUnified(props.task as SiYuanTask);
-  }
+  // Async initialization — convert task via service facade
+  (async () => {
+    unifiedTask = await uiQueryService.toUnifiedTask(props.task as any);
+    unifiedTaskStore.set(unifiedTask);
+  })();
   
-  const unifiedAllTasks = props.allTasks.map(t => 
-    ('description' in t && 'status' in t) 
-      ? TaskModelAdapter.obsidianToUnified(t as ObsidianTask)
-      : TaskModelAdapter.siyuanToUnified(t as SiYuanTask)
-  );
+  const unifiedAllTasks: UnifiedTask[] = props.allTasks.map(t => t as any);
   
   // Create reactive store for unified task
   const unifiedTaskStore = writable<UnifiedTask>(unifiedTask);
@@ -101,30 +104,26 @@ export function createUnifiedEditor(
   const aiContainer = container.querySelector('#ai-suggestions-section') as HTMLElement;
   
   // Mount legacy editor (handles basic fields, priority, status, dates, recurrence, dependencies)
-  const legacyTask = isObsidian 
-    ? props.task as ObsidianTask
-    : TaskModelAdapter.unifiedToObsidian(unifiedTask);
+  const legacyTask = props.task;
   
   const legacyEditor = mount(EditTaskLegacy, {
     target: legacyContainer,
     props: {
       task: legacyTask,
       statusOptions: props.statusOptions,
-      allTasks: props.allTasks as ObsidianTask[],
-      onSubmit: async (updatedTasks: ObsidianTask[]) => {
-        // Convert back to SiYuan and merge with extended fields
+      allTasks: props.allTasks as any[],
+      onSubmit: async (updatedTasks: any[]) => {
+        // Convert back and merge with extended fields
         if (updatedTasks.length > 0) {
-          const updatedUnified = TaskModelAdapter.obsidianToUnified(updatedTasks[0]);
+          const updatedUnified = await uiQueryService.toUnifiedTask(updatedTasks[0]);
           
           // Merge with current extended fields
-          const merged: SiYuanTask = {
-            ...TaskModelAdapter.unifiedToSiyuan({
-              ...updatedUnified,
-              blockActions: currentBlockActions,
-              tags: currentTags,
-              category: currentCategory,
-            }),
-          };
+          const merged: Task = await uiQueryService.fromUnifiedTask({
+            ...updatedUnified,
+            blockActions: currentBlockActions,
+            tags: currentTags,
+            category: currentCategory,
+          }) as any;
           
           try {
             await props.onSubmit(merged);
@@ -194,10 +193,8 @@ export function createUnifiedEditor(
           // Update legacy editor if needed
           if (suggestion.action.type === 'updateTime' || 
               suggestion.action.type === 'setPriority') {
-            // Trigger legacy editor update by updating its props
-            const updatedObsidian = TaskModelAdapter.unifiedToObsidian(updated);
+            // Trigger legacy editor update via store changes
             // Note: Svelte 5 mount() returns don't support $set.
-            // The legacy editor should react to store changes instead.
             // TODO: Refactor to use reactive store for the legacy editor task prop.
           }
           
@@ -229,7 +226,12 @@ export function createUnifiedEditor(
 }
 
 /**
- * Apply AI suggestion to task (FIXED - actually mutates task)
+ * Apply AI suggestion to task (immutable spread pattern)
+ * 
+ * Operates on local editor state (UnifiedTask in a writable store),
+ * NOT on backend storage. Actual persistence happens via the onSubmit
+ * callback which routes through UITaskMutationService.
+ * All backend types replaced with TaskDTO + local aliases (Session 26).
  */
 function applySuggestionToTask(task: UnifiedTask, suggestion: TaskSuggestion): void {
   switch (suggestion.action.type) {
@@ -238,7 +240,7 @@ function applySuggestionToTask(task: UnifiedTask, suggestion: TaskSuggestion): v
       logger.debug('Task disabled via AI suggestion');
       break;
       
-    case 'updateTime':
+    case 'updateTime': {
       const hour = suggestion.action.parameters.hour;
       if (task.dueAt) {
         const date = new Date(task.dueAt);
@@ -252,19 +254,21 @@ function applySuggestionToTask(task: UnifiedTask, suggestion: TaskSuggestion): v
         logger.debug('Task scheduled time updated', { hour });
       }
       break;
+    }
       
     case 'setPriority':
       task.priority = suggestion.action.parameters.priority;
       logger.debug('Task priority updated', { priority: task.priority });
       break;
       
-    case 'adjustFrequency':
+    case 'adjustFrequency': {
       const newInterval = suggestion.action.parameters.interval;
       if (task.frequency && newInterval) {
-        task.frequency.interval = newInterval;
+        task.frequency = { ...task.frequency, interval: newInterval };
         logger.debug('Task frequency adjusted', { newInterval });
       }
       break;
+    }
       
     default:
       logger.warn('Unknown suggestion action type', { type: suggestion.action.type });

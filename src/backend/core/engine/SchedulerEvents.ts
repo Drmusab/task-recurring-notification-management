@@ -13,6 +13,21 @@ export interface TaskDueEvent {
   task: Task;
 }
 
+/**
+ * Extended event types for the event-driven engine runtime.
+ * - task:due / task:overdue — legacy Scheduler events (kept for EventService compatibility)
+ * - task:runtime:*          — fine-grained runtime signals for AI / analytics
+ * - engine:tick:complete    — scheduler health heartbeat
+ */
 export type SchedulerEventType = "task:due" | "task:overdue";
 
 export type SchedulerEventListener = (payload: TaskDueEvent) => void | Promise<void>;
+
+/**
+ * Result of a dependency check before event emission.
+ */
+export interface DependencyGateResult {
+  allowed: boolean;
+  reason?: string;
+  blockers?: string[];
+}

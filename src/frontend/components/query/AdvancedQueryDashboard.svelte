@@ -13,10 +13,10 @@
    * - Explanation diff (before/after comparison)
    * - Suggested fixes (actionable recommendations)
    * - Visual diagrams (Mermaid flowcharts)
-   * 
    * @module AdvancedQueryDashboard
    */
 
+  import * as logger from "@shared/logging/logger";
   import { onMount } from "svelte";
   import QueryFolderManager from "./QueryFolderManager.svelte";
   import QueryTagManager from "./QueryTagManager.svelte";
@@ -29,19 +29,21 @@
   
   // Phase 4 Analytics Dashboard
   import AnalyticsDashboard from "../analytics/AnalyticsDashboard.svelte";
-  import { exportAndDownload } from "@backend/core/analytics/CSVExporter";
+  import { uiQueryService } from '../../services/UIQueryService';
   
   // Phase 4 imports
   import ExplanationDiffPanel from "../../../ui/components/query/ExplanationDiffPanel.svelte";
   import SuggestedFixesPanel from "../../../ui/components/query/SuggestedFixesPanel.svelte";
   import ExplanationDiagramView from "../../../ui/components/query/ExplanationDiagramView.svelte";
   
-  import type { SavedQuery } from "@backend/core/query/SavedQueryStore";
-  import type { Explanation } from "@backend/core/query/QueryExplanation";
-  import type { QueryAST } from "@backend/core/query/QueryParser";
-  import type { SuggestedFix } from "@backend/core/query/QuerySuggestions";
-  import type { Task } from "@backend/core/models/Task";
-  import { SuggestedFixGenerator } from "@backend/core/query/QuerySuggestions";
+  import type { SavedQueryDTO, QueryExplanationDTO, QueryASTDTO, SuggestedFixDTO, TaskDTO } from '../../services/DTOs';
+
+  // Local type aliases for compatibility
+  type SavedQuery = SavedQueryDTO;
+  type Explanation = QueryExplanationDTO;
+  type QueryAST = QueryASTDTO;
+  type SuggestedFix = SuggestedFixDTO;
+  type Task = TaskDTO;
 
   // Props
   export let onQueryExecute: (queryString: string) => void = () => {};
@@ -113,7 +115,7 @@
 
   async function handleApplyFix(fix: SuggestedFix) {
     if (!onTaskUpdate) {
-      console.warn("No task update handler provided");
+      logger.warn("No task update handler provided");
       return;
     }
 
@@ -126,7 +128,7 @@
         onQueryExecute(currentQuery);
       }
     } catch (error) {
-      console.error("Failed to apply fix:", error);
+      logger.error("Failed to apply fix:", error);
     }
   }
 
@@ -194,17 +196,17 @@
         {tasks}
         onTaskClick={(task) => {
           // Could navigate to task details or show modal
-          console.log('Task clicked:', task);
+          logger.info('Task clicked:', task);
         }}
         onDaySelect={(date) => {
           // Could filter tasks by date
-          console.log('Day selected:', date);
+          logger.info('Day selected:', date);
         }}
       />
     {:else if activeView === "analytics"}
       <AnalyticsDashboard
         {tasks}
-        onExportCSV={() => exportAndDownload(tasks, { includeTasks: true, includeSummary: true, includeCompletionHistory: true })}
+        onExportCSV={() => uiQueryService.exportTasksAsCSV(tasks as any[])}
       />
     {:else if activeView === "diff"}
       <ExplanationDiffPanel

@@ -136,15 +136,32 @@ export const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const LAST_RUN_TIMESTAMP_KEY = "last-run-timestamp";
 
 /**
- * Block attribute keys for syncing tasks to blocks
+ * Block attribute keys for syncing tasks to blocks.
+ * Canonical prefix: "custom-task-" (SiYuan convention: custom-* for plugin attrs).
+ *
+ * IMPORTANT: These are the ONLY attribute keys the plugin writes.
+ * All consumers (TaskStorage, BlockMetadataService, BlockAttributeSync)
+ * MUST import from here — never define local attribute constants.
  */
-export const BLOCK_ATTR_TASK_ID = "custom-recurring-task-id";
-export const BLOCK_ATTR_TASK_DUE = "custom-recurring-task-due";
-export const BLOCK_ATTR_TASK_ENABLED = "custom-recurring-task-enabled";
+export const BLOCK_ATTR_TASK_ID = "custom-task-id";
+export const BLOCK_ATTR_TASK_DUE = "custom-task-due";
+export const BLOCK_ATTR_TASK_ENABLED = "custom-task-enabled";
+export const BLOCK_ATTR_TASK_STATUS = "custom-task-status";
+export const BLOCK_ATTR_TASK_PRIORITY = "custom-task-priority";
+export const BLOCK_ATTR_TASK_RECURRENCE = "custom-task-recurrence";
+export const BLOCK_ATTR_TASK_TAGS = "custom-task-tags";
+export const BLOCK_ATTR_TASK_DATA = "custom-task-data";
+export const BLOCK_ATTR_TASK_CATEGORY = "custom-task-category";
+export const BLOCK_ATTR_TASK_CREATED = "custom-task-created";
+export const BLOCK_ATTR_TASK_UPDATED = "custom-task-updated";
+export const BLOCK_ATTR_TASK_COMPLETED_AT = "custom-task-completed-at";
+export const BLOCK_ATTR_TASK_DEPENDS_ON = "custom-task-depends-on";
+export const BLOCK_ATTR_TASK_BLOCKED_BY = "custom-task-blocked-by";
+export const BLOCK_ATTR_TASK_SERIES_ID = "custom-task-series-id";
 
 /**
  * Block sync retry configuration
  */
 export const MAX_SYNC_RETRIES = 3;
-export const RETRY_DELAYS = [1000, 5000, 30000]; // Exponential backoff in ms
+export const RETRY_DELAYS: readonly number[] = [1000, 5000, 30000]; // Exponential backoff in ms
 export const SYNC_RETRY_PROCESSOR_INTERVAL = 10000; // Check retry queue every 10s

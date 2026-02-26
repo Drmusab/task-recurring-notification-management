@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Task } from '@backend/core/models/Task';
 import { normalizePriority } from '@backend/core/models/Task';
 import { calculateUrgencyScore } from '@backend/core/urgency/UrgencyScoreCalculator';

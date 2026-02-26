@@ -1,110 +1,218 @@
-<script lang="ts">
+﻿<script lang="ts">
   /**
-   * SettingsView Component - Full settings editor in dock panel
-   * Displays toggles for plugin settings and migration status.
-   * Changes are saved via SiYuan plugin.saveData() API.
+   * SettingsView Component - Session 27 Refactored (Runtime Projection Layer)
+   *
+   * BEFORE (violations):
+   *   Direct plugin.saveData("settings", settings) SiYuan API call
+   *   Inline mutation: (settings as any)[section][key] = !...
+   *   Plugin instance passed as prop (couples to backend)
+   *   migrationStats passed as prop (stale prop chain)
+   *
+   * AFTER (clean):
+   *   settingsStore for reactive settings + persistence
+   *   Dashboard.store for migrationStats
+   *   No SiYuan API, no domain imports, no inline mutation
+   *   all mutations via settingsStore.updateSettings()
    */
-  import type { PluginSettings } from "@backend/core/settings/PluginSettings";
-  import type { Plugin } from "siyuan";
+  import { settingsStore } from "@stores/Settings.store";
+  import { migrationStats } from "@stores/Dashboard.store";
 
   export let tabPanelId: string;
   export let settingsTabId: string;
-  export let migrationStats: { migratable: number; alreadyMigrated: number };
-  export let settings: PluginSettings;
-  export let plugin: Plugin;
 
-  async function saveSettings() {
-    try {
-      await plugin.saveData("settings", settings);
-    } catch (err) {
-      console.error("[SettingsView] Failed to save settings:", err);
-    }
+  // Subscribe to the settings store (SettingsDTO, flat structure)
+  $: currentSettings = $settingsStore;
+
+  // Read migration stats from Dashboard.store (reactive)
+  $: stats = $migrationStats;
+
+  /**
+   * Type-safe settings read using SettingsDTO index signature.
+   * Falls back to false for boolean toggles.
+   */
+  function getSetting(key: string): unknown {
+    return (currentSettings as Record<string, unknown>)?.[key] ?? false;
   }
 
-  function toggleSetting(section: string, key: string) {
-    (settings as any)[section][key] = !(settings as any)[section][key];
-    // Trigger Svelte reactivity
-    settings = settings;
-    saveSettings();
+  /**
+   * Toggle a boolean setting and persist via settingsStore.
+   * No direct plugin.saveData() call.
+   */
+  function toggleSetting(key: string) {
+    const current = getSetting(key);
+    settingsStore.updateSettings({ [key]: !current });
   }
 </script>
 
-<div 
-  class="rtm-settings-panel" 
-  role="tabpanel" 
+<div
+  class="rtm-settings-panel"
+  role="tabpanel"
   id={tabPanelId}
   aria-labelledby={settingsTabId}
   tabindex="0"
 >
   <h3>Settings</h3>
-  
+
   <!-- Recurrence Settings -->
   <div class="rtm-settings-section">
     <h4>🔄 Recurrence</h4>
 
     <label class="fn__flex b3-label rtm-setting-item">
       <div class="fn__flex-1">
-        <span class="fn__flex">Use RRule by default</span>
-        <div class="b3-label__text">Use RFC 5545 RRule format for new tasks</div>
+        <span class="fn__flex">Create next on completion</span>
+        <div class="b3-label__text">Automatically create the next recurring instance when completing a task</div>
       </div>
       <div class="fn__space"></div>
       <input class="b3-switch fn__flex-center" type="checkbox"
-        checked={settings.recurrence.useRRuleByDefault}
-        on:change={() => toggleSetting('recurrence', 'useRRuleByDefault')} />
+        checked={getSetting('autoCreateNextTask')}
+        on:change={() => toggleSetting('autoCreateNextTask')} />
     </label>
 
     <label class="fn__flex b3-label rtm-setting-item">
       <div class="fn__flex-1">
-        <span class="fn__flex">Auto-migrate on edit</span>
-        <div class="b3-label__text">Convert legacy tasks to RRule when edited</div>
+        <span class="fn__flex">Recurrence from completion</span>
+        <div class="b3-label__text">Calculate next date from completion date rather than original due date</div>
       </div>
       <div class="fn__space"></div>
       <input class="b3-switch fn__flex-center" type="checkbox"
-        checked={settings.recurrence.autoMigrateOnEdit}
-        on:change={() => toggleSetting('recurrence', 'autoMigrateOnEdit')} />
-    </label>
-  </div>
-
-  <!-- Date Tracking Settings -->
-  <div class="rtm-settings-section">
-    <h4>📅 Date Tracking</h4>
-
-    <label class="fn__flex b3-label rtm-setting-item">
-      <div class="fn__flex-1">
-        <span class="fn__flex">Auto-add done date</span>
-        <div class="b3-label__text">Automatically set done date when completing tasks</div>
-      </div>
-      <div class="fn__space"></div>
-      <input class="b3-switch fn__flex-center" type="checkbox"
-        checked={settings.dates.autoAddDone}
-        on:change={() => toggleSetting('dates', 'autoAddDone')} />
+        checked={getSetting('recurrenceFromCompletion')}
+        on:change={() => toggleSetting('recurrenceFromCompletion')} />
     </label>
 
     <label class="fn__flex b3-label rtm-setting-item">
       <div class="fn__flex-1">
-        <span class="fn__flex">Auto-add created date</span>
-        <div class="b3-label__text">Automatically set created date when creating tasks</div>
+        <span class="fn__flex">Keep completed recurring</span>
+        <div class="b3-label__text">Retain completed instances of recurring tasks in the dashboard</div>
       </div>
       <div class="fn__space"></div>
       <input class="b3-switch fn__flex-center" type="checkbox"
-        checked={settings.dates.autoAddCreated}
-        on:change={() => toggleSetting('dates', 'autoAddCreated')} />
+        checked={getSetting('keepCompletedRecurring')}
+        on:change={() => toggleSetting('keepCompletedRecurring')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Smart recurrence</span>
+        <div class="b3-label__text">Enable AI-powered smart recurrence suggestions</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('enableSmartRecurrence')}
+        on:change={() => toggleSetting('enableSmartRecurrence')} />
     </label>
   </div>
 
-  <!-- Block Actions Settings -->
+  <!-- Dependencies & Blocking -->
   <div class="rtm-settings-section">
-    <h4>🧱 Block Actions</h4>
+    <h4>🔗 Dependencies</h4>
 
     <label class="fn__flex b3-label rtm-setting-item">
       <div class="fn__flex-1">
-        <span class="fn__flex">Enable block actions</span>
-        <div class="b3-label__text">Link tasks to SiYuan blocks for smart actions</div>
+        <span class="fn__flex">Enable dependencies</span>
+        <div class="b3-label__text">Allow tasks to depend on other tasks</div>
       </div>
       <div class="fn__space"></div>
       <input class="b3-switch fn__flex-center" type="checkbox"
-        checked={settings.blockActions.enabled}
-        on:change={() => toggleSetting('blockActions', 'enabled')} />
+        checked={getSetting('enableDependencies')}
+        on:change={() => toggleSetting('enableDependencies')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Show dependency warnings</span>
+        <div class="b3-label__text">Display warnings when tasks have unresolved dependencies</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('showDependencyWarnings')}
+        on:change={() => toggleSetting('showDependencyWarnings')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Auto-hide blocked tasks</span>
+        <div class="b3-label__text">Automatically hide blocked tasks from the main task list</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('autoHideBlockedTasks')}
+        on:change={() => toggleSetting('autoHideBlockedTasks')} />
+    </label>
+  </div>
+
+  <!-- Notifications -->
+  <div class="rtm-settings-section">
+    <h4>🔔 Notifications</h4>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Enable notifications</span>
+        <div class="b3-label__text">Receive notifications for due and overdue tasks</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('enableNotifications')}
+        on:change={() => toggleSetting('enableNotifications')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Notify overdue</span>
+        <div class="b3-label__text">Show notifications for overdue tasks</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('notifyOverdue')}
+        on:change={() => toggleSetting('notifyOverdue')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">AI suggestions</span>
+        <div class="b3-label__text">Enable AI-powered task suggestions and recommendations</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('enableAISuggestions')}
+        on:change={() => toggleSetting('enableAISuggestions')} />
+    </label>
+  </div>
+
+  <!-- Display Settings -->
+  <div class="rtm-settings-section">
+    <h4>🎨 Display</h4>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Show relative dates</span>
+        <div class="b3-label__text">Display dates as "today", "tomorrow" instead of absolute dates</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('showRelativeDates')}
+        on:change={() => toggleSetting('showRelativeDates')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Show path</span>
+        <div class="b3-label__text">Display file path in task cards</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('showPath')}
+        on:change={() => toggleSetting('showPath')} />
+    </label>
+
+    <label class="fn__flex b3-label rtm-setting-item">
+      <div class="fn__flex-1">
+        <span class="fn__flex">Hide completed tasks</span>
+        <div class="b3-label__text">Hide completed tasks from the main view</div>
+      </div>
+      <div class="fn__space"></div>
+      <input class="b3-switch fn__flex-center" type="checkbox"
+        checked={getSetting('hideCompleted')}
+        on:change={() => toggleSetting('hideCompleted')} />
     </label>
   </div>
 
@@ -113,18 +221,18 @@
     <h4>📊 Migration Status</h4>
     <div class="rtm-migration-stats">
       <div class="rtm-stat">
-        <span class="rtm-stat-value">{migrationStats.alreadyMigrated}</span>
+        <span class="rtm-stat-value">{stats.alreadyMigrated}</span>
         <span class="rtm-stat-label">Tasks using RRule</span>
       </div>
       <div class="rtm-stat">
-        <span class="rtm-stat-value">{migrationStats.migratable}</span>
+        <span class="rtm-stat-value">{stats.migratable}</span>
         <span class="rtm-stat-label">Legacy tasks remaining</span>
       </div>
     </div>
 
-    {#if migrationStats.migratable > 0}
+    {#if stats.migratable > 0}
       <div class="rtm-warning-box" role="alert">
-        ⚠️ {migrationStats.migratable} legacy task(s) detected. They will be auto-migrated on next plugin reload.
+        ⚠️ {stats.migratable} legacy task(s) detected. They will be auto-migrated on next plugin reload.
       </div>
     {:else}
       <div class="rtm-success-box" role="status">

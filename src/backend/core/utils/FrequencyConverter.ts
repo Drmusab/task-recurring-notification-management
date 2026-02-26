@@ -8,8 +8,10 @@
 
 import type { Task } from '@domain/models/Task';
 import type { Recurrence } from '@domain/models/Recurrence';
+import * as logger from '@backend/logging/logger';
 import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';
 import { FrequencyToRecurrenceConverter, type LegacyFrequency } from '../migration/FrequencyToRecurrenceConverter';
+import { RRule } from 'rrule';
 
 // Type alias for backward compatibility
 type Frequency = LegacyFrequency;
@@ -121,7 +123,7 @@ export class FrequencyConverter {
     const result = this.convertTask(task);
 
     if (!result.success || !result.recurrence) {
-      console.warn(`Failed to convert task ${task.id}:`, result.error);
+      logger.warn(`Failed to convert task ${task.id}:`, result.error);
       return null;
     }
 
@@ -214,10 +216,7 @@ export class FrequencyConverter {
    */
   static isRRuleAvailable(): boolean {
     try {
-      // Try importing RRule
-      const { RRule } = require('rrule');
-      
-      // Try creating a simple rule
+      // Verify RRule works by creating a simple rule
       const testRule = new RRule({
         freq: RRule.DAILY,
         interval: 1,

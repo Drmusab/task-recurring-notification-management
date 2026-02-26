@@ -2,6 +2,7 @@ import { QueryParser, type QueryAST } from '@backend/core/query/QueryParser';
 import { QuerySyntaxError } from '@backend/core/query/QueryError';
 import { DateParser } from '@backend/core/parsers/DateParser';
 import { StatusType } from '@shared/constants/statuses/Status';
+import * as logger from '@backend/logging/logger';
 
 /**
  * NaturalLanguageQueryParser - Natural language overlay on AST parser
@@ -196,7 +197,7 @@ export class NaturalLanguageQueryParser {
       
       // If transformation occurred, indicate it in AST metadata
       if (transformed !== queryString) {
-        console.debug(`Natural language transformed: "${queryString}" -> "${transformed}"`);
+        logger.debug(`Natural language transformed: "${queryString}" -> "${transformed}"`);
       }
       
       // Parse with standard AST parser

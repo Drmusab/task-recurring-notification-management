@@ -14,9 +14,15 @@
  */
 
 import type { Plugin, EventBus } from "siyuan";
-import { fetchPost, fetchSyncPost } from "siyuan";
 import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
 import * as logger from "@backend/logging/logger";
+import {
+  siyuanRequest,
+  siyuanRequestSafe,
+  setBlockAttrs as clientSetBlockAttrs,
+  getBlockAttrs as clientGetBlockAttrs,
+  querySql as clientQuerySql,
+} from "@backend/core/api/SiYuanApiClient";
 
 // ─── Block Mutation Types ────────────────────────────────────
 
@@ -69,7 +75,6 @@ export class SiYuanRuntimeBridge {
 
   // SiYuan eventBus handler references (for cleanup)
   private wsMainHandler: ((evt: { detail: any }) => void) | null = null;
-  private blockIconHandler: ((evt: { detail: any }) => void) | null = null;
 
   // Subscribers
   private blockUpdateSubscribers: Set<(mutation: BlockMutation) => void> = new Set();
@@ -117,11 +122,6 @@ export class SiYuanRuntimeBridge {
     if (this.wsMainHandler) {
       this.plugin.eventBus.off("ws-main", this.wsMainHandler);
       this.wsMainHandler = null;
-    }
-
-    if (this.blockIconHandler) {
-      this.plugin.eventBus.off("click-blockicon", this.blockIconHandler);
-      this.blockIconHandler = null;
     }
 
     // Clear all debounce timers
@@ -185,11 +185,11 @@ export class SiYuanRuntimeBridge {
    */
   async getBlockTree(blockId: string): Promise<BlockTreeNode[]> {
     try {
-      const resp = await fetchSyncPost("/api/block/getChildBlocks", { id: blockId });
-      if (resp?.code === 0 && Array.isArray(resp.data)) {
-        return resp.data as BlockTreeNode[];
-      }
-      return [];
+      const data = await siyuanRequest<BlockTreeNode[]>(
+        "/api/block/getChildBlocks",
+        { id: blockId },
+      );
+      return Array.isArray(data) ? data : [];
     } catch (err) {
       logger.error("[SiYuanRuntimeBridge] getBlockTree failed", { blockId, error: err });
       return [];
@@ -202,11 +202,8 @@ export class SiYuanRuntimeBridge {
    */
   async updateBlockAttrs(blockId: string, attrs: Record<string, string>): Promise<boolean> {
     try {
-      const resp = await fetchSyncPost("/api/attr/setBlockAttrs", {
-        id: blockId,
-        attrs,
-      });
-      return resp?.code === 0;
+      await clientSetBlockAttrs(blockId, attrs);
+      return true;
     } catch (err) {
       logger.error("[SiYuanRuntimeBridge] updateBlockAttrs failed", { blockId, error: err });
       return false;
@@ -218,11 +215,7 @@ export class SiYuanRuntimeBridge {
    */
   async getBlockAttrs(blockId: string): Promise<Record<string, string>> {
     try {
-      const resp = await fetchSyncPost("/api/attr/getBlockAttrs", { id: blockId });
-      if (resp?.code === 0 && resp.data) {
-        return resp.data as Record<string, string>;
-      }
-      return {};
+      return await clientGetBlockAttrs(blockId);
     } catch (err) {
       logger.error("[SiYuanRuntimeBridge] getBlockAttrs failed", { blockId, error: err });
       return {};
@@ -231,15 +224,18 @@ export class SiYuanRuntimeBridge {
 
   /**
    * Get block info (content, markdown, type).
+   * Uses /api/query/sql since /api/block/getBlockInfo does not exist in the API.
    */
   async getBlockInfo(blockId: string): Promise<{ content: string; markdown: string; type: string } | null> {
     try {
-      const resp = await fetchSyncPost("/api/block/getBlockInfo", { id: blockId });
-      if (resp?.code === 0 && resp.data) {
+      const sql = `SELECT content, markdown, type FROM blocks WHERE id = '${blockId}' LIMIT 1`;
+      const rows = await clientQuerySql<Array<{ content: string; markdown: string; type: string }>>(sql);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const row = rows[0]!;
         return {
-          content: resp.data.content ?? "",
-          markdown: resp.data.markdown ?? "",
-          type: resp.data.type ?? "",
+          content: row.content ?? "",
+          markdown: row.markdown ?? "",
+          type: row.type ?? "",
         };
       }
       return null;
@@ -255,11 +251,8 @@ export class SiYuanRuntimeBridge {
    */
   async querySql(sql: string): Promise<any[]> {
     try {
-      const resp = await fetchSyncPost("/api/query/sql", { stmt: sql });
-      if (resp?.code === 0 && Array.isArray(resp.data)) {
-        return resp.data;
-      }
-      return [];
+      const data = await clientQuerySql(sql);
+      return Array.isArray(data) ? data : [];
     } catch (err) {
       logger.error("[SiYuanRuntimeBridge] querySql failed", { error: err });
       return [];

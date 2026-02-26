@@ -1,12 +1,13 @@
 /**
  * Mount System Types
  *
- * Shared interfaces for all mount adapters.
+ * Shared interfaces for all mount adapters and the MountService.
  */
 
 import type { Plugin } from "siyuan";
 import type { PluginServices } from "../../plugin/types";
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../services/DTOs';
+type Task = TaskDTO;
 
 /**
  * Handle returned by any mount operation.
@@ -74,4 +75,55 @@ export function createMountRegistry(): MountRegistry {
     dialogs: new Set(),
     floats: new Set(),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MountService Types
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Lifecycle gate names — each mount declares which gates it requires.
+ */
+export type LifecycleGate =
+  | "runtimeReady"
+  | "reminderReady"
+  | "aiPanelReady"
+  | "modalReady"
+  | "navigationReady";
+
+/**
+ * Configuration for a deferred mount point.
+ * MountService holds these and activates them when their gate signal fires.
+ */
+export interface DeferredMount {
+  /** Unique name for this mount point (for logging/diagnostics) */
+  name: string;
+  /** Which lifecycle gate must be satisfied before mounting */
+  gate: LifecycleGate;
+  /** The actual mount function — called once the gate is open */
+  mount: () => MountHandle | void;
+  /** Whether this mount has been activated */
+  mounted: boolean;
+  /** The handle returned by mount(), if any */
+  handle: MountHandle | null;
+}
+
+/**
+ * MountService configuration passed from plugin index.ts.
+ */
+export interface MountServiceConfig {
+  /** Plugin instance */
+  plugin: Plugin;
+  /** Full service container */
+  services: PluginServices;
+}
+
+/**
+ * Boot progress polling configuration.
+ */
+export interface BootProgressConfig {
+  /** Poll interval in ms (default: 200) */
+  pollIntervalMs?: number;
+  /** Timeout before giving up (default: 30000) */
+  timeoutMs?: number;
 }

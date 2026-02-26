@@ -1,55 +1,47 @@
-<script lang="ts">
+﻿<script lang="ts">
   /**
-   * Main Dashboard Component - Refactored for Maintainability
-   * Now acts as a container that orchestrates view components
+   * Main Dashboard Component - Session 27 Refactored (Runtime Projection Layer)
    *
-   * @module Dashboard
+   * BEFORE (violations):
+   *   9 backend type imports
+   *   taskStorage.loadActive() direct storage access
+   *   eventBus.on("task:refresh") direct subscription
+   *   Local migrationStats computation
+   *   No reminder/AI/dependency reactive subscriptions
+   *
+   * AFTER (clean):
+   *   Dashboard.store as single source of truth
+   *   All derived stores for filtered views
+   *   Reminder-reactive via dashboardStore event subscriptions
+   *   AI suggestions tracked in dashboardStore
+   *   Recurring instance-aware (completed parents filtered)
+   *   Dependency readiness from DependencyDTO.isBlocked
+   *   migrationStats from derived store
+   *   No backend imports except type-only PluginSettingsDTO
+   *
    * @accessibility WCAG 2.1 AA compliant tab navigation
-   * @version 3.0.0
+   * @version 5.0.0
    */
 
   import { onMount, onDestroy } from "svelte";
   import { generateAriaId } from "@frontend/utils/accessibility";
+  import { runtimeReady } from "@stores/RuntimeReady.store";
   import TrackerDashboard from "@components/shared/TrackerDashboard.svelte";
   import ErrorBoundary from "@components/shared/ErrorBoundary.svelte";
   import TasksView from "./views/TasksView.svelte";
   import QueriesView from "./views/QueriesView.svelte";
   import SettingsView from "./views/SettingsView.svelte";
-  import { updateAnalyticsFromTasks } from "@stores/TaskAnalytics.store";
-  
-  import type { Task } from "@backend/core/models/Task";
-  import type { TaskStorage } from "@backend/core/storage/TaskStorage";
-  import type { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngine";
-  import type { Scheduler } from "@backend/core/engine/Scheduler";
-  import type { EventService } from "@backend/services/EventService";
-  import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
-  import type { Plugin } from "siyuan";
-  import type { TaskCreationService } from "@backend/core/services/TaskCreationService";
-  import type { AutoMigrationService } from "@backend/core/services/AutoMigrationService";
-  import type { PluginSettings } from "@backend/core/settings/PluginSettings";
 
-  // Props - all passed from index.ts mount call
-  export let taskStorage: TaskStorage;
-  export let recurrenceEngine: RecurrenceEngine | undefined = undefined;
-  export let taskScheduler: Scheduler | undefined = undefined;
-  export let notificationService: EventService | undefined = undefined;
-  export let eventBus: PluginEventBus;
-  export let plugin: Plugin;
-  export let taskCreationService: TaskCreationService;
-  export let autoMigrationService: AutoMigrationService;
-  export let settings: PluginSettings;
+  // Stores - Dashboard.store is the single source of truth
+  import {
+    dashboardStore,
+  } from "@stores/Dashboard.store";
+
+  // Props - minimal: only optional mobile flag
   export let isMobile: boolean = false;
 
- // Use refs to services for future expansion
-  void recurrenceEngine;
-  void taskScheduler;
-  void notificationService;
-  void plugin;
-
   // State
-  let tasks: Task[] = [];
   let activeTab: "tasks" | "queries" | "tracker" | "settings" = "tasks";
-  let migrationStats = { migratable: 0, alreadyMigrated: 0 };
 
   // Generate unique IDs for ARIA relationships
   const tablistId = generateAriaId('tablist');
@@ -65,44 +57,13 @@
   // ARIA live region for tab changes
   let tabChangeAnnouncement = "";
 
-  // Subscriptions
-  let unsubscribeRefresh: (() => void) | null = null;
-
-  onMount(async () => {
-    await loadTasks();
-    await updateMigrationStats();
-
-    // Populate analytics store on initial load so TrackerDashboard has data
-    if (tasks.length > 0) {
-      updateAnalyticsFromTasks(tasks);
+  onMount(() => {
+    // Dashboard.store should already be connected by plugin index.ts.
+    // Trigger refresh if not yet loaded.
+    if (dashboardStore.getState().lastUpdated === 0) {
+      dashboardStore.refresh();
     }
-
-    // Subscribe to task refresh events
-    unsubscribeRefresh = eventBus.on("task:refresh", async () => {
-      await loadTasks();
-      updateAnalyticsFromTasks(tasks);
-    });
   });
-
-  onDestroy(() => {
-    unsubscribeRefresh?.();
-  });
-
-  async function loadTasks() {
-    try {
-      const loadedTasks = await taskStorage.loadActive();
-      tasks = Array.from(loadedTasks.values());
-    } catch (error: any) {
-      console.error("[Dashboard] Failed to load tasks:", error);
-    }
-  }
-
-  async function updateMigrationStats() {
-    // Phase 3: All tasks should have recurrence, count any legacy tasks as migratable
-    const migratable = tasks.filter(t => (t as any).frequency && !(t as any).recurrence).length;
-    const alreadyMigrated = tasks.filter(t => (t as any).recurrence).length;
-    migrationStats = { migratable, alreadyMigrated };
-  }
 
   // Accessibility: Tab keyboard navigation
   function handleTabKeyDown(event: KeyboardEvent) {
@@ -140,9 +101,8 @@
   }
 
   function focusActiveTab() {
-    // Focus the active tab button after keyboard navigation
     const activeTabButton = document.querySelector(
-      '.rtm-tab[aria-selected="true"]'
+      '.rtm-dashboard .rtm-tab[aria-selected="true"]'
     ) as HTMLButtonElement;
     if (activeTabButton) {
       activeTabButton.focus();
@@ -165,6 +125,7 @@
   }
 </script>
 
+{#if $runtimeReady}
 <div class="rtm-dashboard" class:rtm-dashboard--mobile={isMobile}>
   <!-- ARIA live region for tab changes -->
   <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -172,9 +133,9 @@
   </div>
 
   <!-- Tab Navigation - WCAG 2.1 AA Compliant -->
-  <div 
-    class="rtm-tabs" 
-    role="tablist" 
+  <div
+    class="rtm-tabs"
+    role="tablist"
     aria-label="Dashboard sections"
     id={tablistId}
     tabindex="-1"
@@ -239,10 +200,6 @@
     {#if activeTab === "tasks"}
       <ErrorBoundary fallback="Failed to load tasks view">
         <TasksView
-          {taskStorage}
-          {taskCreationService}
-          {autoMigrationService}
-          {eventBus}
           tabPanelId={tasksTabPanelId}
           tasksTabId={tasksTabId}
         />
@@ -250,16 +207,14 @@
     {:else if activeTab === "queries"}
       <ErrorBoundary fallback="Failed to load queries view">
         <QueriesView
-          {tasks}
-          {settings}
           tabPanelId={queriesTabPanelId}
           queriesTabId={queriesTabId}
         />
       </ErrorBoundary>
     {:else if activeTab === "tracker"}
       <ErrorBoundary fallback="Failed to load analytics dashboard">
-        <div 
-          role="tabpanel" 
+        <div
+          role="tabpanel"
           id={trackerTabPanelId}
           aria-labelledby={trackerTabId}
           tabindex="0"
@@ -272,14 +227,17 @@
         <SettingsView
           tabPanelId={settingsTabPanelId}
           settingsTabId={settingsTabId}
-          {migrationStats}
-          {settings}
-          {plugin}
         />
       </ErrorBoundary>
     {/if}
   </div>
 </div>
+{:else}
+<div class="rtm-dashboard-loading">
+  <div class="loading-spinner"></div>
+  <p>Initializing plugin...</p>
+</div>
+{/if}
 
 <style>
   .sr-only {
@@ -339,5 +297,37 @@
   .rtm-content {
     flex: 1;
     overflow-y: auto;
+  }
+
+  .rtm-dashboard-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    gap: 12px;
+    color: var(--b3-theme-on-surface);
+  }
+
+  .loading-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--b3-border-color);
+    border-top-color: var(--b3-theme-primary);
+    border-radius: 50%;
+    animation: rtm-spin 0.8s linear infinite;
+  }
+
+  @keyframes rtm-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loading-spinner {
+      animation: none;
+      opacity: 0.5;
+    }
   }
 </style>

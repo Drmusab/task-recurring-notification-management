@@ -3,6 +3,7 @@ import type { ReadOnlyReference } from "@backend/core/reminders/ref";
 import { Reminder } from "@backend/core/reminders/reminder";
 import { DateTime } from "@backend/core/reminders/time";
 import { Todo } from "@backend/core/reminders/format/markdown";
+import * as logger from "@backend/logging/logger";
 
 export type ReminderEdit = {
   time?: DateTime;
@@ -174,7 +175,7 @@ export abstract class TodoBasedReminderFormat<E extends ReminderModel>
   ): Promise<boolean> {
     const todo = doc.getTodo(reminder.rowNumber);
     if (todo === null) {
-      console.warn("Not a todo: reminder=%o", reminder);
+      logger.warn("Not a todo: reminder=%o", reminder);
       return false;
     }
     const parsed = this.parseValidReminder(todo);
@@ -212,7 +213,7 @@ export abstract class TodoBasedReminderFormat<E extends ReminderModel>
   ): boolean {
     if (edit.rawTime !== undefined) {
       if (!parsed.setRawTime(edit.rawTime)) {
-        console.warn(
+        logger.warn(
           "The reminder doesn't support raw time: parsed=%o",
           parsed,
         );

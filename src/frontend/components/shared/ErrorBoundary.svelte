@@ -10,6 +10,8 @@
    * and handle errors at the component level with try-catch.
    */
   
+  import * as logger from "@shared/logging/logger";
+  
   export let fallback: string = 'Something went wrong';
   export let onErrorCallback: ((error: Error) => void) | undefined = undefined;
   export let showDetails: boolean = true;
@@ -30,7 +32,7 @@
   }
   
   function handleError(event: ErrorEvent) {
-    console.error('[ErrorBoundary] Caught error:', event.error);
+    logger.error('[ErrorBoundary] Caught error:', event.error);
     
     hasError = true;
     errorMessage = event.error?.message || event.message || 'Unknown error';
@@ -41,7 +43,7 @@
       try {
         onErrorCallback(event.error);
       } catch (callbackError) {
-        console.error('[ErrorBoundary] Error in error callback:', callbackError);
+        logger.error('[ErrorBoundary] Error in error callback:', callbackError);
       }
     }
     

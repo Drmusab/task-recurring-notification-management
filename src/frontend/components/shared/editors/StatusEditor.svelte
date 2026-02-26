@@ -1,52 +1,63 @@
 <script lang="ts">
     /**
-     * Status Editor Component
+     * Status Editor Component — Session 27 Refactored (DTO-driven)
      * 
-     * Allows selecting task status from dropdown.
-     * Updates completion/cancellation dates automatically based on status.
+     * BEFORE: Imported Status class with isCompleted()/isCancelled() methods
+     * AFTER: Accepts plain status option objects, uses static type check
+     * 
+     * No domain imports. No EditableTask dependency.
      */
-    import { Status } from "@shared/constants/statuses/Status";
-    import type { Task } from "@backend/core/models/Task";
-    import type { EditableTask } from "@components/shared/utils/editableTask";
+    import type { TaskDTO } from '../../../services/DTOs';
     import { labelContentWithAccessKey } from "@components/shared/utils/taskEditHelpers";
     import { t } from '@stores/I18n.store';
 
-    export let task: Task;
-    export let editableTask: EditableTask;
-    export let statusOptions: Status[];
+    /** Plain status option — no Status class methods */
+    interface StatusOption {
+        symbol: string;
+        name: string;
+        type?: string;
+    }
+
+    export let task: TaskDTO;
+    export let editableTask: any;
+    export let statusOptions: StatusOption[];
     export let accesskey: string | null;
 
-    let statusSymbol = task.status ? editableTask.status?.symbol || ' ' : ' ';
+    let statusSymbol = task?.statusSymbol || ' ';
 
     /**
-     * Handle status change and auto-update related date fields
+     * Handle status change and auto-update related date fields.
+     * Uses static type detection instead of domain Status methods.
      */
     function handleStatusChange() {
-        const selectedStatus = statusOptions.find((s) => s.symbol === statusSymbol);
-        if (!selectedStatus) return;
-        
-        editableTask.status = selectedStatus;
+        const selected = statusOptions.find((s) => s.symbol === statusSymbol);
+        if (!selected) return;
 
-        // Auto-fill dates based on status transition
+        if (editableTask.status !== undefined) {
+            editableTask.status = selected;
+        }
+
+        // Auto-fill dates based on status transition (static type check)
         const today = new Date().toISOString().split('T')[0] || '';
+        const statusType = selected.type ?? inferStatusType(selected.symbol);
 
-        if (selectedStatus.isCompleted()) {
-            // Set done date if empty, clear cancelled date
-            if (!editableTask.doneDate) {
-                editableTask.doneDate = today;
-            }
+        if (statusType === 'done' || statusType === 'DONE') {
+            if (!editableTask.doneDate) editableTask.doneDate = today;
             editableTask.cancelledDate = '';
-        } else if (selectedStatus.isCancelled()) {
-            // Set cancelled date if empty, clear done date
-            if (!editableTask.cancelledDate) {
-                editableTask.cancelledDate = today;
-            }
+        } else if (statusType === 'cancelled' || statusType === 'CANCELLED') {
+            if (!editableTask.cancelledDate) editableTask.cancelledDate = today;
             editableTask.doneDate = '';
         } else {
-            // Clear both completion dates for active statuses
             editableTask.doneDate = '';
             editableTask.cancelledDate = '';
         }
+    }
+
+    /** Infer status type from symbol (fallback if type not provided) */
+    function inferStatusType(symbol: string): string {
+        if (symbol === 'x') return 'done';
+        if (symbol === '-') return 'cancelled';
+        return 'todo';
     }
 </script>
 

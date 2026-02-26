@@ -1,159 +1,105 @@
 /**
- * ReactiveBlockLayer — Event-driven block monitoring
+ * ReactiveBlockLayer — Orchestrator for the block runtime layer
  *
- * Replaces manual block polling with SiYuan eventBus subscriptions.
- * Binds to SiYuanRuntimeBridge and emits domain-level block events
- * that the rest of the system can react to.
+ * Thin coordinator that creates and lifecycle-manages all block subsystem
+ * components. Replaces the former monolithic approach with a clean pipeline:
  *
- * Emits through PluginEventBus:
- *   - TASK_BLOCK_UPDATED  (block content changed)
- *   - TASK_BLOCK_REMOVED  (block deleted)
- *   - TASK_BLOCK_COMPLETED (checkbox toggled)
- *   - TASK_BLOCK_CREATED  (new task-like block inserted)
+ *   SiYuanRuntimeBridge (raw WS events)
+ *       ↓
+ *   BlockEventHandler (normalize, emit PluginEventBus)
+ *       ↓
+ *   BlockActionExecutor (evaluate triggers, execute actions, emit events)
+ *       ↓
+ *   BlockAttributeSync (write attributes via API; retry on failure)
+ *       ↓
+ *   BlockRetryQueue (exponential backoff for failed writes)
  *
- * The BlockActionEngine is triggered automatically when relevant
- * block mutations are detected for linked tasks.
+ * Lifecycle:
+ *   - Constructed in onload() with all deps
+ *   - start() → called in onLayoutReady() after runtimeBridge.start()
+ *   - stop()  → called in onunload() before runtimeBridge.stop()
  */
 
 import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
 import type {
   SiYuanRuntimeBridge,
-  RuntimeEvent,
-  BlockMutation,
 } from "@backend/runtime/SiYuanRuntimeBridge";
-import type { BlockActionEngine } from "@backend/core/block-actions/BlockActionEngine";
-import type { BlockEvent } from "@backend/core/block-actions/BlockActionTypes";
+import type { TaskRepositoryProvider } from "@backend/core/storage/TaskStorage";
+import type { PluginSettings } from "@backend/core/settings/PluginSettings";
+import type { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngine";
+import { BlockRetryQueue } from "@backend/blocks/BlockRetryQueue";
+import { BlockAttributeSync } from "@backend/blocks/BlockAttributeSync";
+import { BlockEventHandler } from "@backend/blocks/BlockEventHandler";
+import { BlockActionExecutor } from "@backend/blocks/BlockActionExecutor";
 import * as logger from "@backend/logging/logger";
 
 export interface ReactiveBlockLayerDeps {
   runtimeBridge: SiYuanRuntimeBridge;
   pluginEventBus: PluginEventBus;
-  /** Optional: block action engine for linked-task triggers */
-  blockActionEngine?: BlockActionEngine;
+  repository: TaskRepositoryProvider;
+  settingsProvider: () => PluginSettings;
+  recurrenceEngine?: RecurrenceEngine;
 }
 
 export class ReactiveBlockLayer {
-  private runtimeBridge: SiYuanRuntimeBridge;
-  private pluginEventBus: PluginEventBus;
-  private blockActionEngine?: BlockActionEngine;
-  private cleanups: (() => void)[] = [];
+  // ── Subsystem components (created in constructor, lifecycle-managed) ──
+  readonly retryQueue: BlockRetryQueue;
+  readonly attributeSync: BlockAttributeSync;
+  readonly executor: BlockActionExecutor;
+  readonly eventHandler: BlockEventHandler;
+
   private active = false;
 
   constructor(deps: ReactiveBlockLayerDeps) {
-    this.runtimeBridge = deps.runtimeBridge;
-    this.pluginEventBus = deps.pluginEventBus;
-    this.blockActionEngine = deps.blockActionEngine;
+    // Build the pipeline bottom-up: retry → sync → executor → handler
+    this.retryQueue = new BlockRetryQueue();
+
+    this.attributeSync = new BlockAttributeSync(this.retryQueue);
+
+    this.executor = new BlockActionExecutor({
+      repository: deps.repository,
+      settingsProvider: deps.settingsProvider,
+      pluginEventBus: deps.pluginEventBus,
+      blockAttributeSync: this.attributeSync,
+      recurrenceEngine: deps.recurrenceEngine,
+    });
+
+    this.eventHandler = new BlockEventHandler({
+      runtimeBridge: deps.runtimeBridge,
+      pluginEventBus: deps.pluginEventBus,
+      executor: this.executor,
+    });
   }
 
   /**
-   * Start listening to block mutations and forwarding to block action engine.
+   * Start all block subsystem components.
    * Call in onLayoutReady() after runtimeBridge.start().
    */
   start(): void {
     if (this.active) return;
     this.active = true;
 
-    // Subscribe to high-level runtime events
-    this.cleanups.push(
-      this.runtimeBridge.subscribeRuntimeEvent((evt) => {
-        this.handleRuntimeEvent(evt);
-      })
-    );
+    // Start in dependency order: retry queue → executor → event handler
+    this.retryQueue.start();
+    this.executor.activate();
+    this.eventHandler.start();
 
-    // Subscribe to raw block updates for block action engine
-    if (this.blockActionEngine) {
-      this.cleanups.push(
-        this.runtimeBridge.subscribeBlockUpdate((mutation) => {
-          this.forwardToBlockActionEngine(mutation);
-        })
-      );
-
-      this.cleanups.push(
-        this.runtimeBridge.subscribeBlockDelete((mutation) => {
-          this.forwardDeleteToBlockActionEngine(mutation);
-        })
-      );
-    }
-
-    logger.info("[ReactiveBlockLayer] Started — listening to block mutations");
+    logger.info("[ReactiveBlockLayer] Started — full block pipeline active");
   }
 
   /**
-   * Stop all subscriptions.
+   * Stop all block subsystem components.
    * Call in onunload().
    */
   stop(): void {
-    this.active = false;
-    for (const cleanup of this.cleanups) {
-      try { cleanup(); } catch { /* ignore */ }
-    }
-    this.cleanups.length = 0;
-    logger.info("[ReactiveBlockLayer] Stopped");
-  }
-
-  /**
-   * Process high-level runtime events and emit to PluginEventBus.
-   */
-  private handleRuntimeEvent(evt: RuntimeEvent): void {
     if (!this.active) return;
+    this.active = false;
 
-    switch (evt.type) {
-      case "TASK_BLOCK_CREATED":
-        logger.info("[ReactiveBlockLayer] TASK_BLOCK_CREATED", { blockId: evt.blockId });
-        break;
+    // Stop in reverse order: handler → executor → retry queue
+    this.eventHandler.stop();
+    this.executor.deactivate();
+    this.retryQueue.stop();
 
-      case "TASK_BLOCK_UPDATED":
-        logger.info("[ReactiveBlockLayer] TASK_BLOCK_UPDATED", { blockId: evt.blockId });
-        break;
-
-      case "TASK_BLOCK_REMOVED":
-        logger.info("[ReactiveBlockLayer] TASK_BLOCK_REMOVED", { blockId: evt.blockId });
-        break;
-
-      case "TASK_BLOCK_COMPLETED":
-        logger.info("[ReactiveBlockLayer] TASK_BLOCK_COMPLETED", {
-          blockId: evt.blockId,
-          checked: evt.checked,
-        });
-        break;
-    }
-  }
-
-  /**
-   * Forward block update mutations to BlockActionEngine as BlockEvents.
-   */
-  private forwardToBlockActionEngine(mutation: BlockMutation): void {
-    if (!this.blockActionEngine || !this.active) return;
-
-    const blockEvent: BlockEvent = {
-      type: "contentChanged",
-      blockId: mutation.blockId,
-      content: mutation.data || "",
-      previousContent: mutation.previousData,
-      timestamp: new Date(mutation.timestamp).toISOString(),
-      source: "system",
-    };
-
-    this.blockActionEngine.handleBlockEvent(blockEvent).catch((err) => {
-      logger.error("[ReactiveBlockLayer] BlockActionEngine error", err);
-    });
-  }
-
-  /**
-   * Forward block delete mutations to BlockActionEngine.
-   */
-  private forwardDeleteToBlockActionEngine(mutation: BlockMutation): void {
-    if (!this.blockActionEngine || !this.active) return;
-
-    const blockEvent: BlockEvent = {
-      type: "deleted",
-      blockId: mutation.blockId,
-      timestamp: new Date(mutation.timestamp).toISOString(),
-      source: "system",
-    };
-
-    this.blockActionEngine.handleBlockEvent(blockEvent).catch((err) => {
-      logger.error("[ReactiveBlockLayer] BlockActionEngine delete error", err);
-    });
+    logger.info("[ReactiveBlockLayer] Stopped");
   }
 }

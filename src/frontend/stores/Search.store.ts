@@ -2,7 +2,7 @@
  * Search store for managing search queries and filters
  */
 import { writable } from 'svelte/store';
-import type { Task } from '@backend/core/models/Task';
+import type { TaskDTO } from '../services/DTOs';
 
 export type SmartFilter = 'today' | 'overdue' | 'high-priority' | 'recurring' | 'no-due-date' | 'completed';
 
@@ -52,7 +52,7 @@ function getTodayDateString(): string {
 /**
  * Apply smart filters to tasks
  */
-export function applySmartFilters(tasks: Task[], filters: Set<SmartFilter>): Task[] {
+export function applySmartFilters(tasks: TaskDTO[], filters: Set<SmartFilter>): TaskDTO[] {
   let filtered = tasks;
   
   if (filters.has('today')) {
@@ -65,12 +65,7 @@ export function applySmartFilters(tasks: Task[], filters: Set<SmartFilter>): Tas
   }
   
   if (filters.has('overdue')) {
-    const today = getTodayDateString();
-    filtered = filtered.filter(task => {
-      if (!task.dueAt || task.status === 'completed') return false;
-      const taskDate = task.dueAt.split('T')[0];
-      return taskDate < today;
-    });
+    filtered = filtered.filter(task => task.isOverdue);
   }
   
   if (filters.has('high-priority')) {
@@ -78,7 +73,7 @@ export function applySmartFilters(tasks: Task[], filters: Set<SmartFilter>): Tas
   }
   
   if (filters.has('recurring')) {
-    filtered = filtered.filter(task => task.frequency?.type && task.frequency.type !== 'once');
+    filtered = filtered.filter(task => task.isRecurring);
   }
   
   if (filters.has('no-due-date')) {
@@ -95,7 +90,7 @@ export function applySmartFilters(tasks: Task[], filters: Set<SmartFilter>): Tas
 /**
  * Calculate counts for each filter
  */
-export function calculateFilterCounts(tasks: Task[]): Record<SmartFilter, number> {
+export function calculateFilterCounts(tasks: TaskDTO[]): Record<SmartFilter, number> {
   const today = getTodayDateString();
   
   return {
@@ -104,13 +99,9 @@ export function calculateFilterCounts(tasks: Task[]): Record<SmartFilter, number
       const taskDate = task.dueAt.split('T')[0];
       return taskDate === today;
     }).length,
-    overdue: tasks.filter(task => {
-      if (!task.dueAt || task.status === 'completed') return false;
-      const taskDate = task.dueAt.split('T')[0];
-      return taskDate < today;
-    }).length,
+    overdue: tasks.filter(task => task.isOverdue).length,
     'high-priority': tasks.filter(task => task.priority === 'high' || task.priority === 'highest').length,
-    recurring: tasks.filter(task => task.frequency?.type && task.frequency.type !== 'once').length,
+    recurring: tasks.filter(task => task.isRecurring).length,
     'no-due-date': tasks.filter(task => !task.dueAt).length,
     completed: tasks.filter(task => task.status === 'done' || task.status === 'completed' || !task.enabled).length,
   };

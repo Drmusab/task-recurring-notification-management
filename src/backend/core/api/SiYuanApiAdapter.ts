@@ -1,8 +1,12 @@
 ﻿import * as logger from "@backend/logging/logger";
+import {
+  setBlockAttrs as clientSetBlockAttrs,
+  SiYuanApiError,
+} from "@backend/core/api/SiYuanApiClient";
 
-export type SiYuanCapability = "setBlockAttrs" | "dataDir";
+type SiYuanCapability = "setBlockAttrs" | "dataDir";
 
-export type CapabilityMap = Record<SiYuanCapability, boolean>;
+type CapabilityMap = Record<SiYuanCapability, boolean>;
 
 export interface SiYuanBlockAPI {
   setBlockAttrs(blockId: string, attrs: Record<string, string>): Promise<void>;
@@ -12,7 +16,7 @@ export interface SiYuanEnvironmentAPI {
   getDataDir(): string | null;
 }
 
-export interface SiYuanApiIssue {
+interface SiYuanApiIssue {
   feature: string;
   capability: SiYuanCapability;
   message: string;
@@ -20,6 +24,14 @@ export interface SiYuanApiIssue {
 }
 
 const reportedIssues = new Set<string>();
+
+/**
+ * Reset the reported issues deduplication set.
+ * Called on plugin unload to prevent stale suppressions across hot-reloads.
+ */
+export function resetReportedIssues(): void {
+  reportedIssues.clear();
+}
 
 /**
  * Centralized logging for SiYuan API capability and runtime failures.
@@ -66,7 +78,6 @@ export class SiYuanApiExecutionError extends Error {
 }
 
 type SiYuanGlobal = {
-  setBlockAttrs?: unknown;
   siyuan?: {
     config?: {
       system?: {
@@ -77,13 +88,13 @@ type SiYuanGlobal = {
 };
 
 /**
- * Adapter layer that isolates access to SiYuan globals.
+ * Adapter layer that isolates access to SiYuan globals and kernel API.
  *
- * Why: Avoids scattered globalThis usage, enforces runtime capability checks,
- * and provides a single extension point for future SiYuan API versions or mocks.
+ * `setBlockAttrs` now delegates to the canonical `SiYuanApiClient` (kernel HTTP API)
+ * instead of the unreliable `globalThis.setBlockAttrs` injected global.
  *
- * To extend: Add a new capability to SiYuanCapability, expose a typed method,
- * and update supportedCapabilities to advertise availability.
+ * `getDataDir` still reads from `globalThis.siyuan.config.system.dataDir`
+ * (a synchronous runtime global, not an API call).
  */
 export class SiYuanApiAdapter implements SiYuanBlockAPI, SiYuanEnvironmentAPI {
   readonly supportedCapabilities: CapabilityMap;
@@ -92,13 +103,9 @@ export class SiYuanApiAdapter implements SiYuanBlockAPI, SiYuanEnvironmentAPI {
   constructor(globalScope: SiYuanGlobal = globalThis as SiYuanGlobal) {
     this.globalScope = globalScope;
     this.supportedCapabilities = {
-      setBlockAttrs: this.isSetBlockAttrsAvailable(),
+      setBlockAttrs: true, // Always available via kernel API
       dataDir: this.isDataDirAvailable(),
     };
-  }
-
-  private isSetBlockAttrsAvailable(): boolean {
-    return typeof this.globalScope?.setBlockAttrs === "function";
   }
 
   private isDataDirAvailable(): boolean {
@@ -117,14 +124,21 @@ export class SiYuanApiAdapter implements SiYuanBlockAPI, SiYuanEnvironmentAPI {
   }
 
   /**
-   * Set block attributes via the SiYuan API.
+   * Set block attributes via the canonical SiYuan kernel API client.
+   * Delegates to SiYuanApiClient.setBlockAttrs() which validates response.code === 0.
    */
   async setBlockAttrs(blockId: string, attrs: Record<string, string>): Promise<void> {
-    const setBlockAttrs = this.getSetBlockAttrs();
-
     try {
-      await setBlockAttrs(blockId, attrs);
+      await clientSetBlockAttrs(blockId, attrs);
     } catch (err) {
+      if (err instanceof SiYuanApiError) {
+        throw new SiYuanApiExecutionError(
+          "Block attribute sync",
+          "setBlockAttrs",
+          `Failed to sync block attributes via SiYuan API: ${err.kernelMessage}`,
+          err,
+        );
+      }
       throw new SiYuanApiExecutionError(
         "Block attribute sync",
         "setBlockAttrs",
@@ -132,17 +146,5 @@ export class SiYuanApiAdapter implements SiYuanBlockAPI, SiYuanEnvironmentAPI {
         err,
       );
     }
-  }
-
-  private getSetBlockAttrs(): (blockId: string, attrs: Record<string, string>) => Promise<void> {
-    if (!this.isSetBlockAttrsAvailable()) {
-      throw new SiYuanCapabilityError(
-        "Block attribute sync",
-        "setBlockAttrs",
-        "Block attribute sync unavailable in this SiYuan version. Tasks will continue without block sync.",
-      );
-    }
-
-    return this.globalScope.setBlockAttrs as (blockId: string, attrs: Record<string, string>) => Promise<void>;
   }
 }

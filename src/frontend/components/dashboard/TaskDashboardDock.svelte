@@ -1,81 +1,51 @@
-<script lang="ts">
+﻿<script lang="ts">
   /**
-   * TaskDashboardDock — SiYuan Dock-Mounted Dashboard
+   * TaskDashboardDock - SiYuan Dock-Mounted Dashboard
    *
-   * Replaces the old standalone Dashboard.svelte with a store-bound,
-   * dock-lifecycle-safe implementation.
+   * Session 27: Full runtime projection refactor.
+   *   All state from Dashboard.store (DashboardDTO-driven)
+   *   Recurring instance-aware (completed parents filtered by store)
+   *   Reminder-reactive via dashboardStore event subscriptions
+   *   AI suggestions tracked in dashboardStore
+   *   Dependency readiness from DependencyDTO.isBlocked
+   *   No dead state variables, no tasks-as-any casts
+   *   Lifecycle gated by runtimeReady store
    *
-   * Key differences from Dashboard.svelte:
-   * - Binds to Task.store / Settings.store / TaskAnalytics.store (reactive)
-   * - NO window/global DOM assumptions
-   * - NO self-mounting — always instantiated by mountDashboardDock()
-   * - Lazy-loads chart/analytics adapters on tab switch
-   * - Mobile/desktop compatible via isMobile prop
+   * FORBIDDEN:
+   *   Import domain types (Task, RecurrenceInstance, DependencyLink)
+   *   Access TaskStorage / Cache / Scheduler
+   *   Compute dependency chains locally
+   *   Poll or debounce runtime state
+   *   Mutate task inline
+   *   Call SiYuan API directly
    *
-   * @module TaskDashboardDock
    * @accessibility WCAG 2.1 AA compliant tab navigation
-   * @version 4.0.0
+   * @version 6.0.0
    */
 
   import { onMount, onDestroy } from "svelte";
   import { generateAriaId } from "@frontend/utils/accessibility";
+  import { runtimeReady } from "@stores/RuntimeReady.store";
   import TrackerDashboard from "@components/shared/TrackerDashboard.svelte";
   import ErrorBoundary from "@components/shared/ErrorBoundary.svelte";
   import TasksView from "./views/TasksView.svelte";
   import QueriesView from "./views/QueriesView.svelte";
   import SettingsView from "./views/SettingsView.svelte";
 
-  // ─── Stores ──────────────────────────────────────────────
-  import { taskStore } from "@stores/Task.store";
-  import { settingsStore } from "@stores/Settings.store";
+  // Stores - Dashboard.store is the single source of truth
   import {
-    taskAnalyticsStore,
-    updateAnalyticsFromTasks,
-  } from "@stores/TaskAnalytics.store";
+    dashboardStore,
+    dashboardTasks,
+    inboxTasks,
+    dashboardLoading,
+    activeReminders,
+  } from "@stores/Dashboard.store";
 
-  // ─── Types ───────────────────────────────────────────────
-  import type { Task } from "@backend/core/models/Task";
-  import type { TaskStorage } from "@backend/core/storage/TaskStorage";
-  import type { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngine";
-  import type { Scheduler } from "@backend/core/engine/Scheduler";
-  import type { EventService } from "@backend/services/EventService";
-  import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
-  import type { Plugin } from "siyuan";
-  import type { TaskCreationService } from "@backend/core/services/TaskCreationService";
-  import type { AutoMigrationService } from "@backend/core/services/AutoMigrationService";
-  import type { PluginSettings } from "@backend/core/settings/PluginSettings";
-
-  // ─── Props (injected by mountDashboardDock) ──────────────
-  export let taskStorage: TaskStorage;
-  export let recurrenceEngine: RecurrenceEngine | undefined = undefined;
-  export let taskScheduler: Scheduler | undefined = undefined;
-  export let notificationService: EventService | undefined = undefined;
-  export let eventBus: PluginEventBus;
-  export let plugin: Plugin;
-  export let taskCreationService: TaskCreationService;
-  export let autoMigrationService: AutoMigrationService;
-  export let settings: PluginSettings;
+  // Props (injected by mountDashboardDock)
   export let isMobile: boolean = false;
 
-  // Silence unused-prop warnings for future expansion
-  void recurrenceEngine;
-  void taskScheduler;
-  void notificationService;
-
-  // ─── Reactive Store Bindings ─────────────────────────────
-  // Subscribe to taskStore for reactive task list
-  let tasks: Task[] = [];
-  let storeLoading = false;
-
-  // Subscribe to analytics for the Tracker tab
-  let analyticsData: any = null;
-
-  // Subscribe to settings store for UI preferences
-  let uiSettings: ReturnType<typeof settingsStore.getSettings> | null = null;
-
-  // ─── Local State ─────────────────────────────────────────
+  // Local State
   let activeTab: "tasks" | "queries" | "tracker" | "settings" = "tasks";
-  let migrationStats = { migratable: 0, alreadyMigrated: 0 };
 
   // ARIA IDs
   const tablistId = generateAriaId("tablist");
@@ -90,65 +60,21 @@
 
   let tabChangeAnnouncement = "";
 
-  // ─── Store Subscriptions ─────────────────────────────────
-  let unsubTask: (() => void) | null = null;
-  let unsubAnalytics: (() => void) | null = null;
-  let unsubSettings: (() => void) | null = null;
-  let unsubRefresh: (() => void) | null = null;
+  // Reactive: task count for badge (from derived store)
+  $: activeTaskCount = $inboxTasks.length;
 
-  // Reactive: update analytics whenever tasks change
-  $: if (tasks.length > 0) {
-    updateAnalyticsFromTasks(tasks);
-  }
+  // Reactive: reminder count for badge
+  $: reminderCount = $activeReminders.length;
 
   onMount(() => {
-    // Subscribe to Task.store
-    unsubTask = taskStore.subscribe((state) => {
-      tasks = Array.from(state.tasks.values());
-      storeLoading = state.loading;
-    });
-
-    // Subscribe to TaskAnalytics.store
-    unsubAnalytics = taskAnalyticsStore.subscribe((state) => {
-      analyticsData = state;
-    });
-
-    // Subscribe to Settings.store
-    unsubSettings = settingsStore.subscribe((s) => {
-      uiSettings = s;
-    });
-
-    // Subscribe to backend refresh events for migration stats
-    unsubRefresh = eventBus.on("task:refresh", () => {
-      updateMigrationStats();
-    });
-
-    // Initial load: trigger refresh from backend
-    taskStore.refreshFromBackend().catch((err: unknown) => {
-      console.warn("[TaskDashboardDock] Initial refresh failed:", err);
-    });
-
-    updateMigrationStats();
+    // Dashboard.store should already be connected by plugin index.ts.
+    // Trigger refresh if not yet loaded.
+    if (dashboardStore.getState().lastUpdated === 0) {
+      dashboardStore.refresh();
+    }
   });
 
-  onDestroy(() => {
-    unsubTask?.();
-    unsubAnalytics?.();
-    unsubSettings?.();
-    unsubRefresh?.();
-  });
-
-  function updateMigrationStats() {
-    const migratable = tasks.filter(
-      (t: any) => t.frequency && !t.recurrence
-    ).length;
-    const alreadyMigrated = tasks.filter(
-      (t: any) => t.recurrence
-    ).length;
-    migrationStats = { migratable, alreadyMigrated };
-  }
-
-  // ─── Tab Navigation (WCAG keyboard) ─────────────────────
+  // Tab Navigation (WCAG keyboard)
   function handleTabKeyDown(event: KeyboardEvent) {
     const tabs = ["tasks", "queries", "tracker", "settings"] as const;
     const currentIndex = tabs.indexOf(activeTab);
@@ -185,7 +111,6 @@
   }
 
   function focusActiveTab() {
-    // Find the active tab within OUR dock container (not global DOM)
     const el = document.querySelector(
       `.rtm-dashboard-dock .rtm-tab[aria-selected="true"]`
     ) as HTMLButtonElement;
@@ -208,6 +133,7 @@
   }
 </script>
 
+{#if $runtimeReady}
 <div
   class="rtm-dashboard-dock"
   class:rtm-dashboard-dock--mobile={isMobile}
@@ -238,10 +164,13 @@
     >
       <span aria-hidden="true">📋</span>
       <span>Tasks</span>
-      {#if !storeLoading}
-        <span class="rtm-tab-badge" aria-label="{tasks.filter((t) => t.status === 'todo').length} active">
-          {tasks.filter((t) => t.status === "todo").length}
+      {#if !$dashboardLoading && activeTaskCount > 0}
+        <span class="rtm-tab-badge" aria-label="{activeTaskCount} active">
+          {activeTaskCount}
         </span>
+      {/if}
+      {#if reminderCount > 0}
+        <span class="rtm-tab-reminder-dot" aria-label="{reminderCount} reminders due" title="{reminderCount} reminders"></span>
       {/if}
     </button>
     <button
@@ -287,7 +216,7 @@
 
   <!-- Content Area -->
   <div class="rtm-content">
-    {#if storeLoading}
+    {#if $dashboardLoading}
       <div class="rtm-loading" role="status" aria-live="polite">
         <div class="rtm-spinner" aria-hidden="true"></div>
         <span>Loading tasks...</span>
@@ -295,10 +224,6 @@
     {:else if activeTab === "tasks"}
       <ErrorBoundary fallback="Failed to load tasks view">
         <TasksView
-          {taskStorage}
-          {taskCreationService}
-          {autoMigrationService}
-          {eventBus}
           tabPanelId={tasksTabPanelId}
           tasksTabId={tasksTabId}
         />
@@ -306,8 +231,6 @@
     {:else if activeTab === "queries"}
       <ErrorBoundary fallback="Failed to load queries view">
         <QueriesView
-          {tasks}
-          {settings}
           tabPanelId={queriesTabPanelId}
           queriesTabId={queriesTabId}
         />
@@ -328,14 +251,17 @@
         <SettingsView
           tabPanelId={settingsTabPanelId}
           settingsTabId={settingsTabId}
-          {migrationStats}
-          {settings}
-          {plugin}
         />
       </ErrorBoundary>
     {/if}
   </div>
 </div>
+{:else}
+<div class="rtm-dashboard-loading">
+  <div class="loading-spinner"></div>
+  <p>Initializing plugin...</p>
+</div>
+{/if}
 
 <style>
   .sr-only {
@@ -387,6 +313,7 @@
     transition: all 0.2s;
     white-space: nowrap;
     min-height: 36px;
+    position: relative;
   }
 
   .rtm-tab:hover {
@@ -418,6 +345,22 @@
     font-weight: 600;
   }
 
+  .rtm-tab-reminder-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    background: var(--b3-card-error-color, #ef4444);
+    border-radius: 50%;
+    animation: rtm-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes rtm-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
   .rtm-content {
     flex: 1;
     overflow-y: auto;
@@ -443,13 +386,32 @@
     animation: rtm-spin 0.8s linear infinite;
   }
 
+  .rtm-dashboard-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    gap: 12px;
+    color: var(--b3-theme-on-surface);
+  }
+
+  .loading-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--b3-border-color);
+    border-top-color: var(--b3-theme-primary);
+    border-radius: 50%;
+    animation: rtm-spin 0.8s linear infinite;
+  }
+
   @keyframes rtm-spin {
     to {
       transform: rotate(360deg);
     }
   }
 
-  /* ─── Mobile Responsive ──────────────────────────── */
+  /* Mobile Responsive */
   .rtm-dashboard-dock--mobile .rtm-tab {
     padding: 6px 8px;
     font-size: 12px;
@@ -464,9 +426,12 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .rtm-spinner {
+    .rtm-spinner, .loading-spinner {
       animation: none;
       opacity: 0.5;
+    }
+    .rtm-tab-reminder-dot {
+      animation: none;
     }
   }
 </style>

@@ -5,9 +5,10 @@
   Displays preview of what the migration will look like
 -->
 <script lang="ts">
-  import type { Task } from '@backend/core/models/Task';
-  import { FrequencyConverter } from '@backend/core/utils/FrequencyConverter';
-  import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';
+  import type { TaskDTO } from '../../services/DTOs';
+  import { uiQueryService } from '../../services/UIQueryService';
+  
+  type Task = TaskDTO;
   
   export let task: Task;
   export let onUpgrade: (migratedTask: Task) => void;
@@ -19,10 +20,17 @@
   
   // Check if task can be upgraded
   $: canUpgrade = shouldShowButton(task);
-  $: preview = canUpgrade ? FrequencyConverter.previewConversion(task as any) : null;
+  
+  // Preview computed asynchronously
+  let preview: any = null;
+  $: if (canUpgrade) {
+    uiQueryService.previewRecurrenceConversion(task as any).then(p => { preview = p; });
+  } else {
+    preview = null;
+  }
   
   function shouldShowButton(t: Task): boolean {
-    return !!(t.frequency && !t.recurrence);
+    return !!((t as any).frequency && !(t as any).recurrence);
   }
   
   async function handleUpgrade() {
@@ -32,8 +40,8 @@
     error = null;
     
     try {
-      // Convert task
-      const migrated = FrequencyConverter.updateTaskRecurrence(task as any, true);
+      // Convert task via service facade
+      const migrated = await uiQueryService.upgradeTaskRecurrence(task as any);
       
       if (!migrated) {
         throw new Error('Failed to convert task to RRule');

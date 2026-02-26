@@ -10,8 +10,12 @@
    * @module QueryExplanationPanel
    */
 
-  import type { Explanation, TaskExplanation } from "@backend/core/query/QueryExplanation";
-  import { QueryExplainer } from "@backend/core/query/QueryExplanation";
+  import type { QueryExplanationDTO, TaskExplanationDTO } from '../../services/DTOs';
+  import { uiQueryService } from '../../services/UIQueryService';
+
+  // Local aliases for brevity
+  type Explanation = QueryExplanationDTO;
+  type TaskExplanation = TaskExplanationDTO;
 
   // Props
   export let explanation: Explanation | null = null;
@@ -25,8 +29,13 @@
   $: matchedTasks = explanation ? explanation.taskExplanations.filter(te => te.matched) : [];
   $: notMatchedTasks = explanation ? explanation.taskExplanations.filter(te => !te.matched) : [];
   
-  // Format explanation as markdown (use instance method)
-  $: markdownExplanation = explanation ? new QueryExplainer().explainAsMarkdown(explanation) : "";
+  // Format explanation as markdown (async via service facade)
+  let markdownExplanation = "";
+  $: if (explanation) {
+    uiQueryService.explainAsMarkdown(explanation as any).then(md => { markdownExplanation = md; });
+  } else {
+    markdownExplanation = "";
+  }
 </script>
 
 <div class="query-explanation-panel">

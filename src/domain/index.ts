@@ -1,59 +1,147 @@
 /**
- * Domain Layer - Public API
- * 
- * Phase 3: Enhanced with Value Objects and Domain Errors
- * 
- * This is the single entry point for domain imports.
- * All domain entities, value objects, and domain services are exported here.
- * 
- * Usage:
- *   import { Task, TaskIndex, executeQuery, Priority } from '@domain';
- * 
- * DO NOT import directly from domain subfolders outside domain layer.
- * Use this barrel export to maintain API stability.
+ * Domain Layer — Public API
+ *
+ * Single entry point for domain imports.
+ * Only re-exports from modules that actually exist in the domain layer.
+ *
+ * NOTE: Most consumers import via deep paths (e.g. @domain/models/Task).
+ *       This barrel exists for convenience but is NOT required.
  */
 
-// ===== Value Objects =====
+// ===================================================================
+// ===== NEW Immutable Domain Layer (Session 23) =====================
+// ===================================================================
+
+// ── DomainTask (canonical immutable entity) ──
 export type {
+  DomainTask,
   TaskId,
   ISODateString,
-  Confidence,
-  PositiveInteger,
-  NonNegativeInteger,
-} from './models/ValueObjects';
+  TaskPriority as DomainTaskPriority,
+  TaskStatus as DomainTaskStatus,
+  CompletionAction as DomainCompletionAction,
+  OnCompletionAction as DomainOnCompletionAction,
+  SmartRecurrenceConfig,
+  EscalationLevel,
+  EscalationPolicy,
+} from "./DomainTask";
 
 export {
-  createTaskId,
-  generateTaskId,
-  isTaskId,
-  createISODateString,
-  isISODateString,
-  now as nowISO,
-  Priority,
-  Tag,
-  createConfidence,
-  createPositiveInteger,
-  createNonNegativeInteger,
-} from './models/ValueObjects';
+  isDomainTask,
+  isTerminal,
+  isRecurring as isDomainRecurring,
+  isOverdue as isDomainOverdue,
+  isDependencyBlocked,
+} from "./DomainTask";
 
-// ===== Domain Errors =====
+// ── TaskLifecycleState (pure state machine) ──
+export type {
+  TaskLifecycleStateValue,
+  TransitionAction,
+} from "./TaskLifecycleState";
+
 export {
-  DomainError,
-  ValidationError,
-  ParseError,
-  InvariantError,
-  RecurrenceError,
-  DependencyError,
-  QueryError,
-  DomainLogicError,
-  isDomainError,
-  isValidationError,
-  isParseError,
-  getErrorMessage,
-  formatError,
-} from './models/DomainErrors';
+  VALID_TRANSITIONS,
+  ACTION_TARGET_MAP,
+  TERMINAL_STATES,
+  ACTIVE_STATES,
+  ANALYTICS_TRIGGER_STATES,
+  ANALYTICS_EXCLUDED_STATES,
+  canTransition,
+  canApplyAction,
+  applyTransition,
+  deriveStatus,
+  deriveLifecycleState,
+  getAvailableActions,
+} from "./TaskLifecycleState";
 
-// ===== Models =====
+// ── RecurrenceInstance (immutable recurring child) ──
+export type { RecurrenceInstance } from "./RecurrenceInstance";
+export {
+  createRecurrenceInstance,
+  isRecurringTemplate,
+  isRecurrenceChild,
+  isRecurrenceInstance,
+} from "./RecurrenceInstance";
+
+// ── DependencyLink (immutable graph edge) ──
+export type { DependencyLink, DependencyType } from "./DependencyLink";
+export {
+  createDependencyLink,
+  createInstanceDependencyLink,
+  markSatisfied,
+  getBlockingLinks,
+  getDependentLinks,
+  wouldCreateCycle,
+  isDependencyLink,
+} from "./DependencyLink";
+
+// ── TaskAnalytics (immutable snapshot) ──
+export type {
+  TaskAnalyticsSnapshot,
+  CompletionHistoryEntry as DomainCompletionHistoryEntry,
+  CompletionContextDetail,
+  CompletionContextEntry,
+  LearningMetrics,
+} from "./TaskAnalytics";
+
+export {
+  createEmptyAnalytics,
+  recordCompletion,
+  recordMiss,
+  withLearningMetrics,
+  calculateHealthScore,
+} from "./TaskAnalytics";
+
+// ── TaskCompletionContext ──
+export type {
+  TaskCompletionContext,
+  CompletionTrigger,
+} from "./TaskCompletionContext";
+
+export { createCompletionContext } from "./TaskCompletionContext";
+
+// ── DomainVersion ──
+export type { DomainVersion } from "./DomainVersion";
+export {
+  CURRENT_DOMAIN_VERSION,
+  MIN_SUPPORTED_VERSION,
+  needsMigration,
+  isVersionSupported,
+  isCurrentVersion,
+  VERSION_CHANGELOG,
+} from "./DomainVersion";
+
+// ── TaskFactory (the ONLY way to construct DomainTask) ──
+export type { CreateTaskInput } from "./TaskFactory";
+export {
+  create as createDomainTask,
+  fromBlockAttrs,
+  fromStorage,
+  fromLegacy,
+  fromRecurrenceInstance,
+  applyTransition as applyTaskTransition,
+  withAnalytics,
+  withDependencyLinks,
+  patch as patchDomainTask,
+  duplicate as duplicateDomainTask,
+} from "./TaskFactory";
+
+// ── DomainMapper (persistence serialization) ──
+export type { PersistedTask, TaskDTO } from "./DomainMapper";
+export {
+  toPersistence,
+  fromPersistence,
+  toPersistenceBatch,
+  fromPersistenceBatch,
+  toDTO,
+} from "./DomainMapper";
+
+// ===================================================================
+// ===== Legacy Models (backward compatibility) ======================
+// ===================================================================
+
+// ── models/Task (V2.1 — partially mutable, to be phased out) ──
 export type {
   Task,
   TaskStatus,
@@ -62,7 +150,7 @@ export type {
   OnCompletionAction,
   CompletionHistoryEntry,
   SmartRecurrence,
-} from './models/Task';
+} from "./models/Task";
 
 export {
   PRIORITY_WEIGHTS,
@@ -72,184 +160,26 @@ export {
   isTaskOverdue,
   isRecurring,
   isBlocked,
-} from './models/Task';
+} from "./models/Task";
 
-export type {
-  Status,
-  StatusType,
-} from './models/TaskStatus';
+export type { Status, StatusType } from "./models/TaskStatus";
+export { DEFAULT_STATUSES, StatusRegistry } from "./models/TaskStatus";
 
-export {
-  DEFAULT_STATUSES,
-  StatusRegistry,
-} from './models/TaskStatus';
+export type { Recurrence, RecurrenceResult, RecurrenceValidation } from "./models/Recurrence";
+export { createRecurrence, validateRRule, isRecurrence, cloneRecurrence, mergeRecurrence } from "./models/Recurrence";
 
-export type {
-  Recurrence,
-  RecurrenceResult,
-  RecurrenceValidation,
-} from './models/Recurrence';
-
-export {
-  createRecurrence,
-  validateRRule,
-} from './models/Recurrence';
-
-export type {
-  Frequency,
-} from './models/Frequency';
-
-export {
-  isValidFrequency,
-  frequencyToRRule,
-} from './models/Frequency';
+export type { Frequency } from "./models/Frequency";
+export { isValidFrequency, frequencyToRRule } from "./models/Frequency";
 
 // ===== Index =====
-export {
-  TaskIndex,
-} from './index/TaskIndex';
+export { TaskIndex } from "./index/TaskIndex";
+export type { IndexStructure } from "./index/TaskIndex";
 
-export type {
-  IndexStructure,
-} from './index/TaskIndex';
+// ===== Dependencies =====
+export type { IDependencyChecker } from "./dependencies/IDependencyChecker";
+export { NullDependencyChecker } from "./dependencies/IDependencyChecker";
 
-// ===== Query =====
-export {
-  QueryTokenizer,
-  QueryParser,
-  QueryExecutor,
-  executeQuery,
-  executeGroupedQuery,
-} from './query/AdvancedQuery';
-
-export type {
-  TokenType,
-  Token,
-  QueryNode,
-  ComparisonNode,
-  LogicalNode,
-  NotNode,
-  FieldNode,
-  ValueNode,
-  SortConfig,
-  GroupConfig,
-  ParsedQuery,
-} from './query/AdvancedQuery';
-
-// ===== Query Specifications (Phase 5) =====
-export type {
-  Specification,
-} from './query/Specification';
-
-export {
-  BaseSpecification,
-  AndSpec,
-  OrSpec,
-  NotSpec,
-  TrueSpec,
-  FalseSpec,
-  StatusSpec,
-  CompletedTaskSpec,
-  IncompleteTaskSpec,
-  OverdueTaskSpec,
-  PrioritySpec,
-  PriorityInSpec,
-  HasTagSpec,
-  HasAnyTagSpec,
-  HasAllTagsSpec,
-  HasDueDateSpec,
-  NoDueDateSpec,
-  HasScheduledDateSpec,
-  RecurringTaskSpec,
-  DueBeforeSpec,
-  DueAfterSpec,
-  ScheduledBeforeSpec,
-  ScheduledAfterSpec,
-  NameContainsSpec,
-  NameMatchesSpec,
-  BlockedTaskSpec,
-  BlockingTaskSpec,
-  DependsOnSpec,
-  PathSpec,
-  PathContainsSpec,
-  PredicateSpec,
-} from './query/Specification';
-
-// ===== Query Builder (Phase 5) =====
-export type {
-  CompiledQuery,
-} from './query/QueryBuilder';
-
-export {
-  TaskQueryBuilder,
-  query,
-  queryWhere,
-} from './query/QueryBuilder';
-
-// ===== Common Queries (Phase 5) =====
-export {
-  CommonQueries,
-  incompleteTasks,
-  completedTasks,
-  overdueTasks,
-  todaysTasks,
-  scheduledToday,
-  urgent,
-  highPriority,
-  lowPriority,
-  recurringTasks,
-  unscheduledTasks,
-  withTag,
-  withAnyTag,
-  withAllTags,
-  inPath,
-  search,
-  blockedTasks,
-  blockingTasks,
-  actionable,
-  focus,
-  waiting,
-  recentlyCompleted,
-  dueWithinDays,
-  scheduledWithinDays,
-} from './query/CommonQueries';
-
-// ============================================================================
-// Phase 6: Recurrence Domain Logic
-// ============================================================================
-
-// Recurrence Engine - Pure next occurrence calculator
-export {
-  RecurrenceEngine,
-  calculateNextOccurrence,
-  getRecurrenceDescription,
-} from './recurrence/RecurrenceEngine';
-
-export type {
-  NextOccurrenceOptions,
-  NextOccurrenceResult,
-} from './recurrence/RecurrenceEngine';
-
-// Recurrence Validator - Comprehensive RRule validation
-export {
-  RecurrenceValidator,
-  validateRRule as validateRRuleComprehensive,
-  validateRRuleStrict as validateRRuleStrictComprehensive,
-} from './recurrence/RecurrenceValidator';
-
-export type {
-  RRuleValidationResult,
-  ValidationMessage as RRuleValidationMessage,
-} from './recurrence/RecurrenceValidator';
-
-// Enhanced Recurrence model helpers
-export {
-  isRecurrence,
-  cloneRecurrence,
-  mergeRecurrence,
-} from './models/Recurrence';
-
-// ===== Recurrence =====
+// ===== Recurrence (RuleParser) =====
 export {
   parseRecurrenceRule,
   parseRecurrenceRuleStrict,
@@ -257,47 +187,11 @@ export {
   validateRecurrenceRule,
   validateRecurrenceRuleStrict,
   getRecurrenceExamples,
-} from './recurrence/RuleParser';
+} from "./recurrence/RuleParser";
 
-// ===== Parser =====
+// ===== Date Utilities =====
 export {
-  FilenameParser,
-  DEFAULT_DATE_PATTERNS,
-  parseDateFromFilename,
-  requireDateFromFilename,
-} from './parser/FilenameParser';
-
-export type {
-  DatePattern,
-  FilenameParserConfig,
-} from './parser/FilenameParser';
-
-// ===== Tags =====
-export {
-  TagHierarchy,
-  extractTags,
-  taskHasTag,
-  groupTagsByLevel,
-  sortTagsHierarchically,
-} from './tags/TagHierarchy';
-
-export type {
-  TagNode,
-} from './tags/TagHierarchy';
-
-// ===== Dependencies =====
-export type {
-  IDependencyChecker,
-} from './dependencies/IDependencyChecker';
-
-export {
-  NullDependencyChecker,
-} from './dependencies/IDependencyChecker';
-
-// ===== Utils =====
-// Phase 9: Date utilities refactored to pure functions only
-// For presentation/formatting, use frontend/utils/dateFormatters.ts
-export {
+  parseNaturalDate,
   toISODate,
   toISODateTime,
   parseISODate,
@@ -309,7 +203,6 @@ export {
   getNextDayOfMonth,
   isLeapYear,
   getLastDayOfMonth,
-  parseNaturalDate,
   compareDates,
   isBefore,
   isAfter,
@@ -321,5 +214,5 @@ export {
   getTimezoneOffset,
   startOfDay,
   endOfDay,
-} from './utils/DateCalculations';
+} from "./utils/DateCalculations";
 

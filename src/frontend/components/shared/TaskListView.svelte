@@ -10,14 +10,14 @@
 
 import { createEventDispatcher, onMount } from 'svelte';
 import TaskListItem from './TaskListItem.svelte';
-import type { Task } from '../../../domain/models/Task';
+import type { TaskDTO } from '../../services/DTOs';
 import { 
   getTaskCountLabel, 
   announceToScreenReader,
   generateAriaId 
 } from '@frontend/utils/accessibility';
 
-export let tasks: Task[] = [];
+export let tasks: TaskDTO[] = [];
 export let filterLabel: string = 'all tasks';
 
 const dispatch = createEventDispatcher();
@@ -93,15 +93,15 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 // Handle task actions
-function handleTaskClick(task: Task) {
+function handleTaskClick(task: TaskDTO) {
   dispatch('taskClick', task);
 }
 
-function handleTaskToggle(task: Task) {
+function handleTaskToggle(task: TaskDTO) {
   dispatch('taskToggle', task);
 }
 
-function handleTaskEdit(task: Task) {
+function handleTaskEdit(task: TaskDTO) {
   dispatch('taskEdit', task);
 }
 

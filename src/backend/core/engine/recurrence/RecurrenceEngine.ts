@@ -14,6 +14,8 @@
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
 import type { Task } from '@domain/models/Task';
+import type { Frequency } from '@domain/models/Frequency';
+import { frequencyToRRule } from '@domain/models/Frequency';
 import type { 
   IRecurrenceEngine, 
   RecurrenceExplanation, 
@@ -30,10 +32,30 @@ import { getUserTimezone } from "@shared/utils/date/timezone";
 import * as logger from "@backend/logging/logger";
 
 /**
+ * Options for calculateNext convenience method
+ */
+export interface CalculateNextOptions {
+  /** Completion date (used as base when whenDone=true) */
+  completionDate?: Date;
+  /** If true, calculate from completion date instead of due date */
+  whenDone?: boolean;
+}
+
+/**
  * Maximum number of occurrences to generate in preview mode
  * Hard cap to prevent performance issues
  */
 const MAX_PREVIEW_LIMIT = 500;
+
+/**
+ * Hard cap on between() results to prevent OOM for high-frequency rules
+ */
+const MAX_BETWEEN_RESULTS = 10000;
+
+/**
+ * Maximum loop iterations for forward-progress safety
+ */
+const MAX_LOOP_ITERATIONS = 1100;
 
 /**
  * Maximum number of missed occurrences to return by default
@@ -93,8 +115,18 @@ export class RecurrenceEngine implements IRecurrenceEngine {
         return null;
       }
 
-      // Apply fixed time if specified
-      return this.applyFixedTime(next, task);
+      // Apply fixed time if specified in task recurrence
+      const withTime = this.applyFixedTime(next, task);
+      
+      // In whenDone mode, if no explicit fixed time, preserve the reference time
+      const baseOnToday = task.recurrence?.baseOnToday ?? false;
+      if (baseOnToday && !task.recurrence?.time) {
+        const result = new Date(withTime);
+        result.setUTCHours(ref.getUTCHours(), ref.getUTCMinutes(), ref.getUTCSeconds(), ref.getUTCMilliseconds());
+        return result;
+      }
+      
+      return withTime;
       
     } catch (error) {
       logger.error('Failed to calculate next occurrence', {
@@ -133,13 +165,34 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     try {
       const rrule = this.getRRule(task);
       
-      // Use between() instead of all() — the all() iterator callback
-      // stops on the first `false` return, which breaks when dtstart < from.
+      // Use iterator approach to avoid materializing unbounded arrays.
+      // For high-frequency rules (e.g., MINUTELY), between() with a 10-year
+      // window could generate millions of Date objects before slicing.
+      const results: Date[] = [];
+      let current = rrule.after(from, false);
+      let prev: Date | null = null;
       const farFuture = new Date(from.getTime() + 365 * 24 * 60 * 60 * 1000 * 10); // 10 years
-      const occurrences = rrule.between(from, farFuture, false).slice(0, cappedLimit);
+      let iterations = 0;
       
-      // Apply fixed time to all occurrences
-      return occurrences.map(date => this.applyFixedTime(date, task));
+      while (current && current <= farFuture && results.length < cappedLimit) {
+        // Forward-progress guard: if current didn't advance past prev, break
+        if (prev && current.getTime() <= prev.getTime()) {
+          logger.warn('Preview aborted: no forward progress detected', {
+            taskId: task.id,
+            stuckAt: current.toISOString()
+          });
+          break;
+        }
+        if (++iterations > MAX_LOOP_ITERATIONS) {
+          logger.warn('Preview aborted: iteration limit reached', { taskId: task.id });
+          break;
+        }
+        results.push(this.applyFixedTime(current, task));
+        prev = current;
+        current = rrule.after(current, false);
+      }
+      
+      return results;
       
     } catch (error) {
       logger.error('Failed to generate preview', {
@@ -169,11 +222,39 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     try {
       const rrule = this.getRRule(task);
       
-      // Get all occurrences in range (inclusive)
-      const occurrences = rrule.between(from, to, true);
+      // Use iterator approach with hard cap to prevent OOM
+      // for high-frequency rules (e.g., MINUTELY over a large range)
+      const results: Date[] = [];
+      let current = rrule.after(from, true); // inclusive
+      let prev: Date | null = null;
+      let iterations = 0;
       
-      // Apply fixed time to all occurrences
-      return occurrences.map(date => this.applyFixedTime(date, task));
+      while (current && current <= to && results.length < MAX_BETWEEN_RESULTS) {
+        // Forward-progress guard
+        if (prev && current.getTime() <= prev.getTime()) {
+          logger.warn('Between aborted: no forward progress', {
+            taskId: task.id,
+            stuckAt: current.toISOString()
+          });
+          break;
+        }
+        if (++iterations > MAX_BETWEEN_RESULTS + 100) {
+          logger.warn('Between aborted: iteration limit reached', { taskId: task.id });
+          break;
+        }
+        results.push(this.applyFixedTime(current, task));
+        prev = current;
+        current = rrule.after(current, false); // next after current (non-inclusive)
+      }
+      
+      if (results.length >= MAX_BETWEEN_RESULTS) {
+        logger.warn('Between results capped', {
+          taskId: task.id,
+          cap: MAX_BETWEEN_RESULTS
+        });
+      }
+      
+      return results;
       
     } catch (error) {
       logger.error('Failed to get occurrences between dates', {
@@ -292,11 +373,34 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     }
 
     try {
-      // Get all occurrences between lastCheckedAt and now
-      const occurrences = this.between(task, lastCheckedAt, now);
+      // Use iterator approach to avoid materializing unbounded arrays.
+      // For high-frequency rules (e.g., MINUTELY) with a large gap since
+      // lastCheckedAt, between() would generate millions of dates.
+      const rrule = this.getRRule(task);
+      const missedDates: Date[] = [];
+      let current = rrule.after(lastCheckedAt, false);
+      let prev: Date | null = null;
+      // Collect at most maxMissed+1 to detect if limit was reached
+      const collectLimit = maxMissed + 1;
+      let iterations = 0;
       
-      // Filter out occurrences that are exactly at 'now' (not missed yet)
-      const missedDates = occurrences.filter(date => date < now);
+      while (current && current < now && missedDates.length < collectLimit) {
+        // Forward-progress guard
+        if (prev && current.getTime() <= prev.getTime()) {
+          logger.warn('getMissedOccurrences aborted: no forward progress', {
+            taskId: task.id,
+            stuckAt: current.toISOString()
+          });
+          break;
+        }
+        if (++iterations > MAX_LOOP_ITERATIONS) {
+          logger.warn('getMissedOccurrences aborted: iteration limit', { taskId: task.id });
+          break;
+        }
+        missedDates.push(this.applyFixedTime(current, task));
+        prev = current;
+        current = rrule.after(current, false);
+      }
       
       // Apply limit
       let limitReached = false;
@@ -305,7 +409,7 @@ export class RecurrenceEngine implements IRecurrenceEngine {
       if (missedDates.length > maxMissed) {
         limitReached = true;
         result = missedDates.slice(0, maxMissed);
-        warnings.push(`Limit reached: ${missedDates.length} missed, returning first ${maxMissed}`);
+        warnings.push(`Limit reached: more than ${maxMissed} missed, returning first ${maxMissed}`);
       }
 
       // Invoke callback for each missed occurrence
@@ -356,9 +460,19 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     const cacheKey = generateCacheKey(task.id, task.recurrence!.rrule!);
     
     // Get dtstart - prefer recurrence.referenceDate, fallback to task.dueAt or createdAt
-    const dtstart = task.recurrence?.referenceDate 
+    let dtstart = task.recurrence?.referenceDate 
       ? new Date(task.recurrence.referenceDate)
       : (task.dueAt ? new Date(task.dueAt) : new Date(task.createdAt));
+    
+    // Validate dtstart: guard against NaN dates
+    if (isNaN(dtstart.getTime())) {
+      logger.warn('getRRule: invalid dtstart, falling back to now', {
+        taskId: task.id,
+        referenceDate: task.recurrence?.referenceDate,
+        dueAt: task.dueAt,
+      });
+      dtstart = new Date();
+    }
     
     // Get timezone
     const timezone = task.recurrence?.timezone || task.timezone || getUserTimezone();
@@ -373,24 +487,43 @@ export class RecurrenceEngine implements IRecurrenceEngine {
   }
 
   /**
-   * Determine base date for next occurrence calculation
+   * Determine base date for next occurrence calculation.
    * 
-   * For "whenDone" tasks, use the reference date (completion date).
-   * For "fixed" tasks, use the reference date but maintain original schedule.
+   * For "baseOnToday" tasks (whenDone mode), use the reference date
+   * (typically the completion date) so the interval counts from now.
+   * For "fixed" tasks, use the original dtstart from the recurrence rule
+   * so the schedule stays anchored to its original start date.
    * 
    * @param task - Task with recurrence configuration
-   * @param ref - Reference date
+   * @param ref - Reference date (usually now or completion date)
    * @returns Base date for calculation
    */
   private getBaseDate(task: Task, ref: Date): Date {
     const baseOnToday = task.recurrence?.baseOnToday ?? false;
     
     if (baseOnToday) {
-      // For baseOnToday mode, calculate from completion/reference date
+      // "whenDone" mode: calculate from completion/reference date
       return ref;
     }
     
-    // For fixed mode, use reference date to find next occurrence
+    // Fixed mode: anchor to the original dtstart so the schedule doesn't drift
+    const dtstart = task.recurrence?.dtstart;
+    if (dtstart) {
+      const parsed = new Date(dtstart);
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+    
+    // Fallback: use dueAt as the original anchor
+    if (task.dueAt) {
+      const parsed = new Date(task.dueAt);
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+    
+    // Last resort: use reference date
     return ref;
   }
 
@@ -426,6 +559,106 @@ export class RecurrenceEngine implements IRecurrenceEngine {
         time: time,
         error: error instanceof Error ? error.message : String(error)
       });
+      return date;
+    }
+  }
+
+  /**
+   * Convenience method: calculate next occurrence from a legacy Frequency object.
+   * 
+   * Bridges the legacy Frequency-based API to the RRULE engine.
+   * Supports `whenDone` mode: when true, calculates the next occurrence
+   * relative to the completion date instead of the original due date.
+   * 
+   * @param dueDate - Original/current due date
+   * @param frequency - Legacy Frequency object (or extended with weekdays/time/whenDone)
+   * @param options - Optional: completionDate and whenDone flag
+   * @returns Next occurrence date
+   */
+  calculateNext(
+    dueDate: Date,
+    frequency: Frequency & { weekdays?: number[]; time?: string; whenDone?: boolean },
+    options?: CalculateNextOptions
+  ): Date {
+    // Resolve whenDone: options overrides frequency-level whenDone
+    const whenDone = options?.whenDone ?? (frequency as any).whenDone ?? false;
+    const completionDate = options?.completionDate;
+    
+    // Determine base date for calculation
+    const baseDate = whenDone && completionDate ? completionDate : dueDate;
+    
+    // Guard: interval must be >= 1 to guarantee forward progress
+    const safeInterval = Math.max(1, frequency.interval || 1);
+    if (frequency.interval !== undefined && frequency.interval < 1) {
+      logger.warn('calculateNext: invalid interval clamped to 1', {
+        original: frequency.interval,
+        type: frequency.type,
+      });
+    }
+    
+    // Normalize weekdays: tests use `weekdays` (0=Mon..6=Sun) but Frequency uses `daysOfWeek` (0=Sun..6=Sat)
+    const rawWeekdays = frequency.daysOfWeek ?? (frequency as any).weekdays;
+    const normalizedFreq: Frequency = {
+      ...frequency,
+      interval: safeInterval,
+      daysOfWeek: rawWeekdays
+        ? rawWeekdays.map((d: number) => (d + 1) % 7)  // Convert Mon=0 to Sun=0 convention
+        : undefined,
+    };
+    
+    // Convert to RRule string
+    const rruleString = frequencyToRRule(normalizedFreq);
+    
+    // Parse RRule with DTSTART anchored at baseDate
+    const rule = RRule.fromString(rruleString);
+    const fullRule = new RRule({
+      ...rule.origOptions,
+      dtstart: baseDate,
+    });
+    
+    // Get next occurrence strictly after baseDate
+    const next = fullRule.after(baseDate, false);
+    
+    if (!next) {
+      // Fallback: advance by interval (guaranteed >= 1)
+      const result = new Date(baseDate);
+      result.setDate(result.getDate() + safeInterval);
+      return this.applyFrequencyTime(result, frequency);
+    }
+    
+    // Safety: ensure the result is strictly after baseDate
+    if (next.getTime() <= baseDate.getTime()) {
+      logger.warn('calculateNext: RRULE returned non-advancing date, forcing +1 day', {
+        baseDate: baseDate.toISOString(),
+        rruleResult: next.toISOString(),
+      });
+      const forced = new Date(baseDate);
+      forced.setDate(forced.getDate() + 1);
+      return this.applyFrequencyTime(forced, frequency);
+    }
+    
+    return this.applyFrequencyTime(next, frequency);
+  }
+
+  /**
+   * Apply fixed time from frequency's `time` field
+   */
+  private applyFrequencyTime(
+    date: Date,
+    frequency: { time?: string }
+  ): Date {
+    if (!frequency.time) return date;
+    
+    try {
+      const parts = frequency.time.split(':').map(Number);
+      const hours = parts[0];
+      const minutes = parts[1] ?? 0;
+      if (!Number.isFinite(hours)) return date;
+      
+      const result = new Date(date);
+      result.setUTCHours(hours, minutes, 0, 0);
+      return result;
+    } catch {
       return date;
     }
   }

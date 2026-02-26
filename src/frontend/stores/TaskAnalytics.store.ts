@@ -1,22 +1,27 @@
 /**
- * Task Analytics Store
- * 
- * Reactive Svelte store holding calculated task statistics.
- * Updated whenever tasks change (create/edit/delete/toggle).
- * 
+ * Task Analytics Store — Pure Reactive Observer
+ *
+ * Session 24 refactored: All backend analytics imports removed.
+ * The store receives pre-computed AnalyticsDTO from UIQueryService —
+ * it NEVER imports or calls backend analytics calculators.
+ *
+ * FORBIDDEN:
+ *   ❌ import calculateTaskAnalytics from backend
+ *   ❌ import getHealthBreakdown from backend
+ *   ❌ Import Task / domain model
+ *   ❌ Call backend calculation functions
+ *
  * Components subscribe to this for live updates.
  */
 
 import { writable, derived, type Readable } from 'svelte/store';
-import type { TaskAnalytics, TaskHealthBreakdown } from '@backend/core/analytics/TaskAnalyticsCalculator';
-import { calculateTaskAnalytics, getHealthBreakdown } from '@backend/core/analytics/TaskAnalyticsCalculator';
-import type { Task } from '@backend/core/models/Task';
+import type { AnalyticsDTO } from '../services/DTOs';
+import { uiQueryService } from '../services/UIQueryService';
 
 /**
- * Analytics state interface
+ * Analytics state interface — mirrors AnalyticsDTO + UI metadata
  */
-export interface AnalyticsState extends TaskAnalytics {
-  healthBreakdown: TaskHealthBreakdown;
+export interface AnalyticsState extends AnalyticsDTO {
   lastUpdated: number; // timestamp
   isStale: boolean; // true if tasks changed but analytics not recalculated
 }
@@ -56,31 +61,31 @@ const { subscribe, set, update } = writable<AnalyticsState>(createInitialState()
 
 /**
  * Task Analytics Store
- * 
+ *
  * Exposed methods:
  * - subscribe: Subscribe to analytics updates
- * - recalculate: Recalculate analytics from task array
+ * - recalculate: Refresh analytics from UIQueryService
  * - markStale: Mark analytics as stale (needs recalculation)
  * - reset: Reset to empty state
  */
 export const taskAnalyticsStore = {
   subscribe,
-  
+
   /**
-   * Recalculate analytics from current tasks
+   * Recalculate analytics by querying UIQueryService.
+   * Accepts optional tasks parameter for backward compatibility,
+   * but ignores it — always reads from UIQueryService.
    */
-  recalculate(tasks: Task[]): void {
-    const analytics = calculateTaskAnalytics(tasks);
-    const healthBreakdown = getHealthBreakdown(tasks);
-    
+  recalculate(_tasks?: unknown[]): void {
+    const analyticsDTO = uiQueryService.selectAnalytics();
+
     set({
-      ...analytics,
-      healthBreakdown,
+      ...analyticsDTO,
       lastUpdated: Date.now(),
       isStale: false,
     });
   },
-  
+
   /**
    * Mark analytics as stale (needs recalculation)
    */
@@ -90,14 +95,14 @@ export const taskAnalyticsStore = {
       isStale: true,
     }));
   },
-  
+
   /**
    * Reset to initial empty state
    */
   reset(): void {
     set(createInitialState());
   },
-  
+
   /**
    * Get current state snapshot (non-reactive)
    */
@@ -169,24 +174,15 @@ export const streakEmoji: Readable<string> = derived(
 );
 
 /**
- * Helper: Update analytics when tasks change
- * 
- * Usage in components:
- * ```typescript
- * import { updateAnalyticsFromTasks } from '@stores/TaskAnalytics.store';
- * 
- * async function onTaskSaved(task: Task) {
- *   await saveTask(task);
- *   const allTasks = await getAllTasks();
- *   updateAnalyticsFromTasks(allTasks);
- * }
- * ```
+ * Helper: Update analytics when tasks change.
+ * Accepts tasks parameter for backward compatibility (ignored).
+ * Delegates to UIQueryService.selectAnalytics() internally.
  */
-export function updateAnalyticsFromTasks(tasks: Task[]): void {
+export function updateAnalyticsFromTasks(_tasks?: unknown[]): void {
   analyticsIsLoading.set(true);
-  
+
   try {
-    taskAnalyticsStore.recalculate(tasks);
+    taskAnalyticsStore.recalculate();
   } catch (error) {
     console.error('Failed to recalculate analytics:', error);
     // Non-fatal - analytics can be stale, don't block UI

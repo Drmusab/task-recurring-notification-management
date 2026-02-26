@@ -81,6 +81,22 @@ export class OptimisticUpdateManager {
     }
     return OptimisticUpdateManager.instance;
   }
+
+  /**
+   * Destroy the singleton instance, clearing all active timeouts.
+   * Must be called on plugin unload to prevent timers firing after destruction.
+   */
+  public static resetInstance(): void {
+    if (OptimisticUpdateManager.instance) {
+      // Clear all pending rollback timeouts
+      for (const timeout of OptimisticUpdateManager.instance.timeouts.values()) {
+        clearTimeout(timeout);
+      }
+      OptimisticUpdateManager.instance.timeouts.clear();
+      OptimisticUpdateManager.instance.activeUpdates.clear();
+      OptimisticUpdateManager.instance = null;
+    }
+  }
   
   /**
    * Execute an operation optimistically with automatic rollback on failure
@@ -330,7 +346,7 @@ export class OptimisticUpdateManager {
     if (typeof g.showMessage === 'function') {
       (g.showMessage as (msg: string, timeout: number, type: string) => void)(message, 5000, 'error');
     } else {
-      console.error(message);
+      logger.error(message);
     }
   }
   

@@ -1,37 +1,36 @@
 <!--
-  CalendarView.svelte — Task Calendar Dock Panel
+  CalendarView.svelte — Task Calendar Dock Panel (Session 24 refactored)
   
-  Displays tasks on a month-view calendar grid.
-  Mounted via addDock() in dockMounts.ts (Phase 4).
+  BEFORE (violations):
+    ❌ taskStorage.loadActive()
+    ❌ pluginEventBus.on("task:refresh")
+    ❌ import Task from domain
   
-  Props:
-    - taskStorage: TaskStorage instance for loading tasks
-    - pluginEventBus: PluginEventBus for reactive updates
-    - plugin: SiYuan Plugin instance
-    - isMobile: boolean for responsive layout
+  AFTER (clean):
+    ✅ uiQueryService.selectInRange()
+    ✅ uiEventService.onTaskRefresh()
+    ✅ TaskDTO from services
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import type { Plugin } from "siyuan";
-  import type { TaskStorage } from "@backend/core/storage/TaskStorage";
-  import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
-  import type { Task } from "@backend/core/models/Task";
+  import type { TaskDTO } from "../../services/DTOs";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import { uiEventService } from "../../services/UIEventService";
 
-  // Props
-  export let taskStorage: TaskStorage;
-  export let pluginEventBus: PluginEventBus;
+  // Props — NO backend types
   export let plugin: Plugin;
   export let isMobile: boolean = false;
 
   // State
   let currentDate = new Date();
-  let tasks: Task[] = [];
+  let tasks: TaskDTO[] = [];
   let loading = true;
   let calendarDays: Array<{
     date: Date;
     isCurrentMonth: boolean;
     isToday: boolean;
-    tasks: Task[];
+    tasks: TaskDTO[];
   }> = [];
 
   // Computed
@@ -41,12 +40,15 @@
   });
   $: weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // Load tasks
-  async function loadTasks() {
+  // Load tasks via UIQueryService — NOT taskStorage.loadActive()
+  function loadTasks() {
     loading = true;
     try {
-      const taskMap = await taskStorage.loadActive();
-      tasks = Array.from(taskMap.values());
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const start = new Date(year, month - 1, 1);  // Include prev month padding
+      const end = new Date(year, month + 2, 0);     // Include next month padding
+      tasks = uiQueryService.selectInRange(start, end);
       buildCalendarGrid();
     } catch (err) {
       console.error("[CalendarView] Failed to load tasks:", err);
@@ -106,14 +108,14 @@
   }
 
   // Get tasks due on a specific date
-  function getTasksForDate(date: Date): Task[] {
+  function getTasksForDate(date: Date): TaskDTO[] {
     const dayStart = new Date(date);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(date);
     dayEnd.setHours(23, 59, 59, 999);
 
     return tasks.filter((task) => {
-      const dueStr = (task as any).dueAt || (task as any).dueDate;
+      const dueStr = task.dueAt;
       if (!dueStr) return false;
       const dueDate = new Date(dueStr);
       return dueDate >= dayStart && dueDate <= dayEnd;
@@ -144,12 +146,12 @@
     buildCalendarGrid();
   }
 
-  // Event bus subscription
+  // Event bus subscription via UIEventService — NOT raw bus
   let unsubscribe: (() => void) | null = null;
 
   onMount(() => {
     loadTasks();
-    unsubscribe = pluginEventBus.on("task:refresh", () => {
+    unsubscribe = uiEventService.onTaskRefresh(() => {
       loadTasks();
     });
   });

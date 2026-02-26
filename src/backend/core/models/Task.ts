@@ -254,6 +254,25 @@ export interface Task {
   };
 }
 
+// ──────────────────────────────────────────────────────────────
+// Immutability Types
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Deep-readonly version of Task.
+ *
+ * Use ReadonlyTask in modules that should NEVER mutate task data:
+ *   - Parsers (read block → produce task, never modify in-place)
+ *   - ML analysis (read completionHistory, never mutate)
+ *   - Integration dispatch (serialize for webhook, never mutate)
+ *   - Navigation (display task list, never mutate)
+ *   - Filtering (decide include/exclude, never mutate)
+ *
+ * Only TaskStorage, ReactiveTaskManager, and Scheduler should use
+ * the mutable Task type.
+ */
+export type ReadonlyTask = Readonly<Task>;
+
 /**
  * Completion history entry for pattern learning
  */
@@ -401,6 +420,15 @@ export function isTask(obj: unknown): obj is Task {
   // Phase 3: Accept tasks with either frequency OR recurrence (prefer recurrence)
   const hasRecurrence = candidate.recurrence !== undefined;
   const hasFrequency = candidate.frequency !== undefined && isValidFrequency(candidate.frequency as any);
+
+  // Validate version field (required for schema migration)
+  const hasValidVersion = typeof candidate.version === "number" && candidate.version > 0;
+
+  // Validate status if present (optional field, but must be valid when set)
+  const VALID_STATUSES = new Set(["todo", "done", "cancelled", "in_progress"]);
+  const hasValidStatus = candidate.status === undefined || (
+    typeof candidate.status === "string" && VALID_STATUSES.has(candidate.status)
+  );
   
   return (
     typeof candidate.id === "string" &&
@@ -408,6 +436,8 @@ export function isTask(obj: unknown): obj is Task {
     typeof candidate.name === "string" &&
     typeof candidate.dueAt === "string" &&
     typeof candidate.enabled === "boolean" &&
+    hasValidVersion &&
+    hasValidStatus &&
     (hasRecurrence || hasFrequency) && // Accept either, but recurrence is preferred
     typeof candidate.createdAt === "string" &&
     typeof candidate.updatedAt === "string"
@@ -470,6 +500,26 @@ export function recordCompletion(task: Task): void {
   // Reset snooze count
   task.snoozeCount = 0;
   
+  // ─── Populate completionContexts for AI analysis ──────────
+  // Always record context (not gated by smartRecurrence.enabled)
+  if (!task.completionContexts) {
+    task.completionContexts = [];
+  }
+  const scheduledForCtx = task.dueAt ? new Date(task.dueAt) : nowDate;
+  const ctxDelayMinutes = Math.round(
+    (nowDate.getTime() - scheduledForCtx.getTime()) / (1000 * 60)
+  );
+  task.completionContexts.push({
+    dayOfWeek: nowDate.getDay(),
+    hourOfDay: nowDate.getHours(),
+    wasOverdue: ctxDelayMinutes > 0,
+    delayMinutes: ctxDelayMinutes,
+  });
+  // Cap to 50 entries to avoid storage bloat
+  if (task.completionContexts.length > 50) {
+    task.completionContexts = task.completionContexts.slice(-50);
+  }
+
   // Update timestamps
   task.lastCompletedAt = now;
   task.updatedAt = now;

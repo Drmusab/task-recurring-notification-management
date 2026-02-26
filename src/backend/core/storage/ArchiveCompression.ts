@@ -336,6 +336,14 @@ export class ArchiveCompression {
 let instance: ArchiveCompression | null = null;
 
 /**
+ * Reset the singleton instance.
+ * Called on plugin unload to release cached compression stats.
+ */
+export function resetArchiveCompression(): void {
+  instance = null;
+}
+
+/**
  * Get or create singleton instance
  */
 export function getArchiveCompression(): ArchiveCompression {

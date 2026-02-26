@@ -17,7 +17,8 @@
    */
 
   import { onMount } from "svelte";
-  import type { Task } from "@backend/core/models/Task";
+  import type { TaskDTO } from '../../services/DTOs';
+  type Task = TaskDTO;
   import { TIMELINE_DAYS } from "@shared/constants/misc-constants";
   
   export let tasks: Task[] = [];
@@ -91,9 +92,8 @@
       // Only include dates with tasks or today
       if (tasksForDate.length > 0 || dateStr === today) {
         const isPast = currentDate < new Date();
-        const isOverdue = isPast && tasksForDate.some(t => 
-          t.status?.toLowerCase() !== "done"
-        );
+        // Overdue: read from DTO pre-computed flag — NEVER derive from date comparison
+        const isOverdue = tasksForDate.some(t => (t as any).isOverdue === true);
 
         timeline.push({
           date: new Date(currentDate),

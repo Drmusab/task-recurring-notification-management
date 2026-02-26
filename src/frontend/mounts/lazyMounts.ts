@@ -5,6 +5,23 @@
  * are loaded on-demand rather than during plugin.onload().
  *
  * Uses dynamic import() to code-split heavy dependencies.
+ *
+ * ── Lifecycle Gate ───────────────────────────────────────────
+ *   AnalyticsDashboard mounts with gate: "aiPanelReady".
+ *   MountService ensures this dialog is only callable AFTER:
+ *     - TaskAnalytics.load() completed
+ *     - Cache.rebuild() completed
+ *     - StorageLoaded
+ *     - BootComplete
+ *
+ *   The openAnalyticsDashboard() function also performs an
+ *   additional isRuntimeReady() guard before rendering.
+ *
+ * ── Forbidden ────────────────────────────────────────────────
+ *   ❌ call Scheduler / TaskStorage / Domain / Integration
+ *   ❌ parse Markdown / modify block
+ *   ✔ inject UI only
+ *   ✔ read from UIQueryService (pre-projected DTOs)
  */
 
 import { Dialog } from "siyuan";
@@ -12,6 +29,8 @@ import { mount, unmount } from "svelte";
 import type { Plugin } from "siyuan";
 import type { PluginServices } from "../../plugin/types";
 import type { MountHandle } from "./types";
+import { uiQueryService } from "../services/UIQueryService";
+import { isRuntimeReady } from "../stores/RuntimeReady.store";
 
 /**
  * Open the Analytics Dashboard in a SiYuan Dialog.
@@ -20,6 +39,10 @@ import type { MountHandle } from "./types";
  * only when the user explicitly requests analytics.
  *
  * This prevents heavy chart rendering during plugin startup.
+ *
+ * LIFECYCLE GATE: "aiPanelReady"
+ * Only callable after TaskAnalytics.load() and Cache.rebuild().
+ * An additional isRuntimeReady() guard prevents stale data display.
  *
  * Triggered from:
  *   - Dashboard "Analytics" tab click
@@ -32,6 +55,12 @@ export function openAnalyticsDashboard(options: {
 }): MountHandle {
   const { plugin, services } = options;
   let svelteHandle: ReturnType<typeof mount> | null = null;
+
+  // ── Lifecycle guard ──
+  if (!isRuntimeReady()) {
+    console.warn("[lazyMounts] openAnalyticsDashboard called before runtimeReady — suppressed");
+    return { destroy: () => {} };
+  }
 
   const dialog = new Dialog({
     title: plugin.i18n?.analyticsTitle || "Task Analytics",
@@ -76,9 +105,8 @@ async function lazyLoadAnalytics(
   container: HTMLElement,
   services: PluginServices
 ): Promise<void> {
-  // Load tasks for analytics calculation
-  const taskMap = await services.taskStorage.loadActive();
-  const tasks = Array.from(taskMap.values());
+  // Load tasks via UIQueryService — NOT services.taskStorage.loadActive()
+  const tasks = uiQueryService.selectDashboard();
 
   // Update the analytics store
   const { updateAnalyticsFromTasks, taskAnalyticsStore } = await import("@stores/TaskAnalytics.store");

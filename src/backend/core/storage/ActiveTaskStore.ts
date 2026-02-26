@@ -8,6 +8,16 @@ import { getOptimizedJSON } from "@backend/core/storage/OptimizedJSON";
 
 const TEMP_SUFFIX = ".tmp";
 
+/**
+ * Schema version for the active task store format.
+ * Increment when the stored shape changes (new fields, renamed fields, etc.)
+ *
+ * Version history:
+ *   0 (implicit) — original format: { tasks: Task[] } with no version field
+ *   1            — first versioned format: { version: 1, tasks: Task[] }
+ */
+const SCHEMA_VERSION = 1;
+
 // Dynamic import types — avoid bundling Node.js modules in browser builds
 type FsPromises = {
   mkdir(path: string, options?: { recursive?: boolean }): Promise<void | string>;
@@ -64,6 +74,14 @@ export class ActiveTaskStore implements TaskStateWriter {
       }
       
       if (data && Array.isArray(data.tasks)) {
+        // Schema version check
+        const storedVersion = typeof data.version === 'number' ? data.version : 0;
+        if (storedVersion > SCHEMA_VERSION) {
+          logger.warn(
+            `[ActiveTaskStore] Stored schema version (${storedVersion}) is newer than ` +
+            `current (${SCHEMA_VERSION}). Data will be loaded as-is but some fields may be ignored.`
+          );
+        }
         return new Map(data.tasks.map((task: Task) => [task.id, task]));
       }
     } catch (err) {
@@ -99,15 +117,18 @@ export class ActiveTaskStore implements TaskStateWriter {
   }
 
   private async saveActiveAtomic(state: TaskState): Promise<void> {
+    // Include schema version in persisted data
+    const versionedState = { version: SCHEMA_VERSION, tasks: state.tasks };
+
     const fs = await this.getFsPromises();
     if (!fs) {
-      await this.plugin.saveData(STORAGE_ACTIVE_KEY, state);
+      await this.plugin.saveData(STORAGE_ACTIVE_KEY, versionedState);
       return;
     }
 
     const filePath = this.resolveStoragePath(STORAGE_ACTIVE_KEY);
     if (!filePath) {
-      await this.plugin.saveData(STORAGE_ACTIVE_KEY, state);
+      await this.plugin.saveData(STORAGE_ACTIVE_KEY, versionedState);
       return;
     }
 
@@ -120,7 +141,7 @@ export class ActiveTaskStore implements TaskStateWriter {
     const optimizedJSON = getOptimizedJSON();
     const tasksMap = new Map(state.tasks.map(task => [task.id, task]));
     const data = optimizedJSON.serialize(tasksMap, { pretty: false, includeNulls: false });
-    const wrappedData = JSON.stringify({ tasks: state.tasks }); // Still wrap in state object
+    const wrappedData = JSON.stringify({ version: SCHEMA_VERSION, tasks: state.tasks });
     
     const handle = await fs.open(tempPath, "w");
     try {

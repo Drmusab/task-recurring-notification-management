@@ -23,6 +23,7 @@ $status-cancelled: #9e9e9e;
 
 // Import modular styles
 @import './optimistic-ui.scss';
+@import './renderer.scss';
 
 // Mixins
 @mixin flex-center {
@@ -87,11 +88,97 @@ $status-cancelled: #9e9e9e;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
   
+  // ── DTO-Driven Lifecycle States ──
+  // Map directly from TaskDTO.lifecycleState values set by UIQueryService.
+  // Components bind: class:task-item--{task.lifecycleState}
+  // Styles NEVER compute lifecycle — they react to pre-computed DTO fields.
+
   &--completed {
     opacity: 0.6;
     
     .task-item-name {
       text-decoration: line-through;
+    }
+  }
+
+  &--cancelled {
+    opacity: 0.4;
+    
+    .task-item-name {
+      text-decoration: line-through;
+      color: $text-secondary;
+    }
+  }
+
+  &--overdue {
+    border-left: 3px solid #C41E3A;
+    background: rgba(196, 30, 58, 0.04);
+
+    .task-item-due {
+      color: #C41E3A;
+      font-weight: 600;
+    }
+  }
+
+  &--due {
+    border-left: 3px solid #F39C12;
+    background: rgba(243, 156, 18, 0.04);
+  }
+
+  &--missed {
+    border-left: 3px solid #95A5A6;
+    opacity: 0.7;
+
+    .task-item-name {
+      text-decoration: line-through;
+      color: $text-secondary;
+    }
+  }
+
+  &--blocked {
+    border-left: 3px solid #7F8C8D;
+    opacity: 0.65;
+    cursor: not-allowed;
+
+    .task-item-name {
+      color: $text-secondary;
+    }
+
+    &::before {
+      content: '🔒';
+      font-size: 12px;
+      margin-right: 4px;
+    }
+  }
+
+  &--idle {
+    // Default state — no extra styling needed
+  }
+
+  // ── DTO-Driven Boolean Flags ──
+  // Map from TaskDTO.isBlocked, TaskDTO.isOverdue, TaskDTO.isRecurring
+  // These are additive modifiers that can compose with lifecycle states.
+
+  &--is-blocked {
+    border-left: 3px solid #7F8C8D;
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  &--is-overdue {
+    border-left: 3px solid #C41E3A;
+
+    .task-item-due {
+      color: #C41E3A;
+      font-weight: 600;
+    }
+  }
+
+  &--is-recurring {
+    .task-item-name::after {
+      content: ' 🔁';
+      font-size: 11px;
+      opacity: 0.7;
     }
   }
 }
@@ -472,6 +559,23 @@ $status-cancelled: #9e9e9e;
         opacity: 1;
       }
     }
+  }
+}
+
+// ── RuntimeReady Gate ─────────────────────────────────────────
+// .runtime-not-ready is applied to .task-management-dock BEFORE
+// RuntimeReady.emit() fires. After mount, the class is removed.
+// This prevents stale lifecycle/state styles from rendering during load.
+.task-management-dock.runtime-not-ready {
+  .task-item--overdue,
+  .task-item--due,
+  .task-item--blocked,
+  .task-item--missed,
+  .task-item--is-blocked,
+  .task-item--is-overdue {
+    border-left-color: transparent !important;
+    background: transparent !important;
+    opacity: 1 !important;
   }
 }
 

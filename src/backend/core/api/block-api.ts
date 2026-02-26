@@ -6,36 +6,56 @@
  * See: https://github.com/siyuan-note/siyuan/blob/master/API.md
  */
 
-import { fetchPost, fetchSyncPost, type IWebSocketData } from "siyuan";
 import type { Plugin } from "siyuan";
+import { siyuanRequest } from "@backend/core/api/SiYuanApiClient";
 
 /**
- * Request wrapper with error handling
+ * Request wrapper — delegates to canonical SiYuanApiClient.
+ * Returns the `data` field on success, or null if the call fails
+ * (to preserve backwards-compatible null-return semantics).
  */
 async function request(url: string, data: any): Promise<any> {
-  const response: IWebSocketData = await fetchSyncPost(url, data);
-  return response.code === 0 ? response.data : null;
+  try {
+    return await siyuanRequest(url, data);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Block API service following SiYuan official patterns
+ * Internal to this module — consumers use TaskBlockService.
  */
-export class BlockAPI {
+class BlockAPI {
   constructor(private plugin: Plugin) {}
 
   // ==================== Block CRUD Operations ====================
 
   /**
-   * Insert a new block
+   * Insert a new block.
+   *
+   * At least one of `nextID`, `previousID`, or `parentID` must be provided
+   * to specify where the block is inserted (priority: nextID > previousID > parentID).
+   *
    * @param dataType - Block data type (markdown, dom, etc.)
    * @param data - Block content
    * @param nextID - Optional: Insert before this block ID
+   * @param previousID - Optional: Insert after this block ID
+   * @param parentID - Optional: Insert as child of this block ID
    */
-  async insertBlock(dataType: string, data: string, nextID?: string): Promise<any> {
+  async insertBlock(
+    dataType: string,
+    data: string,
+    nextID?: string,
+    previousID?: string,
+    parentID?: string,
+  ): Promise<any> {
     return request("/api/block/insertBlock", {
       dataType,
       data,
-      nextID,
+      nextID: nextID ?? "",
+      previousID: previousID ?? "",
+      parentID: parentID ?? "",
     });
   }
 
@@ -196,8 +216,12 @@ export class TaskBlockService {
   }
 
   /**
-   * Create a task block in SiYuan document
-   * Returns block ID for linking
+   * Create a task block in SiYuan document.
+   * Returns block ID for linking.
+   *
+   * @param task - Task data to persist
+   * @param parentBlockId - Parent block to append into (required — SiYuan's
+   *   insertBlock API needs at least one placement target)
    */
   async createTaskBlock(
     task: {
@@ -209,16 +233,11 @@ export class TaskBlockService {
       dueAt?: string;
       enabled?: boolean;
     },
-    parentBlockId?: string
+    parentBlockId: string
   ): Promise<string> {
     const markdown = this.formatTaskAsMarkdown(task);
 
-    let result;
-    if (parentBlockId) {
-      result = await this.blockAPI.appendBlock(parentBlockId, "markdown", markdown);
-    } else {
-      result = await this.blockAPI.insertBlock("markdown", markdown);
-    }
+    const result = await this.blockAPI.appendBlock(parentBlockId, "markdown", markdown);
 
     const blockId = result?.[0]?.doOperations?.[0]?.id;
     if (!blockId) {

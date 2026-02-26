@@ -1,24 +1,32 @@
 /**
- * TaskStore - Svelte store for task state management
+ * TaskStore — Svelte Reactive State Layer (Pure Observer)
  *
- * Phase 7: Synced with backend TaskStorage for SiYuan block persistence.
- * The store is the reactive cache; TaskStorage is the source of truth.
+ * Session 24 refactored: All backend coupling removed.
+ * The store is a pure reactive cache that:
+ *   - Reads via UIQueryService (selectDashboard → TaskDTO[])
+ *   - Mutates via UITaskMutationService (completeTask, updateTask, etc.)
+ *   - Subscribes to events via UIEventService (onTaskRefresh, etc.)
+ *
+ * FORBIDDEN:
+ *   ❌ Import TaskStorage, BlockMetadataService, PluginEventBus
+ *   ❌ Call taskStorage.saveTask() or loadActive()
+ *   ❌ Inline task field mutations (task.status = "done")
+ *   ❌ Emit events directly
  *
  * Flow:
- *   UI action → taskStore.method() → TaskStorage.saveTask() → store.update()
- *   PluginEventBus "task:refresh" → taskStore.refreshFromBackend()
+ *   UI action → taskStore.method() → UITaskMutationService → (backend handles persist + events)
+ *   Backend event → UIEventService.onTaskRefresh() → taskStore.refreshFromBackend()
  */
 
 import { writable, derived, get } from 'svelte/store';
 import type { Writable } from 'svelte/store';
-import { TaskIndex } from '@domain/index/TaskIndex';
-import type { Task } from '@backend/core/models/Task';
-import type { TaskStorage } from '@backend/core/storage/TaskStorage';
-import type { BlockMetadataService } from '@backend/core/api/BlockMetadataService';
-import type { PluginEventBus } from '@backend/core/events/PluginEventBus';
+import type { TaskDTO } from '../services/DTOs';
+import { uiQueryService } from '../services/UIQueryService';
+import { uiMutationService } from '../services/UITaskMutationService';
+import { uiEventService } from '../services/UIEventService';
 
 interface TaskStoreState {
-  tasks: Map<string, Task>;
+  tasks: Map<string, TaskDTO>;
   loading: boolean;
   error: string | null;
   lastUpdate: number;
@@ -26,46 +34,31 @@ interface TaskStoreState {
 }
 
 class TaskStore {
-  private store: Writable<TaskStoreState>;
-  private taskIndex: TaskIndex;
-  private taskStorage: TaskStorage | null = null;
-  private blockMetadataService: BlockMetadataService | null = null;
-  private pluginEventBus: PluginEventBus | null = null;
+  private store: Writable<TaskStoreState> = writable<TaskStoreState>({
+    tasks: new Map(),
+    loading: false,
+    error: null,
+    lastUpdate: Date.now(),
+    synced: false,
+  });
   private eventCleanup: (() => void) | null = null;
 
-  constructor() {
-    this.store = writable<TaskStoreState>({
-      tasks: new Map(),
-      loading: false,
-      error: null,
-      lastUpdate: Date.now(),
-      synced: false,
-    });
-
-    this.taskIndex = new TaskIndex();
-  }
-
   /**
-   * Connect the store to backend services.
+   * Connect the store to frontend service singletons.
    * Called from index.ts after services are initialized.
+   *
+   * NOTE: No backend types in the signature — only frontend services
+   * are used (they are already connected by this point).
    */
-  connectBackend(deps: {
-    taskStorage: TaskStorage;
-    blockMetadataService: BlockMetadataService;
-    pluginEventBus: PluginEventBus;
-  }): void {
-    this.taskStorage = deps.taskStorage;
-    this.blockMetadataService = deps.blockMetadataService;
-    this.pluginEventBus = deps.pluginEventBus;
-
+  connectBackend(_deps?: Record<string, unknown>): void {
     // Auto-refresh when tasks change in the backend
-    this.eventCleanup = this.pluginEventBus.on("task:refresh", () => {
+    this.eventCleanup = uiEventService.onTaskRefresh(() => {
       this.refreshFromBackend().catch((err) => {
         console.warn("[TaskStore] Auto-refresh failed:", err);
       });
     });
 
-    // Initial load from backend
+    // Initial load from backend via UIQueryService
     this.refreshFromBackend().catch((err) => {
       console.warn("[TaskStore] Initial backend load failed:", err);
     });
@@ -73,15 +66,21 @@ class TaskStore {
 
   /**
    * Disconnect from backend (called on plugin unload).
+   * Clears ALL internal state to prevent leaks across hot-reloads.
    */
   disconnectBackend(): void {
     if (this.eventCleanup) {
       this.eventCleanup();
       this.eventCleanup = null;
     }
-    this.taskStorage = null;
-    this.blockMetadataService = null;
-    this.pluginEventBus = null;
+    // Reset the Svelte store to empty state
+    this.store.set({
+      tasks: new Map(),
+      loading: false,
+      error: null,
+      lastUpdate: Date.now(),
+      synced: false,
+    });
   }
 
   /**
@@ -90,42 +89,35 @@ class TaskStore {
   subscribe = this.store.subscribe;
 
   /**
-   * Get all tasks as array
+   * Get all tasks as array (TaskDTO)
    */
-  getAllTasks(): Task[] {
+  getAllTasks(): TaskDTO[] {
     const state = get(this.store);
     return Array.from(state.tasks.values());
   }
 
   /**
-   * Get task by ID
+   * Get task by ID (TaskDTO)
    */
-  getTask(id: string): Task | undefined {
+  getTask(id: string): TaskDTO | undefined {
     const state = get(this.store);
     return state.tasks.get(id);
   }
 
   /**
-   * Refresh tasks from backend TaskStorage.
-   * Replaces the old document-scan approach.
+   * Refresh tasks from backend via UIQueryService.
+   * Reads TaskDTO[] from selectDashboard() — no direct storage access.
    */
   async refreshFromBackend(): Promise<void> {
-    if (!this.taskStorage) {
-      // Fallback to local index if not connected
-      return this.refreshTasks();
-    }
-
     this.store.update((state) => ({ ...state, loading: true, error: null }));
 
     try {
-      const taskMap = await this.taskStorage.loadActive();
-      const tasks = Array.from(taskMap.values());
+      const taskDTOs = uiQueryService.selectDashboard();
 
-      const newTaskMap = new Map<string, Task>();
-      tasks.forEach((task) => {
-        newTaskMap.set(task.id, task);
-        this.taskIndex.add(task);
-      });
+      const newTaskMap = new Map<string, TaskDTO>();
+      for (const dto of taskDTOs) {
+        newTaskMap.set(dto.id, dto);
+      }
 
       this.store.update((state) => ({
         ...state,
@@ -144,226 +136,167 @@ class TaskStore {
   }
 
   /**
-   * Refresh tasks from local TaskIndex (fallback).
-   */
-  async refreshTasks(): Promise<void> {
-    this.store.update((state: TaskStoreState) => ({ ...state, loading: true, error: null }));
-
-    try {
-      const tasks = this.taskIndex.getAllTasks();
-      const taskMap = new Map<string, Task>();
-
-      tasks.forEach((task: Task) => {
-        taskMap.set(task.id, task);
-      });
-
-      this.store.update((state: TaskStoreState) => ({
-        ...state,
-        tasks: taskMap,
-        loading: false,
-        lastUpdate: Date.now(),
-      }));
-    } catch (error) {
-      this.store.update((state: TaskStoreState) => ({
-        ...state,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }));
-    }
-  }
-
-  /**
-   * Toggle task status with backend persistence.
+   * Toggle task status via UITaskMutationService.
+   * Delegates to completeTask (if todo→done) or updateTask (if done→todo).
    */
   async toggleTaskStatus(taskId: string): Promise<void> {
     const task = this.getTask(taskId);
     if (!task) return;
 
     try {
-      // Simple toggle: todo ↔ done
-      const newStatus = task.status === "done" ? "todo" : "done";
-      const updates: Partial<Task> = {
-        status: newStatus,
-        updatedAt: new Date().toISOString(),
-      };
-
-      if (newStatus === "done") {
-        updates.doneAt = new Date().toISOString();
+      if (task.status === "done") {
+        // Reopen: set status back to todo
+        await uiMutationService.updateTask(taskId, { enabled: true });
       } else {
-        updates.doneAt = undefined;
+        // Complete the task
+        await uiMutationService.completeTask(taskId);
       }
 
-      // Update locally
-      this.updateTaskLocal(taskId, updates);
-
-      // Persist to backend
-      const fullTask = this.getTask(taskId);
-      if (fullTask && this.taskStorage) {
-        await this.taskStorage.saveTask(fullTask);
-        if (this.blockMetadataService) {
-          await this.blockMetadataService.syncTaskToBlock(fullTask);
-        }
-        this.pluginEventBus?.emit("task:refresh", undefined);
-      }
+      // Refresh to get updated state from backend
+      await this.refreshFromBackend();
     } catch (error) {
       console.error('Failed to toggle task:', error);
     }
   }
 
   /**
-   * Update task with backend persistence.
+   * Update task via UITaskMutationService.
+   * All field changes route through the mutation service —
+   * NEVER mutate fields inline.
    */
-  async updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
-    this.updateTaskLocal(taskId, updates);
-
-    // Persist to backend
-    const fullTask = this.getTask(taskId);
-    if (fullTask && this.taskStorage) {
-      try {
-        await this.taskStorage.saveTask(fullTask);
-        if (this.blockMetadataService) {
-          await this.blockMetadataService.syncTaskToBlock(fullTask);
-        }
-        this.pluginEventBus?.emit("task:updated", { taskId });
-      } catch (error) {
-        console.error(`[TaskStore] Backend update failed for ${taskId}:`, error);
+  async updateTask(taskId: string, updates: Record<string, unknown>): Promise<void> {
+    try {
+      const result = await uiMutationService.updateTask(taskId, updates as any);
+      if (result.success) {
+        await this.refreshFromBackend();
+      } else {
+        console.error(`[TaskStore] Update failed for ${taskId}:`, result.error);
       }
+    } catch (error) {
+      console.error(`[TaskStore] Update failed for ${taskId}:`, error);
     }
   }
 
   /**
-   * Add new task with backend persistence.
+   * Add new task via UITaskMutationService.
    */
-  async addTask(task: Task): Promise<void> {
-    this.addTaskLocal(task);
+  async addTask(task: { name: string; dueAt: string; [key: string]: unknown }): Promise<void> {
+    try {
+      const result = await uiMutationService.createTask({
+        name: task.name,
+        dueAt: task.dueAt,
+        priority: task.priority as string | undefined,
+        tags: task.tags as string[] | undefined,
+        category: task.category as string | undefined,
+        enabled: task.enabled as boolean | undefined,
+        blockId: task.blockId as string | undefined,
+        rootId: task.rootId as string | undefined,
+        workspaceId: task.workspaceId as string | undefined,
+      });
 
-    if (this.taskStorage) {
-      try {
-        await this.taskStorage.saveTask(task);
-        if (this.blockMetadataService) {
-          await this.blockMetadataService.syncTaskToBlock(task);
-        }
-        this.pluginEventBus?.emit("task:saved", { task, isNew: true });
-      } catch (error) {
-        console.error(`[TaskStore] Backend add failed for ${task.id}:`, error);
+      if (result.success) {
+        await this.refreshFromBackend();
+      } else {
+        console.error(`[TaskStore] Add failed:`, result.error);
       }
+    } catch (error) {
+      console.error(`[TaskStore] Add failed:`, error);
     }
   }
 
   /**
-   * Delete task with backend persistence.
+   * Delete task via UITaskMutationService.
    */
   async deleteTask(taskId: string): Promise<void> {
-    this.deleteTaskLocal(taskId);
-
-    if (this.taskStorage) {
-      try {
-        await this.taskStorage.deleteTask(taskId);
-        this.pluginEventBus?.emit("task:refresh", undefined);
-      } catch (error) {
-        console.error(`[TaskStore] Backend delete failed for ${taskId}:`, error);
+    try {
+      const result = await uiMutationService.deleteTask(taskId);
+      if (result.success) {
+        await this.refreshFromBackend();
+      } else {
+        console.error(`[TaskStore] Delete failed for ${taskId}:`, result.error);
       }
+    } catch (error) {
+      console.error(`[TaskStore] Delete failed for ${taskId}:`, error);
     }
   }
 
-  // ─── Local-only operations (no backend sync) ─────────────
-
-  private updateTaskLocal(taskId: string, updates: Partial<Task>): void {
-    this.store.update((state: TaskStoreState) => {
-      const task = state.tasks.get(taskId);
-      if (!task) return state;
-
-      const updatedTask = { ...task, ...updates, updatedAt: new Date().toISOString() };
-      const newTasks = new Map(state.tasks);
-      newTasks.set(taskId, updatedTask);
-
-      this.taskIndex.update(taskId, updatedTask);
-
-      return {
-        ...state,
-        tasks: newTasks,
-        lastUpdate: Date.now(),
-      };
-    });
-  }
-
-  private addTaskLocal(task: Task): void {
-    this.store.update((state: TaskStoreState) => {
-      const newTasks = new Map(state.tasks);
-      newTasks.set(task.id, task);
-
-      this.taskIndex.add(task);
-
-      return {
-        ...state,
-        tasks: newTasks,
-        lastUpdate: Date.now(),
-      };
-    });
-  }
-
-  private deleteTaskLocal(taskId: string): void {
-    this.store.update((state: TaskStoreState) => {
-      const newTasks = new Map(state.tasks);
-      newTasks.delete(taskId);
-
-      this.taskIndex.remove(taskId);
-
-      return {
-        ...state,
-        tasks: newTasks,
-        lastUpdate: Date.now(),
-      };
-    });
-  }
-
   /**
-   * Query tasks
+   * Query tasks (filters from DTO cache)
    */
-  query(queryString: string): Task[] {
+  query(_queryString: string): TaskDTO[] {
     // TODO: Implement query parser integration
     return this.getAllTasks();
   }
 
   /**
-   * Get tasks by status
+   * Get tasks by status (from DTO cache)
    */
-  getTasksByStatus(status: string): Task[] {
+  getTasksByStatus(status: string): TaskDTO[] {
     return this.getAllTasks().filter((task) => task.status === status);
   }
 
   /**
-   * Get tasks due today
+   * Get tasks due today (delegates to UIQueryService)
    */
-  getTasksDueToday(): Task[] {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return this.getAllTasks().filter((task) => {
-      if (!task.dueAt) return false;
-      const dueDate = new Date(task.dueAt);
-      return dueDate >= today && dueDate < tomorrow;
-    });
+  getTasksDueToday(): TaskDTO[] {
+    return uiQueryService.selectDueToday();
   }
 
   /**
-   * Get overdue tasks
+   * Get overdue tasks (delegates to UIQueryService)
    */
-  getOverdueTasks(): Task[] {
-    const now = new Date();
-
-    return this.getAllTasks().filter((task) => {
-      if (!task.dueAt || task.status === 'done' || task.status === 'cancelled') {
-        return false;
-      }
-
-      const dueDate = new Date(task.dueAt);
-      return dueDate < now;
-    });
+  getOverdueTasks(): TaskDTO[] {
+    return uiQueryService.selectOverdue();
   }
 }
 
 // Create singleton instance
 export const taskStore = new TaskStore();
+
+/**
+ * Derived stores for commonly queried task views.
+ * These use Svelte's `derived()` to automatically cache filtered results
+ * and only recompute when the source store changes — avoiding repeated
+ * full scans on every component access.
+ *
+ * All derived stores yield TaskDTO[] — NEVER domain Task.
+ */
+
+/** All tasks as a flat array (cached) */
+export const allTasks = derived(taskStore, ($state) =>
+  Array.from($state.tasks.values())
+);
+
+/** Tasks due today */
+export const tasksDueToday = derived(taskStore, ($state) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrowMs = today.getTime() + 86_400_000;
+  const result: TaskDTO[] = [];
+  for (const task of $state.tasks.values()) {
+    if (task.dueAt) {
+      const dueMs = new Date(task.dueAt).getTime();
+      if (dueMs >= today.getTime() && dueMs < tomorrowMs) {
+        result.push(task);
+      }
+    }
+  }
+  return result;
+});
+
+/** Overdue tasks (reads isOverdue from DTO — no local date computation) */
+export const overdueTasks = derived(taskStore, ($state) => {
+  const result: TaskDTO[] = [];
+  for (const task of $state.tasks.values()) {
+    if (task.isOverdue && task.status !== "done" && task.status !== "cancelled") {
+      result.push(task);
+    }
+  }
+  return result;
+});
+
+/** Task count (avoids allocating arrays just to count) */
+export const taskCount = derived(taskStore, ($state) => $state.tasks.size);
+
+/** Loading state */
+export const isLoading = derived(taskStore, ($state) => $state.loading);

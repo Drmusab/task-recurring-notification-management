@@ -21,24 +21,30 @@
  * - custom-task-data:      JSON blob for full task data (fallback)
  */
 
-import { fetchSyncPost } from "siyuan";
 import type { Task } from "@backend/core/models/Task";
 import * as logger from "@backend/logging/logger";
+import {
+  setBlockAttrs,
+  getBlockAttrs,
+  querySql,
+  SiYuanApiError,
+} from "@backend/core/api/SiYuanApiClient";
+import { pluginEventBus } from "@backend/core/events/PluginEventBus";
+import {
+  BLOCK_ATTR_TASK_ID,
+  BLOCK_ATTR_TASK_DUE,
+  BLOCK_ATTR_TASK_STATUS,
+  BLOCK_ATTR_TASK_PRIORITY,
+  BLOCK_ATTR_TASK_RECURRENCE,
+  BLOCK_ATTR_TASK_ENABLED,
+  BLOCK_ATTR_TASK_TAGS,
+  BLOCK_ATTR_TASK_DATA,
+  BLOCK_ATTR_TASK_CATEGORY,
+  BLOCK_ATTR_TASK_CREATED,
+  BLOCK_ATTR_TASK_UPDATED,
+} from "@shared/constants/misc-constants";
 
-// Block attribute keys (prefixed with 'custom-' per SiYuan convention)
-export const ATTR_TASK_ID = "custom-task-id";
-export const ATTR_TASK_DUE = "custom-task-due";
-export const ATTR_TASK_STATUS = "custom-task-status";
-export const ATTR_TASK_PRIORITY = "custom-task-priority";
-export const ATTR_TASK_RECURRENCE = "custom-task-recurrence";
-export const ATTR_TASK_ENABLED = "custom-task-enabled";
-export const ATTR_TASK_TAGS = "custom-task-tags";
-export const ATTR_TASK_DATA = "custom-task-data";
-export const ATTR_TASK_CATEGORY = "custom-task-category";
-export const ATTR_TASK_CREATED = "custom-task-created";
-export const ATTR_TASK_UPDATED = "custom-task-updated";
-
-export interface BlockTaskMetadata {
+interface BlockTaskMetadata {
   blockId: string;
   taskId: string;
   status: string;
@@ -62,57 +68,57 @@ export class BlockMetadataService {
 
     try {
       const attrs: Record<string, string> = {
-        [ATTR_TASK_ID]: task.id,
-        [ATTR_TASK_STATUS]: task.status || "todo",
-        [ATTR_TASK_PRIORITY]: task.priority || "medium",
-        [ATTR_TASK_ENABLED]: String(task.enabled !== false),
-        [ATTR_TASK_CREATED]: task.createdAt || new Date().toISOString(),
-        [ATTR_TASK_UPDATED]: new Date().toISOString(),
+        [BLOCK_ATTR_TASK_ID]: task.id,
+        [BLOCK_ATTR_TASK_STATUS]: task.status || "todo",
+        [BLOCK_ATTR_TASK_PRIORITY]: task.priority || "medium",
+        [BLOCK_ATTR_TASK_ENABLED]: String(task.enabled !== false),
+        [BLOCK_ATTR_TASK_CREATED]: task.createdAt || new Date().toISOString(),
+        [BLOCK_ATTR_TASK_UPDATED]: new Date().toISOString(),
       };
 
       // Optional fields - only set if present
       if (task.dueAt) {
-        attrs[ATTR_TASK_DUE] = typeof task.dueAt === "string"
+        attrs[BLOCK_ATTR_TASK_DUE] = typeof task.dueAt === "string"
           ? task.dueAt
           : new Date(task.dueAt).toISOString();
       }
 
       if (task.recurrence?.rrule) {
-        attrs[ATTR_TASK_RECURRENCE] = task.recurrence.rrule;
+        attrs[BLOCK_ATTR_TASK_RECURRENCE] = task.recurrence.rrule;
       }
 
       if (task.tags && task.tags.length > 0) {
-        attrs[ATTR_TASK_TAGS] = task.tags.join(",");
+        attrs[BLOCK_ATTR_TASK_TAGS] = task.tags.join(",");
       }
 
       if (task.category) {
-        attrs[ATTR_TASK_CATEGORY] = task.category;
+        attrs[BLOCK_ATTR_TASK_CATEGORY] = task.category;
       }
 
       // Store full task data as JSON fallback (for complex fields)
       const taskData = this.serializeTaskData(task);
       if (taskData) {
-        attrs[ATTR_TASK_DATA] = taskData;
+        attrs[BLOCK_ATTR_TASK_DATA] = taskData;
       }
 
-      const response = await fetchSyncPost("/api/attr/setBlockAttrs", {
-        id: blockId,
-        attrs,
-      });
-
-      if (response?.code !== 0) {
-        logger.error("[BlockMetadata] Failed to set block attrs", {
-          blockId,
-          code: response?.code,
-          msg: response?.msg,
-        });
-        return false;
-      }
+      await setBlockAttrs(blockId, attrs);
 
       logger.debug("[BlockMetadata] Task attributes saved to block", { blockId, taskId: task.id });
+
+      // Emit event so dashboard/calendar/AI panels react to the update
+      pluginEventBus.emit("task:updated", { taskId: task.id });
+
       return true;
     } catch (error) {
-      logger.error("[BlockMetadata] Error setting block attributes", error);
+      if (error instanceof SiYuanApiError) {
+        logger.error("[BlockMetadata] Failed to set block attrs", {
+          blockId,
+          code: error.code,
+          msg: error.kernelMessage,
+        });
+      } else {
+        logger.error("[BlockMetadata] Error setting block attributes", error);
+      }
       return false;
     }
   }
@@ -124,16 +130,9 @@ export class BlockMetadataService {
     if (!blockId) return null;
 
     try {
-      const response = await fetchSyncPost("/api/attr/getBlockAttrs", {
-        id: blockId,
-      });
+      const attrs = await getBlockAttrs(blockId);
 
-      if (response?.code !== 0 || !response?.data) {
-        return null;
-      }
-
-      const attrs = response.data as Record<string, string>;
-      const taskId = attrs[ATTR_TASK_ID];
+      const taskId = attrs[BLOCK_ATTR_TASK_ID];
 
       if (!taskId) {
         return null; // Not a task block
@@ -142,103 +141,17 @@ export class BlockMetadataService {
       return {
         blockId,
         taskId,
-        status: attrs[ATTR_TASK_STATUS] || "todo",
-        priority: attrs[ATTR_TASK_PRIORITY] || "medium",
-        dueAt: attrs[ATTR_TASK_DUE] || "",
-        recurrence: attrs[ATTR_TASK_RECURRENCE] || "",
-        enabled: attrs[ATTR_TASK_ENABLED] !== "false",
-        tags: attrs[ATTR_TASK_TAGS] ? attrs[ATTR_TASK_TAGS].split(",") : [],
-        category: attrs[ATTR_TASK_CATEGORY] || "",
+        status: attrs[BLOCK_ATTR_TASK_STATUS] || "todo",
+        priority: attrs[BLOCK_ATTR_TASK_PRIORITY] || "medium",
+        dueAt: attrs[BLOCK_ATTR_TASK_DUE] || "",
+        recurrence: attrs[BLOCK_ATTR_TASK_RECURRENCE] || "",
+        enabled: attrs[BLOCK_ATTR_TASK_ENABLED] !== "false",
+        tags: attrs[BLOCK_ATTR_TASK_TAGS] ? attrs[BLOCK_ATTR_TASK_TAGS].split(",") : [],
+        category: attrs[BLOCK_ATTR_TASK_CATEGORY] || "",
       };
     } catch (error) {
       logger.error("[BlockMetadata] Error reading block attributes", error);
       return null;
-    }
-  }
-
-  /**
-   * Remove all task-related attributes from a block
-   */
-  async removeTaskAttributes(blockId: string): Promise<boolean> {
-    if (!blockId) return false;
-
-    try {
-      const attrs: Record<string, string> = {
-        [ATTR_TASK_ID]: "",
-        [ATTR_TASK_STATUS]: "",
-        [ATTR_TASK_PRIORITY]: "",
-        [ATTR_TASK_DUE]: "",
-        [ATTR_TASK_RECURRENCE]: "",
-        [ATTR_TASK_ENABLED]: "",
-        [ATTR_TASK_TAGS]: "",
-        [ATTR_TASK_CATEGORY]: "",
-        [ATTR_TASK_DATA]: "",
-        [ATTR_TASK_CREATED]: "",
-        [ATTR_TASK_UPDATED]: "",
-      };
-
-      const response = await fetchSyncPost("/api/attr/setBlockAttrs", {
-        id: blockId,
-        attrs,
-      });
-
-      return response?.code === 0;
-    } catch (error) {
-      logger.error("[BlockMetadata] Error removing block attributes", error);
-      return false;
-    }
-  }
-
-  /**
-   * Query all blocks that have task metadata using SiYuan SQL
-   */
-  async queryTaskBlocks(filter?: {
-    status?: string;
-    priority?: string;
-    dueBefore?: string;
-    enabled?: boolean;
-  }): Promise<BlockTaskMetadata[]> {
-    try {
-      // Sanitize filter values to prevent SQL injection
-      const sanitize = (v: string) => v.replace(/['"\\;]/g, "");
-
-      let sql = `SELECT blocks.id, blocks.ial FROM blocks 
-        WHERE blocks.ial LIKE '%${sanitize(ATTR_TASK_ID)}%'`;
-
-      if (filter?.status) {
-        const safeStatus = sanitize(filter.status);
-        sql += ` AND blocks.ial LIKE '%${sanitize(ATTR_TASK_STATUS)}="${safeStatus}"%'`;
-      }
-
-      if (filter?.priority) {
-        const safePriority = sanitize(filter.priority);
-        sql += ` AND blocks.ial LIKE '%${sanitize(ATTR_TASK_PRIORITY)}="${safePriority}"%'`;
-      }
-
-      if (filter?.enabled !== undefined) {
-        sql += ` AND blocks.ial LIKE '%${sanitize(ATTR_TASK_ENABLED)}="${String(filter.enabled)}"%'`;
-      }
-
-      sql += " LIMIT 10000";
-
-      const response = await fetchSyncPost("/api/query/sql", { stmt: sql });
-
-      if (response?.code !== 0 || !Array.isArray(response?.data)) {
-        return [];
-      }
-
-      const results: BlockTaskMetadata[] = [];
-      for (const block of response.data) {
-        const meta = await this.getTaskAttributes(block.id);
-        if (meta) {
-          results.push(meta);
-        }
-      }
-
-      return results;
-    } catch (error) {
-      logger.error("[BlockMetadata] Error querying task blocks", error);
-      return [];
     }
   }
 
@@ -290,11 +203,11 @@ export class BlockMetadataService {
    * falling back to individual attributes for partial reconstruction.
    */
   deserializeTask(blockId: string, attrs: Record<string, string>): Task | null {
-    const taskId = attrs[ATTR_TASK_ID];
+    const taskId = attrs[BLOCK_ATTR_TASK_ID];
     if (!taskId) return null;
 
     // Try full JSON blob first (most reliable)
-    const dataBlob = attrs[ATTR_TASK_DATA];
+    const dataBlob = attrs[BLOCK_ATTR_TASK_DATA];
     if (dataBlob) {
       try {
         const task = JSON.parse(dataBlob) as Task;
@@ -310,48 +223,50 @@ export class BlockMetadataService {
     return {
       id: taskId,
       name: `Task ${taskId.slice(0, 8)}`, // placeholder name
-      dueAt: attrs[ATTR_TASK_DUE] || new Date().toISOString(),
-      enabled: attrs[ATTR_TASK_ENABLED] !== "false",
-      status: (attrs[ATTR_TASK_STATUS] as Task["status"]) || "todo",
-      priority: (attrs[ATTR_TASK_PRIORITY] as Task["priority"]) || "medium",
-      tags: attrs[ATTR_TASK_TAGS] ? attrs[ATTR_TASK_TAGS].split(",") : [],
-      category: attrs[ATTR_TASK_CATEGORY] || "",
+      dueAt: attrs[BLOCK_ATTR_TASK_DUE] || new Date().toISOString(),
+      enabled: attrs[BLOCK_ATTR_TASK_ENABLED] !== "false",
+      status: (attrs[BLOCK_ATTR_TASK_STATUS] as Task["status"]) || "todo",
+      priority: (attrs[BLOCK_ATTR_TASK_PRIORITY] as Task["priority"]) || "medium",
+      tags: attrs[BLOCK_ATTR_TASK_TAGS] ? attrs[BLOCK_ATTR_TASK_TAGS].split(",") : [],
+      category: attrs[BLOCK_ATTR_TASK_CATEGORY] || "",
       linkedBlockId: blockId,
       version: 5,
-      createdAt: attrs[ATTR_TASK_CREATED] || new Date().toISOString(),
-      updatedAt: attrs[ATTR_TASK_UPDATED] || new Date().toISOString(),
-      ...(attrs[ATTR_TASK_RECURRENCE] ? { recurrence: { rrule: attrs[ATTR_TASK_RECURRENCE] } } : {}),
+      createdAt: attrs[BLOCK_ATTR_TASK_CREATED] || new Date().toISOString(),
+      updatedAt: attrs[BLOCK_ATTR_TASK_UPDATED] || new Date().toISOString(),
+      ...(attrs[BLOCK_ATTR_TASK_RECURRENCE] ? { recurrence: { rrule: attrs[BLOCK_ATTR_TASK_RECURRENCE] } } : {}),
     } as Task;
   }
 
   /**
    * Load ALL tasks from block attributes via SQL query.
    * Returns a Map<taskId, Task> for direct use by TaskStorage.
+   *
+   * Performance fix: parses the `ial` field inline from the SQL result
+   * instead of issuing an individual getBlockAttrs call per block (N+1).
    */
   async loadAllTasks(): Promise<Map<string, Task>> {
     const tasks = new Map<string, Task>();
 
     try {
-      const sql = `SELECT id, ial FROM blocks WHERE ial LIKE '%${ATTR_TASK_ID}%' LIMIT 50000`;
-      const response = await fetchSyncPost("/api/query/sql", { stmt: sql });
+      const sql = `SELECT id, ial FROM blocks WHERE ial LIKE '%${BLOCK_ATTR_TASK_ID}%' LIMIT 50000`;
+      const rows = await querySql<Array<{ id: string; ial: string }>>(sql);
 
-      if (response?.code !== 0 || !Array.isArray(response?.data)) {
-        logger.warn("[BlockMetadata] SQL query failed or returned no data");
+      if (!Array.isArray(rows)) {
+        logger.warn("[BlockMetadata] SQL query returned non-array data");
         return tasks;
       }
 
-      // For each block, fetch full attributes and deserialize
-      for (const block of response.data) {
+      for (const row of rows) {
         try {
-          const attrResponse = await fetchSyncPost("/api/attr/getBlockAttrs", { id: block.id });
-          if (attrResponse?.code !== 0 || !attrResponse?.data) continue;
+          const attrs = this.parseIal(row.ial);
+          if (!attrs) continue;
 
-          const task = this.deserializeTask(block.id, attrResponse.data as Record<string, string>);
+          const task = this.deserializeTask(row.id, attrs);
           if (task) {
             tasks.set(task.id, task);
           }
         } catch (e) {
-          logger.warn("[BlockMetadata] Failed to load task from block", { blockId: block.id });
+          logger.warn("[BlockMetadata] Failed to parse task from IAL", { blockId: row.id });
         }
       }
 
@@ -361,5 +276,30 @@ export class BlockMetadataService {
       logger.error("[BlockMetadata] Failed to load tasks from blocks", error);
       return tasks;
     }
+  }
+
+  /**
+   * Parse SiYuan's IAL string into a key-value map.
+   *
+   * IAL format: `{: key="value" key2="value2" }`
+   * Returns null if the string is empty or unparseable.
+   */
+  private parseIal(ial: string): Record<string, string> | null {
+    if (!ial) return null;
+
+    const attrs: Record<string, string> = {};
+    // Match key="value" pairs inside the IAL braces
+    const pairRegex = /(\S+?)="([^"]*)"/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = pairRegex.exec(ial)) !== null) {
+      const key = match[1];
+      const val = match[2];
+      if (key !== undefined && val !== undefined) {
+        attrs[key] = val;
+      }
+    }
+
+    return Object.keys(attrs).length > 0 ? attrs : null;
   }
 }

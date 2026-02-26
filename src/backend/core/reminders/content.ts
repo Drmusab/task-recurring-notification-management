@@ -2,6 +2,7 @@ import { MarkdownDocument, modifyReminder, parseReminder } from "@backend/core/r
 import type { ReminderEdit } from "@backend/core/reminders/format";
 import type { Reminder } from "@backend/core/reminders/reminder";
 import type { Todo } from "@backend/core/reminders/format/markdown";
+import * as logger from "@backend/logging/logger";
 
 export type ReminderTodoEdit = ReminderEdit & {
   checked?: boolean;
@@ -47,7 +48,7 @@ export class Content {
     if (modified) {
       console.info("Reminder was updated: reminder=%o", reminder);
     } else {
-      console.warn(
+      logger.warn(
         "Cannot modify reminder because it's not a reminder todo: reminder=%o",
         reminder,
       );

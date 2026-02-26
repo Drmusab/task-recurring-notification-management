@@ -1,5 +1,6 @@
 import type { StatusRegistry } from "@shared/types/StatusRegistry";
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../../../services/DTOs';
+type Task = TaskDTO;
 import { allStatusInstructions } from "@components/shared/EditInstructions/StatusInstructions";
 import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/shared/Menus/TaskEditingMenu";
 

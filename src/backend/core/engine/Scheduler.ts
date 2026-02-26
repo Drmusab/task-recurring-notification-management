@@ -17,14 +17,29 @@ import {
 import * as logger from "@backend/logging/logger";
 import type { Plugin } from "siyuan";
 import { SchedulerTimer } from "@backend/core/engine/SchedulerTimer";
+import type { DueStateCache, DueStateEntry } from "@backend/cache/DueStateCache";
+import type { DependencyExecutionGuard } from "@backend/dependencies/DependencyExecutionGuard";
+import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
+import type { EventQueue } from "./EventQueue";
 
 /**
- * Scheduler manages task timing and emits semantic events.
+ * Scheduler — Event-Driven Task Execution Runtime
  *
- * Architecture note (before → after):
- * - Before: Scheduler directly touched NotificationState and triggered side effects.
- * - After: Scheduler emits "task:due"/"task:overdue" and remains time-focused;
- *          EventService owns NotificationState and any reactions.
+ * Architecture (Session 14):
+ * - READS task state from DueStateCache (block-validated, TTL-refreshed)
+ * - CHECKS dependency gate via DependencyExecutionGuard before emission
+ * - EMITS events through EventQueue → PluginEventBus (ordered, deduped)
+ * - NORMALIZES time via TimezoneHandler.normalize()
+ * - WRITES (complete, delay, skip) still go through TaskStorage
+ *
+ * Fallback: If DueStateCache/DependencyExecutionGuard are not injected
+ * (e.g., in tests), falls back to direct TaskStorage reads with no guard.
+ *
+ * Event flow:
+ *   DueStateCache.getTasksDueOnOrBefore() → DependencyGuard.canExecuteSync()
+ *   → EventQueue.enqueue("task:due"/"task:overdue")
+ *   → EventQueue.flush() → PluginEventBus.emit()
+ *   → Scheduler.on() listeners (legacy) also fire
  */
 export class Scheduler {
   private storage: TaskStorage;
@@ -47,10 +62,20 @@ export class Scheduler {
   private emittedStateReady: Promise<void> | null = null;
   private timer: SchedulerTimer;
 
+  // ─── Cache + Guard (injected by EngineController) ──────────
+  private dueStateCache: DueStateCache | null = null;
+  private dependencyGuard: DependencyExecutionGuard | null = null;
+  private eventQueue: EventQueue | null = null;
+  private pluginEventBus: PluginEventBus | null = null;
+
   // ─── Workspace-Aware Lifecycle (CQRS Phase) ─────────────────
   private isPaused = false;
   private currentWorkspaceId: string | null = null;
   private pauseReason: string | null = null;
+
+  // ─── Overdue state-change tracking ──────────────────────────
+  /** Tasks that are currently in overdue state (prevents re-emission per tick) */
+  private overdueStateSet: Set<string> = new Set();
 
   constructor(
     storage: TaskStorage,
@@ -67,6 +92,30 @@ export class Scheduler {
     });
   }
 
+  // ── Dependency Injection (called by EngineController) ────────
+
+  /**
+   * Inject runtime dependencies after construction.
+   * Called by EngineController.start() BEFORE scheduler.start().
+   */
+  injectDependencies(deps: {
+    dueStateCache?: DueStateCache;
+    dependencyGuard?: DependencyExecutionGuard;
+    eventQueue?: EventQueue;
+    pluginEventBus?: PluginEventBus;
+  }): void {
+    if (deps.dueStateCache) this.dueStateCache = deps.dueStateCache;
+    if (deps.dependencyGuard) this.dependencyGuard = deps.dependencyGuard;
+    if (deps.eventQueue) this.eventQueue = deps.eventQueue;
+    if (deps.pluginEventBus) this.pluginEventBus = deps.pluginEventBus;
+    logger.info("[Scheduler] Dependencies injected", {
+      hasDueStateCache: !!this.dueStateCache,
+      hasDependencyGuard: !!this.dependencyGuard,
+      hasEventQueue: !!this.eventQueue,
+      hasPluginEventBus: !!this.pluginEventBus,
+    });
+  }
+
   /**
    * Subscribe to scheduler events.
    */
@@ -76,9 +125,15 @@ export class Scheduler {
   }
 
   /**
-   * Start the scheduler
+   * Start the scheduler.
+   * Guarded against double-start — calling start() while already running is a no-op.
    */
   start(): void {
+    if (this.timer.isActive()) {
+      logger.warn("Scheduler.start() called while already running — ignoring");
+      return;
+    }
+
     void this.ensureEmittedStateLoaded().then(
       () => {
         this.checkDueTasks(); // Check immediately
@@ -248,11 +303,16 @@ export class Scheduler {
 
   /**
    * Check for tasks that are due and trigger notifications
-   * 
-   * FIX [CRITICAL-001]: Added error isolation per task to prevent single
-   * task error from crashing entire scheduler check cycle.
-   * 
-   * CQRS Phase: Respects pause state and workspace filtering.
+   *
+   * Session 14 — Event-Driven Runtime:
+   * 1. Reads from DueStateCache (block-validated) instead of TaskStorage
+   * 2. Checks DependencyExecutionGuard before emitting
+   * 3. Uses TimezoneHandler.normalize() for all time comparisons
+   * 4. Emits through EventQueue → PluginEventBus (+ legacy listeners)
+   * 5. Overdue emits once per state change (not per tick)
+   * 6. Emits engine:tick:complete heartbeat
+   *
+   * Fallback: If DueStateCache is not injected, reads from TaskStorage directly.
    */
   private checkDueTasks(): void {
     // Respect pause state — no-op when paused
@@ -272,8 +332,21 @@ export class Scheduler {
     this.isChecking = true;
     this.lastCheckStartTime = Date.now();
     const now = new Date();
-    // Use the due index for fast lookup of due + overdue tasks.
-    let tasks = this.storage.getTasksDueOnOrBefore(now);
+
+    // ── Read path: DueStateCache (preferred) or TaskStorage (fallback) ──
+    let tasks: Task[];
+    if (this.dueStateCache) {
+      // Cache path: read block-validated entries, resolve to Task objects
+      const entries: DueStateEntry[] = this.dueStateCache.getTasksDueOnOrBefore(now);
+      tasks = [];
+      for (const entry of entries) {
+        const task = this.storage.getTask(entry.taskId);
+        if (task) tasks.push(task);
+      }
+    } else {
+      // Fallback: direct storage read (tests, pre-injection startup)
+      tasks = this.storage.getTasksDueOnOrBefore(now);
+    }
 
     // CQRS Phase: Filter by workspace if set
     if (this.currentWorkspaceId) {
@@ -285,48 +358,80 @@ export class Scheduler {
     try {
       let successCount = 0;
       let errorCount = 0;
+      // Track which tasks are still overdue this tick (for state-change detection)
+      const overdueThisTick = new Set<string>();
 
       for (const task of tasks) {
-        // ✅ FIX [CRITICAL-001]: Wrap individual task processing in try/catch
-        // This prevents a single corrupted task from crashing the entire check cycle
         try {
           if (!this.isActive(task)) {
             continue;
           }
 
-          const dueDate = new Date(task.dueAt);
-          const isDue = dueDate <= now;
+          // ── Normalize time via TimezoneHandler ──
+          const normalizedDue = this.timezoneHandler.normalize(task.dueAt, task.timezone);
+          if (!normalizedDue) {
+            logger.warn("Scheduler: unparseable dueAt, skipping", { taskId: task.id, dueAt: task.dueAt });
+            continue;
+          }
 
-          // Check if task is due
-          if (isDue) {
-            const taskKey = this.buildOccurrenceKey(task.id, dueDate, "hour");
-            if (!this.emittedDue.has(taskKey)) {
-              this.emitEvent("task:due", {
+          const isDue = normalizedDue <= now;
+
+          // ── Dependency gate (sync fast-path) ──
+          if (this.dependencyGuard && !this.dependencyGuard.canExecuteSync(task.id)) {
+            // Task is blocked — emit blocked event via EventQueue, skip due/overdue
+            if (this.eventQueue && this.pluginEventBus) {
+              this.eventQueue.enqueue("task:blocked", {
                 taskId: task.id,
-                dueAt: dueDate,
+                blockers: this.dependencyGuard.explainBlocked(task.id).blockers,
+              });
+            }
+            continue;
+          }
+
+          // ── Emit task:due ──
+          if (isDue) {
+            const taskKey = this.buildOccurrenceKey(task.id, normalizedDue, "hour");
+            if (!this.emittedDue.has(taskKey)) {
+              const payload: TaskDueEvent = {
+                taskId: task.id,
+                dueAt: normalizedDue,
                 context: "today",
                 task,
-              });
+              };
+              this.emitEvent("task:due", payload);
               this.registerEmittedKey("due", taskKey);
+
+              // Runtime event — for AI/analytics
+              if (this.eventQueue) {
+                this.eventQueue.enqueue("task:runtime:due", {
+                  taskId: task.id,
+                  dueAt: normalizedDue.toISOString(),
+                  task,
+                });
+              }
               logger.info(`Task due: ${task.name}`, { taskId: task.id, dueAt: task.dueAt });
             }
           }
 
-          // Check if task is missed
+          // ── Emit task:overdue (state-change only) ──
           const lastCompletedAt = task.lastCompletedAt
             ? new Date(task.lastCompletedAt)
             : null;
 
           if (
             isDue &&
-            now.getTime() - dueDate.getTime() >= MISSED_GRACE_PERIOD_MS &&
-            (!lastCompletedAt || lastCompletedAt < dueDate)
+            now.getTime() - normalizedDue.getTime() >= MISSED_GRACE_PERIOD_MS &&
+            (!lastCompletedAt || lastCompletedAt < normalizedDue)
           ) {
-            const taskKey = this.buildOccurrenceKey(task.id, dueDate, "hour");
-            if (!this.emittedMissed.has(taskKey)) {
+            overdueThisTick.add(task.id);
+            const taskKey = this.buildOccurrenceKey(task.id, normalizedDue, "hour");
+
+            // State-change guard: only emit on transition INTO overdue
+            const wasAlreadyOverdue = this.overdueStateSet.has(task.id);
+            if (!this.emittedMissed.has(taskKey) && !wasAlreadyOverdue) {
               this.emitEvent("task:overdue", {
                 taskId: task.id,
-                dueAt: dueDate,
+                dueAt: normalizedDue,
                 context: "overdue",
                 task,
               });
@@ -350,6 +455,30 @@ export class Scheduler {
           );
           // Continue to next task
         }
+      }
+
+      // ── Update overdue state set (state-change tracking) ──
+      // Tasks that left overdue state → clear from set
+      for (const id of this.overdueStateSet) {
+        if (!overdueThisTick.has(id)) {
+          this.overdueStateSet.delete(id);
+        }
+      }
+      // Tasks that entered overdue state → add to set
+      for (const id of overdueThisTick) {
+        this.overdueStateSet.add(id);
+      }
+
+      // ── Flush EventQueue (batch emit to PluginEventBus) ──
+      if (this.eventQueue) {
+        // Emit tick heartbeat
+        const durationMs = Date.now() - this.lastCheckStartTime;
+        this.eventQueue.enqueue("engine:tick:complete", {
+          processed: successCount,
+          errors: errorCount,
+          durationMs,
+        }, "tick");
+        this.eventQueue.flush();
       }
 
       // Log summary if there were errors
@@ -424,7 +553,8 @@ export class Scheduler {
   }
 
   /**
-   * Mark a task as done and reschedule
+   * Mark a task as done and reschedule.
+   * Emits task:runtime:completed and task:runtime:recurrence via EventQueue.
    */
   async markTaskDone(taskId: string): Promise<void> {
     const original = this.storage.getTask(taskId);
@@ -463,7 +593,6 @@ export class Scheduler {
         action: onCompletionAction,
         error: result.error
       });
-      // Continue with rescheduling even if deletion failed
     }
 
     if (result.warnings) {
@@ -472,39 +601,66 @@ export class Scheduler {
       }
     }
 
+    // Clear overdue state for this task
+    this.overdueStateSet.delete(taskId);
+
     // Calculate next occurrence
     if (!hasRecurrence(task)) {
       logger.warn('Task has no recurrence configured', { taskId: task.id });
+      // Emit completed event (no recurrence)
+      if (this.eventQueue) {
+        this.eventQueue.enqueue("task:runtime:completed", {
+          taskId: task.id,
+          completedAt: now.toISOString(),
+        });
+        this.eventQueue.flush();
+      }
       return;
     }
     
     try {
-      // Auto-convert legacy frequency to recurrence if needed
       const taskWithRecurrence = ensureRecurrence(task);
-      
-      // Use completion date as reference for whenDone mode
       const referenceDate = task.whenDone ? now : new Date(task.dueAt);
-      
       const nextDue = this.recurrenceEngine.next(taskWithRecurrence, referenceDate);
 
       if (!nextDue) {
-        // Recurrence series exhausted — disable the task
         task.enabled = false;
         await this.storage.saveTask(task);
         logger.info(`Task "${task.name}" recurrence series exhausted, disabled`);
+        // Emit completed + no next
+        if (this.eventQueue) {
+          this.eventQueue.enqueue("task:runtime:completed", {
+            taskId: task.id,
+            completedAt: now.toISOString(),
+          });
+          this.eventQueue.flush();
+        }
         return;
       }
       
-      // Update task with converted recurrence if it was migrated
       if (!task.recurrence && taskWithRecurrence.recurrence) {
         task.recurrence = taskWithRecurrence.recurrence;
       }
 
-      // Update task
+      const previousDueAt = task.dueAt;
       task.dueAt = nextDue.toISOString();
-      // Clear doneAt for next occurrence
       task.doneAt = undefined;
       await this.storage.saveTask(task);
+
+      // Emit runtime events
+      if (this.eventQueue) {
+        this.eventQueue.enqueue("task:runtime:completed", {
+          taskId: task.id,
+          completedAt: now.toISOString(),
+          nextDueAt: nextDue.toISOString(),
+        });
+        this.eventQueue.enqueue("task:runtime:recurrence", {
+          taskId: task.id,
+          nextDueAt: nextDue.toISOString(),
+          rrule: task.recurrence?.rrule || "",
+        });
+        this.eventQueue.flush();
+      }
 
       logger.info(`Task "${task.name}" completed and rescheduled to ${nextDue.toISOString()}`);
     } catch (error) {
@@ -512,22 +668,23 @@ export class Scheduler {
         taskId: task.id,
         error: error instanceof Error ? error.message : String(error)
       });
-      // Don't throw - task completion succeeded, just rescheduling failed
-      // The completed task is still saved with doneAt set
     }
   }
 
   /**
-   * Delay a task by specified minutes
+   * Delay a task by specified minutes.
+   * Emits task:runtime:rescheduled via EventQueue.
    */
   async delayTask(taskId: string, delayMinutes: number): Promise<void> {
-    const task = this.storage.getTask(taskId);
-    if (!task) {
+    const original = this.storage.getTask(taskId);
+    if (!original) {
       throw new Error(`Task not found: ${taskId}`);
     }
 
-    this.assertSnoozeAvailable(task);
+    this.assertSnoozeAvailable(original);
 
+    const task = { ...original };
+    const previousDueAt = task.dueAt;
     const currentDue = new Date(task.dueAt);
     const delayed = new Date(currentDue.getTime() + delayMinutes * 60 * 1000);
 
@@ -535,20 +692,34 @@ export class Scheduler {
     task.snoozeCount = (task.snoozeCount || 0) + 1;
     await this.storage.saveTask(task);
 
+    // Emit runtime event
+    if (this.eventQueue) {
+      this.eventQueue.enqueue("task:runtime:rescheduled", {
+        taskId: task.id,
+        previousDueAt,
+        newDueAt: task.dueAt,
+        reason: `delayed ${delayMinutes}m`,
+      });
+      this.eventQueue.flush();
+    }
+
     logger.info(`Task "${task.name}" delayed by ${delayMinutes} minutes to ${delayed.toISOString()}`);
   }
 
   /**
-   * Delay a task to tomorrow
+   * Delay a task to tomorrow.
+   * Emits task:runtime:rescheduled via EventQueue.
    */
   async delayToTomorrow(taskId: string): Promise<void> {
-    const task = this.storage.getTask(taskId);
-    if (!task) {
+    const original = this.storage.getTask(taskId);
+    if (!original) {
       throw new Error(`Task not found: ${taskId}`);
     }
 
-    this.assertSnoozeAvailable(task);
+    this.assertSnoozeAvailable(original);
 
+    const task = { ...original };
+    const previousDueAt = task.dueAt;
     const currentDue = new Date(task.dueAt);
     const tomorrow = this.timezoneHandler.tomorrow();
     
@@ -564,11 +735,23 @@ export class Scheduler {
     task.snoozeCount = (task.snoozeCount || 0) + 1;
     await this.storage.saveTask(task);
 
+    // Emit runtime event
+    if (this.eventQueue) {
+      this.eventQueue.enqueue("task:runtime:rescheduled", {
+        taskId: task.id,
+        previousDueAt,
+        newDueAt: task.dueAt,
+        reason: "delayed to tomorrow",
+      });
+      this.eventQueue.flush();
+    }
+
     logger.info(`Task "${task.name}" delayed to tomorrow: ${tomorrow.toISOString()}`);
   }
 
   /**
-   * Skip a task occurrence and reschedule to next recurrence
+   * Skip a task occurrence and reschedule to next recurrence.
+   * Emits task:runtime:skipped via EventQueue.
    */
   async skipOccurrence(taskId: string): Promise<void> {
     const task = this.storage.getTask(taskId);
@@ -579,32 +762,52 @@ export class Scheduler {
     // Record as a miss
     recordMiss(task);
 
+    // Clear overdue state for this task
+    this.overdueStateSet.delete(taskId);
+
     if (!hasRecurrence(task)) {
       logger.warn('Task has no recurrence configured for skip', { taskId: task.id });
       return;
     }
 
     try {
-      // Auto-convert legacy frequency to recurrence if needed
       const taskWithRecurrence = ensureRecurrence(task);
       
       const currentDue = new Date(task.dueAt);
+      const skippedDueAt = task.dueAt;
       const nextDue = this.recurrenceEngine.next(taskWithRecurrence, currentDue);
 
       if (!nextDue) {
         task.enabled = false;
         await this.storage.saveTask(task);
+        // Emit skip with no next
+        if (this.eventQueue) {
+          this.eventQueue.enqueue("task:runtime:skipped", {
+            taskId: task.id,
+            skippedDueAt,
+          });
+          this.eventQueue.flush();
+        }
         logger.info(`Task "${task.name}" recurrence series exhausted on skip, disabled`);
         return;
       }
       
-      // Update task with converted recurrence if it was migrated
       if (!task.recurrence && taskWithRecurrence.recurrence) {
         task.recurrence = taskWithRecurrence.recurrence;
       }
 
       task.dueAt = nextDue.toISOString();
       await this.storage.saveTask(task);
+
+      // Emit runtime event
+      if (this.eventQueue) {
+        this.eventQueue.enqueue("task:runtime:skipped", {
+          taskId: task.id,
+          skippedDueAt,
+          nextDueAt: nextDue.toISOString(),
+        });
+        this.eventQueue.flush();
+      }
 
       logger.info(`Task "${task.name}" skipped to ${nextDue.toISOString()}`);
     } catch (error) {
@@ -711,6 +914,10 @@ export class Scheduler {
     
     await this.saveLastRunTimestamp(now);
     this.cleanupEmittedSets();
+    // Flush any runtime events enqueued during recovery
+    if (this.eventQueue) {
+      this.eventQueue.flush();
+    }
     logger.info(`Missed task recovery completed: ${totalEmitted} overdue events emitted`);
   }
 
@@ -745,8 +952,20 @@ export class Scheduler {
     }
 
     if (nextDue > currentDue) {
+      const previousDueAt = task.dueAt;
       task.dueAt = nextDue.toISOString();
       await this.storage.saveTask(task);
+
+      // Emit runtime rescheduled event
+      if (this.eventQueue) {
+        this.eventQueue.enqueue("task:runtime:rescheduled", {
+          taskId: task.id,
+          previousDueAt,
+          newDueAt: task.dueAt,
+          reason: "recovery advance",
+        });
+      }
+
       logger.info(`Advanced task "${task.name}" to ${nextDue.toISOString()}`);
     }
   }
@@ -903,40 +1122,30 @@ export class Scheduler {
       throw new Error('Plugin not available for backup restore');
     }
 
-    // List all data keys (SiYuan plugin API limitation: no direct list method)
-    // We need to try known backup keys by timestamp
-    // Strategy: Try last 10 possible backup timestamps (last 10 minutes assuming 1 backup/minute max)
-    const now = Date.now();
-    const minuteInMs = 60 * 1000;
+    const backupKey = `${EMITTED_OCCURRENCES_KEY}_backup`;
     
-    for (let i = 0; i < 10; i++) {
-      const estimatedTime = now - (i * minuteInMs);
-      const possibleKey = `${EMITTED_OCCURRENCES_KEY}_backup_${estimatedTime}`;
+    try {
+      const backupData = await this.plugin.loadData(backupKey);
       
-      try {
-        const backupData = await this.plugin.loadData(possibleKey);
+      if (backupData && Array.isArray(backupData.due)) {
+        const due = backupData.due.filter((entry: unknown) => typeof entry === "string");
+        const missed = Array.isArray(backupData.missed) ? backupData.missed.filter((entry: unknown) => typeof entry === "string") : [];
+        this.emittedDue = new Set(due.slice(-this.MAX_EMITTED_ENTRIES));
+        this.emittedMissed = new Set(missed.slice(-this.MAX_EMITTED_ENTRIES));
         
-        if (backupData && Array.isArray(backupData.due)) {
-          const due = backupData.due.filter((entry: unknown) => typeof entry === "string");
-          const missed = Array.isArray(backupData.missed) ? backupData.missed.filter((entry: unknown) => typeof entry === "string") : [];
-          this.emittedDue = new Set(due.slice(-this.MAX_EMITTED_ENTRIES));
-          this.emittedMissed = new Set(missed.slice(-this.MAX_EMITTED_ENTRIES));
-          
-          logger.info(`Restored scheduler emitted state from backup: ${possibleKey}`, {
-            due: this.emittedDue.size,
-            missed: this.emittedMissed.size,
-            timestamp: backupData.timestamp,
-            reason: backupData.reason
-          });
-          return;
-        }
-      } catch (err) {
-        // This backup key doesn't exist or failed to load, try next
-        continue;
+        logger.info(`Restored scheduler emitted state from backup`, {
+          due: this.emittedDue.size,
+          missed: this.emittedMissed.size,
+          timestamp: backupData.timestamp,
+          reason: backupData.reason
+        });
+        return;
       }
+    } catch (err) {
+      // Backup key doesn't exist or failed to load
     }
 
-    throw new Error('No valid backup found in last 10 minutes');
+    throw new Error('No valid backup found');
   }
 
   private schedulePersistEmittedState(): void {
@@ -980,7 +1189,7 @@ export class Scheduler {
       throw new Error('Plugin not available for backup');
     }
 
-    const backupKey = `${EMITTED_OCCURRENCES_KEY}_backup_${Date.now()}`;
+    const backupKey = `${EMITTED_OCCURRENCES_KEY}_backup`;
     const data = {
       due: Array.from(this.emittedDue),
       missed: Array.from(this.emittedMissed),

@@ -32,6 +32,7 @@ import type {
   RuntimeEvent,
 } from "@backend/runtime/SiYuanRuntimeBridge";
 import type { BlockMetadataService } from "@backend/core/api/BlockMetadataService";
+import { BLOCK_ATTR_TASK_STATUS, BLOCK_ATTR_TASK_COMPLETED_AT } from "@shared/constants/misc-constants";
 import { updateAnalyticsFromTasks } from "@stores/TaskAnalytics.store";
 import * as logger from "@backend/logging/logger";
 
@@ -43,6 +44,23 @@ export interface ReactiveTaskManagerDeps {
   blockMetadataService: BlockMetadataService;
 }
 
+/**
+ * Lifecycle precondition flags.
+ * All must be true before wire() will accept activation.
+ *
+ * Order:
+ *   1. plugin.onload()           → storageLoaded = false (plugin is alive)
+ *   2. TaskStorage.load()        → storageLoaded = true
+ *   3. Cache.rebuild()           → cacheRebuilt = true
+ *   4. DependencyGraph.validate()→ dependenciesValidated = true
+ *   5. wire()                    → subscriptions active
+ */
+export interface LifecyclePreconditions {
+  storageLoaded: boolean;
+  cacheRebuilt: boolean;
+  dependenciesValidated: boolean;
+}
+
 export class ReactiveTaskManager {
   private storage: TaskStorage;
   private scheduler: Scheduler;
@@ -51,6 +69,13 @@ export class ReactiveTaskManager {
   private blockMetadataService: BlockMetadataService;
   private cleanups: (() => void)[] = [];
   private active = false;
+
+  /** Lifecycle gate — all preconditions must be met before wire() */
+  private preconditions: LifecyclePreconditions = {
+    storageLoaded: false,
+    cacheRebuilt: false,
+    dependenciesValidated: false,
+  };
 
   constructor(deps: ReactiveTaskManagerDeps) {
     this.storage = deps.storage;
@@ -61,15 +86,68 @@ export class ReactiveTaskManager {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // LIFECYCLE PRECONDITIONS
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Mark a lifecycle precondition as satisfied.
+   * Call these in the correct order from the plugin boot sequence.
+   */
+  markStorageLoaded(): void {
+    this.preconditions.storageLoaded = true;
+    logger.info("[ReactiveTaskManager] Precondition met: storageLoaded");
+  }
+
+  markCacheRebuilt(): void {
+    this.preconditions.cacheRebuilt = true;
+    logger.info("[ReactiveTaskManager] Precondition met: cacheRebuilt");
+  }
+
+  markDependenciesValidated(): void {
+    this.preconditions.dependenciesValidated = true;
+    logger.info("[ReactiveTaskManager] Precondition met: dependenciesValidated");
+  }
+
+  /** Check if all preconditions are met */
+  private allPreconditionsMet(): boolean {
+    return (
+      this.preconditions.storageLoaded &&
+      this.preconditions.cacheRebuilt &&
+      this.preconditions.dependenciesValidated
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // LIFECYCLE
   // ═══════════════════════════════════════════════════════════
 
   /**
    * Wire all block mutation subscriptions.
    * Call in onLayoutReady() after runtimeBridge.start().
+   *
+   * Preconditions (enforced):
+   *   - TaskStorage.load() completed  → markStorageLoaded()
+   *   - Cache.rebuild() completed     → markCacheRebuilt()
+   *   - DependencyGraph.validate()    → markDependenciesValidated()
    */
   wire(): void {
     if (this.active) return;
+
+    // ── Lifecycle gate: all preconditions must be met ──
+    if (!this.allPreconditionsMet()) {
+      const missing: string[] = [];
+      if (!this.preconditions.storageLoaded) missing.push("storageLoaded");
+      if (!this.preconditions.cacheRebuilt) missing.push("cacheRebuilt");
+      if (!this.preconditions.dependenciesValidated) missing.push("dependenciesValidated");
+      logger.error(
+        "[ReactiveTaskManager] wire() blocked — preconditions not met",
+        { missing }
+      );
+      throw new Error(
+        `[ReactiveTaskManager] Cannot wire before preconditions: ${missing.join(", ")}`
+      );
+    }
+
     this.active = true;
 
     // 1. Block update → onBlockUpdated
@@ -283,8 +361,8 @@ export class ReactiveTaskManager {
       if (task?.linkedBlockId || task?.blockId) {
         const blockId = task.blockId || task.linkedBlockId!;
         await this.runtimeBridge.updateBlockAttrs(blockId, {
-          "custom-task-status": "done",
-          "custom-task-completed-at": new Date().toISOString(),
+          [BLOCK_ATTR_TASK_STATUS]: "done",
+          [BLOCK_ATTR_TASK_COMPLETED_AT]: new Date().toISOString(),
         });
       }
 

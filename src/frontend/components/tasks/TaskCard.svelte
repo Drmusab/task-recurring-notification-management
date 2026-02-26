@@ -77,8 +77,9 @@
   // Compute due date screen reader text
   $: dueDateScreenReader = task.dueDate ? formatDateForScreenReader(task.dueDate) : '';
   
-  // Check if overdue
-  $: isOverdue = task.dueDate && !task.completed && new Date(task.dueDate) < new Date();
+  // Overdue flag: read directly from DTO (pre-computed by UIQueryService)
+  // NEVER compute overdue from dates locally — that is domain logic.
+  $: isOverdue = (task as any).isOverdue ?? false;
 </script>
 
 <article

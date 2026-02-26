@@ -5,6 +5,23 @@
  * This ensures all UI lives within SiYuan's container system,
  * preventing z-index conflicts and ensuring proper cleanup.
  *
+ * ── Lifecycle Gate ───────────────────────────────────────────
+ *   ReminderFloat mounts with gate: "reminderReady".
+ *   MountService ensures this is only called AFTER:
+ *     - Scheduler.sync()
+ *     - Cache.rebuild()
+ *     - StorageLoaded
+ *     - BootComplete
+ *
+ *   The showReminderFloat() function also performs a runtime guard
+ *   check before rendering any task data.
+ *
+ * ── Forbidden ────────────────────────────────────────────────
+ *   ❌ call Scheduler / TaskStorage / Domain / Analytics / Integration
+ *   ❌ parse Markdown / modify block
+ *   ✔ inject UI only
+ *   ✔ read from UIQueryService (pre-projected DTOs only)
+ *
  * Pattern: new Dialog({...}) → render reminders inside → auto-dismiss
  * Based on official plugin-sample Dialog usage patterns.
  */
@@ -14,6 +31,9 @@ import type { Plugin } from "siyuan";
 import { mount, unmount } from "svelte";
 import type { PluginServices } from "../../plugin/types";
 import type { MountHandle, FloatMountOptions } from "./types";
+import { uiQueryService } from "../services/UIQueryService";
+import type { TaskDTO } from "../services/DTOs";
+import { isRuntimeReady } from "../stores/RuntimeReady.store";
 
 /**
  * Show a reminder notification using SiYuan's Dialog API.
@@ -21,14 +41,25 @@ import type { MountHandle, FloatMountOptions } from "./types";
  * Creates a SiYuan Dialog with the current due/overdue reminders.
  * Auto-dismisses after a configurable timeout.
  *
+ * LIFECYCLE GATE: "reminderReady"
+ * MountService calls this only after scheduler is synced and
+ * reminder queue is ready. An additional isRuntimeReady() guard
+ * prevents rendering if somehow triggered outside the gate.
+ *
  * Triggered by:
- *   - Scheduler when tasks become due
+ *   - Scheduler when tasks become due (via attention gate)
  *   - Top bar notification bell click
  */
 export function showReminderFloat(options: FloatMountOptions): MountHandle {
   const { plugin, services, autoHideMs = 8000 } = options;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let dialogInstance: Dialog | null = null;
+
+  // ── Lifecycle guard ──
+  if (!isRuntimeReady()) {
+    console.warn("[floatMounts] showReminderFloat called before runtimeReady — suppressed");
+    return { destroy: () => {} };
+  }
 
   dialogInstance = new Dialog({
     title: "🔔 " + (plugin.i18n?.remindersTitle || "Reminders"),
@@ -74,7 +105,9 @@ export function showReminderFloat(options: FloatMountOptions): MountHandle {
 }
 
 /**
- * Load due/overdue tasks and render them as reminder cards inside the dialog.
+ * Load due/overdue tasks via UIQueryService and render them as reminder cards.
+ * Sorted by attention-worthiness: overdue first, then by due date.
+ * Limited to top 5 most relevant tasks (attention-aware cap).
  */
 async function loadDueReminders(
   container: HTMLElement,
@@ -82,16 +115,15 @@ async function loadDueReminders(
   plugin: Plugin
 ): Promise<void> {
   try {
-    const taskMap = await services.taskStorage.loadActive();
-    const tasks = Array.from(taskMap.values());
+    // Use UIQueryService — NOT services.taskStorage.loadActive()
+    const allTasks = uiQueryService.selectDashboard();
     const now = new Date();
 
-    // Filter to due/overdue tasks
-    const dueOrOverdue = tasks.filter((task: any) => {
+    // Filter to due/overdue tasks via DTO fields
+    const dueOrOverdue = allTasks.filter((task: TaskDTO) => {
       if (task.status === "done" || task.status === "cancelled") return false;
-      const dueDate = task.dueAt || task.dueDate;
-      if (!dueDate) return false;
-      return new Date(dueDate) <= now;
+      if (!task.dueAt) return false;
+      return new Date(task.dueAt) <= now;
     });
 
     if (dueOrOverdue.length === 0) {
@@ -102,13 +134,23 @@ async function loadDueReminders(
       return;
     }
 
+    // Sort by overdue first, then by due date (most overdue at top)
+    dueOrOverdue.sort((a: TaskDTO, b: TaskDTO) => {
+      const aDue = new Date(a.dueAt!).getTime();
+      const bDue = new Date(b.dueAt!).getTime();
+      return aDue - bDue; // earliest (most overdue) first
+    });
+
+    // Attention-aware cap: show at most 5 tasks to prevent cognitive overload
+    const MAX_DISPLAY = 5;
+
     // Render reminder cards
     container.innerHTML = dueOrOverdue
-      .slice(0, 10)
-      .map((task: any) => {
+      .slice(0, MAX_DISPLAY)
+      .map((task: TaskDTO) => {
         const name = task.name || task.description || "Unnamed task";
-        const dueStr = task.dueAt || task.dueDate || "";
-        const overdue = dueStr ? new Date(dueStr) < now : false;
+        const dueStr = task.dueAt || "";
+        const overdue = task.isOverdue;
         return `
           <div class="reminder-card" style="
             padding:8px 12px;
@@ -124,10 +166,10 @@ async function loadDueReminders(
       })
       .join("");
 
-    if (dueOrOverdue.length > 10) {
+    if (dueOrOverdue.length > MAX_DISPLAY) {
       container.innerHTML += `
         <div style="text-align:center;padding:8px;color:var(--b3-theme-on-surface-light);font-size:12px;">
-          +${dueOrOverdue.length - 10} ${plugin.i18n?.moreReminders || "more reminders"}
+          +${dueOrOverdue.length - MAX_DISPLAY} ${plugin.i18n?.moreReminders || "more reminders"}
         </div>`;
     }
   } catch (err) {

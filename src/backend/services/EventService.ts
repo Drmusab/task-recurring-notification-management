@@ -1,756 +1,308 @@
-﻿import type { Plugin } from "siyuan";
-import type { Task } from "@backend/core/models/Task";
-import type { TaskDueEvent } from "@backend/core/engine/SchedulerEvents";
-import type { Scheduler } from "@backend/core/engine/Scheduler";
-import { NotificationState } from "@backend/core/engine/NotificationState";
-import { OccurrenceBlockCreator } from "@backend/core/engine/OccurrenceBlockCreator";
-import * as logger from "@backend/logging/logger";
-import type { NotificationConfig, TaskEventPayload, TaskEventType, QueueItem } from "@backend/services/event-service.types";
-import { createTaskSnapshot } from "@backend/services/event-service.types";
-import {
-  DEFAULT_NOTIFICATION_CONFIG,
-  EVENT_DEDUPE_LIMIT,
-  EVENT_QUEUE_INTERVAL_MS,
-  EVENT_QUEUE_KEY,
-  PLUGIN_EVENT_SOURCE,
-  PLUGIN_EVENT_VERSION,
-  NOTIFICATION_STATE_KEY,
-  SETTINGS_KEY,
-} from "@shared/constants/misc-constants";
-
-const RETRY_BASE_DELAY_MS = 30 * 1000;
-const RETRY_MAX_DELAY_MS = 30 * 60 * 1000;
-const MAX_QUEUE_SIZE = 500;
-
-type Fetcher = typeof fetch;
-
 /**
- * EventService orchestrates side effects from semantic task events.
- * Scheduler emits "what happened"; EventService decides "what to do".
+ * EventService — Runtime Signal Hub
+ *
+ * Typed facade over PluginEventBus for service-layer consumers.
+ * All runtime event routing flows through this service.
+ *
+ * Responsibilities:
+ *   1. Type-safe emit() for all plugin events
+ *   2. Type-safe on()/off() for consumer subscriptions
+ *   3. Convenience helpers for task lifecycle events
+ *   4. Lifecycle-safe subscription management (auto-cleanup on shutdown)
+ *
+ * Consumers:
+ *   - TaskService         → emitTaskSaved, emitTaskCompleted, etc.
+ *   - SchedulerService    → emitRuntimeDue, emitRuntimeCompleted
+ *   - Frontend            → on("task:refresh"), on("task:attention:*")
+ *   - AI Layer            → on("task:runtime:*") for ML signals
+ *   - IntegrationService  → on("task:escalated") for webhook dispatch
+ *
+ * Event groups:
+ *   Task Lifecycle   : task:create, task:saved, task:complete, task:edit
+ *   Runtime Signals  : task:runtime:due, task:runtime:completed, ...
+ *   Attention Events : task:attention:due, task:attention:urgent
+ *   Cache Events     : cache:task:updated, cache:task:invalidated
+ *   Dependency Events: task:blocked, task:unblocked
+ *   Query Events     : query:tasks:selected, query:tasks:filtered
+ *   Escalation Events: task:escalated, task:escalation:retry
+ *
+ * Lifecycle:
+ *   - Constructed (no side effects)
+ *   - init()     → mark active
+ *   - shutdown() → unsubscribe all managed handlers
+ *
+ * FORBIDDEN:
+ *   - Send HTTP requests (delegate to IntegrationService)
+ *   - Mutate task model (delegate to TaskService)
+ *   - Access DOM / frontend components
+ *   - Parse markdown
+ *   - Import PluginEventBus singleton directly (receive via DI)
  */
+
+import type { PluginEventBus, PluginEventMap } from "@backend/core/events/PluginEventBus";
+import type { Task } from "@backend/core/models/Task";
+import * as logger from "@backend/logging/logger";
+
+// ──────────────────────────────────────────────────────────────
+// Types
+// ──────────────────────────────────────────────────────────────
+
+export interface EventServiceDeps {
+  pluginEventBus: PluginEventBus;
+}
+
+/** Handler type for event callbacks */
+type EventHandler<T> = (data: T) => void;
+
+// ─── Runtime Signal Subtypes ─────────────────────────────────
+
+/** Events emitted by TaskService on mutation */
+export type TaskLifecycleEvent =
+  | "task:create"
+  | "task:saved"
+  | "task:complete"
+  | "task:edit"
+  | "task:updated";
+
+/** Events emitted by SchedulerService / EngineController */
+export type RuntimeSignalEvent =
+  | "task:runtime:due"
+  | "task:runtime:completed"
+  | "task:runtime:rescheduled"
+  | "task:runtime:recurrence"
+  | "task:runtime:skipped"
+  | "engine:tick:complete";
+
+/** Attention-filtered events */
+export type AttentionEvent =
+  | "task:attention:due"
+  | "task:attention:urgent"
+  | "task:attention:suppressed"
+  | "ai:attention:suggestion";
+
+/** Cache invalidation events */
+export type CacheEvent =
+  | "cache:task:updated"
+  | "cache:task:invalidated"
+  | "cache:analytics:updated";
+
+/** Dependency graph events */
+export type DependencyEvent =
+  | "task:blocked"
+  | "task:unblocked"
+  | "dependency:resolved"
+  | "dependency:cycle:detected"
+  | "dependency:added"
+  | "dependency:removed";
+
+/** Escalation pipeline events */
+export type EscalationEvent =
+  | "task:escalated"
+  | "task:escalation:retry"
+  | "task:escalation:resolved"
+  | "task:escalation:blocked";
+
+/** Query pipeline events */
+export type QueryEvent =
+  | "query:tasks:selected"
+  | "query:tasks:filtered"
+  | "query:tasks:invalidated";
+
+// ──────────────────────────────────────────────────────────────
+// Implementation
+// ──────────────────────────────────────────────────────────────
+
 export class EventService {
-  private plugin: Plugin;
-  private config: NotificationConfig;
-  private queue: QueueItem[] = [];
-  private dedupeKeys: Set<string> = new Set();
-  private flushIntervalId: number | null = null;
-  private fetcher: Fetcher;
-  private notificationState: NotificationState;
-  private schedulerUnsubscribe: Array<() => void> = [];
-  private occurrenceCreator: OccurrenceBlockCreator | null = null;
+  private readonly eventBus: PluginEventBus;
+  private readonly managedUnsubscribes: Array<() => void> = [];
+  private active = false;
 
-  constructor(
-    plugin: Plugin,
-    options: { fetcher?: Fetcher; notificationState?: NotificationState } = {}
-  ) {
-    this.plugin = plugin;
-    this.fetcher = options.fetcher ?? fetch;
-    this.config = { ...DEFAULT_NOTIFICATION_CONFIG };
-    this.notificationState =
-      options.notificationState ??
-      new NotificationState(this.plugin, NOTIFICATION_STATE_KEY);
+  constructor(deps: EventServiceDeps) {
+    this.eventBus = deps.pluginEventBus;
   }
 
-  /**
-   * Set the occurrence block creator for materializing recurring task blocks.
-   * Called from index.ts after TaskStorage is initialized.
-   */
-  setOccurrenceCreator(creator: OccurrenceBlockCreator): void {
-    this.occurrenceCreator = creator;
-  }
+  // ── Lifecycle ────────────────────────────────────────────────
 
   /**
-   * Initialize the event service
-   * 
-   * FIX [CRITICAL-002]: Added state validation before starting queue worker
-   * to prevent service from running with corrupted or invalid configuration.
+   * Initialize the event service. No-op if already initialized.
+   * Kept async for lifecycle compatibility with index.ts wiring.
    */
   async init(): Promise<void> {
-    const errors: string[] = [];
-
-    // Try to load notification state
-    try {
-      await this.notificationState.load();
-    } catch (error) {
-      logger.error('Failed to load notification state', error);
-      errors.push('notification-state');
-      // Continue with empty state rather than failing completely
-    }
-    
-    // Try to load config
-    try {
-      await this.loadConfig();
-    } catch (error) {
-      logger.error('Failed to load event config', error);
-      errors.push('config');
-      this.config = { ...DEFAULT_NOTIFICATION_CONFIG }; // Use defaults
-    }
-    
-    // Try to load queue
-    try {
-      await this.loadQueue();
-    } catch (error) {
-      logger.error('Failed to load event queue', error);
-      errors.push('queue');
-      this.queue = [];
-      this.dedupeKeys = new Set();
-    }
-
-    // ✅ FIX [CRITICAL-002]: Validate critical state before starting worker
-    if (!this.isConfigValid(this.config)) {
-      const critError = 'EventService config is invalid - refusing to start';
-      logger.error(critError, { config: this.config });
-      throw new Error('CRITICAL: EventService initialization failed - invalid config');
-    }
-    
-    // Log non-fatal errors
-    if (errors.length > 0) {
-      logger.warn(
-        `EventService started with degraded state: ${errors.join(', ')} failed to load`,
-        { failedComponents: errors }
-      );
-    }
-    
-    // Flush queue on startup
-    try {
-      await this.flushQueueOnStartup();
-    } catch (error) {
-      logger.error('Failed to flush queue on startup', error);
-      // Non-fatal - queue will be processed later
-    }
-    
-    this.startQueueWorker();
-    logger.info('EventService initialized successfully');
+    if (this.active) return;
+    this.active = true;
+    logger.info("[EventService] Initialized (runtime signal hub)");
   }
 
   /**
-   * Flush queue on startup to handle pending events from previous session
-   */
-  async flushQueueOnStartup(): Promise<void> {
-    if (this.queue.length > 0) {
-      logger.info(`Found ${this.queue.length} pending events from previous session`);
-      await this.flushQueue();
-    }
-  }
-
-  /**
-   * Load configuration from storage
-   */
-  private async loadConfig(): Promise<void> {
-    try {
-      const data = await this.plugin.loadData(SETTINGS_KEY);
-      if (data) {
-        this.config = { ...DEFAULT_NOTIFICATION_CONFIG, ...data };
-      }
-    } catch (err) {
-      logger.error("Failed to load event config", err);
-    }
-  }
-
-  /**
-   * Save configuration to storage
-   */
-  async saveConfig(config: NotificationConfig): Promise<void> {
-    this.config = config;
-    await this.plugin.saveData(SETTINGS_KEY, config);
-  }
-
-  /**
-   * Load queued events and dedupe keys from storage
-   */
-  private async loadQueue(): Promise<void> {
-    try {
-      const data = await this.plugin.loadData(EVENT_QUEUE_KEY);
-      if (data) {
-        this.queue = Array.isArray(data.queue) ? data.queue : [];
-        const dedupe = Array.isArray(data.dedupeKeys) ? data.dedupeKeys : [];
-        this.dedupeKeys = new Set(dedupe);
-        if (this.queue.length > MAX_QUEUE_SIZE) {
-          const dropped = this.queue.length - MAX_QUEUE_SIZE;
-          this.queue = this.queue.slice(-MAX_QUEUE_SIZE);
-          logger.warn(`Event queue trimmed to ${MAX_QUEUE_SIZE} entries (dropped ${dropped})`);
-        }
-      }
-    } catch (err) {
-      logger.error("Failed to load event queue", err);
-      this.queue = [];
-      this.dedupeKeys = new Set();
-    }
-  }
-
-  /**
-   * Persist queue and dedupe keys
-   */
-  private async persistQueue(): Promise<void> {
-    const dedupeKeys = Array.from(this.dedupeKeys).slice(-EVENT_DEDUPE_LIMIT);
-    await this.plugin.saveData(EVENT_QUEUE_KEY, {
-      queue: this.queue,
-      dedupeKeys,
-    });
-  }
-
-  /**
-   * Start queue worker to retry failed events
-   */
-  private startQueueWorker(): void {
-    if (this.flushIntervalId !== null) {
-      return;
-    }
-
-    // Note: flushQueueOnStartup() already handles pending events from init().
-    // No redundant initial flush here — the periodic worker handles the rest.
-    // Cast to number for cross-environment compatibility (NodeJS.Timeout vs number)
-    this.flushIntervalId = globalThis.setInterval(() => {
-      this.flushQueue().catch((e) => logger.error('Periodic queue flush failed', e));
-    }, EVENT_QUEUE_INTERVAL_MS) as unknown as number;
-  }
-
-  /**
-   * Stop queue worker
-   */
-  stopQueueWorker(): void {
-    if (this.flushIntervalId !== null) {
-      globalThis.clearInterval(this.flushIntervalId);
-      this.flushIntervalId = null;
-    }
-  }
-
-  /**
-   * Graceful shutdown for side-effect state (queue + notification state).
+   * Shut down: unsubscribe all managed handlers and mark inactive.
    */
   async shutdown(): Promise<void> {
-    this.stopQueueWorker();
-    
-    try {
-      await this.notificationState.forceSave();
-    } catch (error) {
-      logger.error('Failed to save notification state during shutdown', error);
+    if (!this.active) return;
+
+    for (const unsub of this.managedUnsubscribes) {
+      try { unsub(); } catch { /* handler already removed */ }
     }
-    
-    try {
-      await this.persistQueue();
-    } catch (error) {
-      logger.error('Failed to persist queue during shutdown', error);
-    }
+    this.managedUnsubscribes.length = 0;
+    this.active = false;
+
+    logger.info("[EventService] Shut down");
+  }
+
+  /** Whether the service is currently active */
+  get isActive(): boolean {
+    return this.active;
+  }
+
+  // ── Core Event API ───────────────────────────────────────────
+
+  /**
+   * Emit a typed event through the plugin event bus.
+   * Fire-and-forget — handlers execute synchronously.
+   */
+  emit<K extends keyof PluginEventMap>(event: K, data: PluginEventMap[K]): void {
+    this.eventBus.emit(event, data);
   }
 
   /**
-   * Wire scheduler events into the event pipeline.
-   * This keeps scheduler time-focused while centralizing side effects here.
+   * Subscribe to a typed event. Returns an unsubscribe function.
+   * The subscription is tracked for automatic cleanup on shutdown().
    */
-  bindScheduler(scheduler: Scheduler): void {
-    this.unbindScheduler();
-    this.schedulerUnsubscribe = [
-      scheduler.on("task:due", (payload) => {
-        // Handle async error properly instead of void
-        this.handleTaskDue(payload).catch((error) => {
-          logger.error("Failed to handle task due event", error);
-        });
-      }),
-      scheduler.on("task:overdue", (payload) => {
-        // Handle async error properly instead of void
-        this.handleTaskOverdue(payload).catch((error) => {
-          logger.error("Failed to handle task overdue event", error);
-        });
-      }),
-    ];
+  on<K extends keyof PluginEventMap>(
+    event: K,
+    handler: EventHandler<PluginEventMap[K]>,
+  ): () => void {
+    const unsub = this.eventBus.on(event, handler);
+    this.managedUnsubscribes.push(unsub);
+    return unsub;
   }
 
   /**
-   * Remove scheduler listeners (useful for tests or teardown).
+   * Subscribe to a typed event for ONE invocation only.
+   * Automatically unsubscribes after the first emission.
    */
-  unbindScheduler(): void {
-    this.schedulerUnsubscribe.forEach((unsubscribe) => unsubscribe());
-    this.schedulerUnsubscribe = [];
+  once<K extends keyof PluginEventMap>(
+    event: K,
+    handler: EventHandler<PluginEventMap[K]>,
+  ): () => void {
+    let unsub: (() => void) | undefined;
+    const wrapper = ((data: PluginEventMap[K]) => {
+      if (unsub) unsub();
+      handler(data);
+    }) as EventHandler<PluginEventMap[K]>;
+    unsub = this.on(event, wrapper);
+    return unsub;
+  }
+
+  // ── Task Lifecycle Helpers ───────────────────────────────────
+
+  /**
+   * Emit task:saved after a task is persisted (create or update).
+   */
+  emitTaskSaved(task: Task, isNew: boolean): void {
+    this.emit("task:saved", { task, isNew });
   }
 
   /**
-   * Handle a task completion event and reset escalation policy.
+   * Emit task:updated for a field-level change (no full snapshot needed).
    */
-  /**
-   * Handle task completion event
-   * 
-   * FIX [HIGH-001]: Added try/catch for error handling
-   */
-  async handleTaskCompleted(task: Task): Promise<void> {
-    try {
-      await this.emitTaskEvent("task.completed", task, 0);
-      this.notificationState.resetEscalation(task.id);
-      await this.notificationState.save();
-    } catch (error) {
-      logger.error("Failed to handle task completed event", error, {
-        taskId: task.id,
-        taskName: task.name
-      });
-      // Don't re-throw - allow caller to continue
-    }
+  emitTaskUpdated(taskId: string): void {
+    this.emit("task:updated", { taskId });
   }
 
   /**
-   * Handle a task snooze event.
-   * 
-   * FIX [HIGH-001]: Added try/catch for error handling
+   * Emit task:complete for user-initiated completion.
    */
-  async handleTaskSnoozed(task: Task): Promise<void> {
-    try {
-      await this.emitTaskEvent("task.snoozed", task, 0);
-    } catch (error) {
-      logger.error("Failed to handle task snoozed event", error, {
-        taskId: task.id,
-        taskName: task.name
-      });
-      // Don't re-throw - allow caller to continue
-    }
+  emitTaskCompleted(taskId: string, task?: Task): void {
+    this.emit("task:complete", { taskId, task });
   }
 
   /**
-   * Handle task due event
-   * 
-   * FIX [HIGH-001]: Added try/catch for error handling
+   * Emit task:reschedule for user-initiated delay.
    */
-  private async handleTaskDue(event: TaskDueEvent): Promise<void> {
-    try {
-      const taskKey = this.notificationState.generateTaskKey(
-        event.taskId,
-        event.dueAt.toISOString()
-      );
-      if (this.notificationState.hasNotified(taskKey)) {
-        return;
-      }
-
-      // Phase 7: Create a SiYuan block for this recurring occurrence
-      if (this.occurrenceCreator && event.task.recurrence?.rrule) {
-        const result = await this.occurrenceCreator.createOccurrenceBlock(
-          event.task,
-          event.dueAt
-        );
-        if (result.success) {
-          logger.info("[EventService] Occurrence block created", {
-            taskId: event.taskId,
-            blockId: result.blockId,
-          });
-        }
-      }
-
-      const escalationLevel = this.notificationState.getEscalationLevel(event.taskId);
-      await this.emitTaskEvent("task.due", event.task, escalationLevel);
-      this.notificationState.markNotified(taskKey);
-      
-      // Save state with error handling
-      await this.notificationState.save();
-    } catch (error) {
-      logger.error("Failed to handle task due event", error, {
-        taskId: event.taskId,
-        dueAt: event.dueAt.toISOString()
-      });
-      // Don't re-throw - allow scheduler to continue
-    }
+  emitTaskRescheduled(taskId: string, delayMinutes: number, task?: Task): void {
+    this.emit("task:reschedule", { taskId, delayMinutes, task });
   }
 
   /**
-   * Handle task overdue event
-   * 
-   * FIX [HIGH-001]: Added try/catch for error handling
+   * Emit task:refresh to trigger full UI re-render.
+   * Use sparingly — prefer targeted updates where possible.
    */
-  private async handleTaskOverdue(event: TaskDueEvent): Promise<void> {
-    try {
-      const taskKey = this.notificationState.generateTaskKey(
-        event.taskId,
-        event.dueAt.toISOString()
-      );
-      if (this.notificationState.hasMissed(taskKey)) {
-        return;
-      }
+  emitRefresh(): void {
+    this.emit("task:refresh", undefined as unknown as void);
+  }
 
-      const escalationLevel = this.notificationState.getEscalationLevel(event.taskId);
-      await this.emitTaskEvent("task.missed", event.task, escalationLevel);
-      this.notificationState.markMissed(taskKey);
-      this.notificationState.incrementEscalation(event.taskId);
-      
-      // Save state with error handling
-      await this.notificationState.save();
-    } catch (error) {
-      logger.error("Failed to handle task overdue event", error, {
-        taskId: event.taskId,
-        dueAt: event.dueAt.toISOString()
-      });
-      // Don't re-throw - allow scheduler to continue
-    }
+  // ── Runtime Signal Helpers ───────────────────────────────────
+
+  /**
+   * Emit task:runtime:due from scheduler.
+   */
+  emitRuntimeDue(taskId: string, dueAt: string, task?: Task): void {
+    this.emit("task:runtime:due", { taskId, dueAt, task });
   }
 
   /**
-   * Emit a task event to n8n
-   * 
-   * FIX [HIGH-001]: Added try/catch for error handling
+   * Emit task:runtime:completed after task is marked done.
    */
-  async emitTaskEvent(event: TaskEventType, task: Task, escalationLevel: number = 0): Promise<void> {
-    try {
-      if (!this.config.n8n.enabled || !this.config.n8n.webhookUrl) {
-        return;
-      }
-
-      const dedupeKey = this.buildDedupeKey(event, task);
-      if (this.isDuplicate(dedupeKey)) {
-        return;
-      }
-
-      const payload = this.buildPayload(event, task, dedupeKey, 1, escalationLevel);
-      const success = await this.sendPayload(payload);
-
-      if (success) {
-        this.markDelivered(dedupeKey);
-        await this.persistQueue();
-      } else {
-        this.enqueue(payload);
-      }
-    } catch (error) {
-      logger.error("Failed to emit task event", error, {
-        event,
-        taskId: task.id,
-        taskName: task.name,
-        escalationLevel
-      });
-      // Don't re-throw - queue will retry later
-    }
+  emitRuntimeCompleted(taskId: string, completedAt: string, nextDueAt?: string): void {
+    this.emit("task:runtime:completed", { taskId, completedAt, nextDueAt });
   }
 
   /**
-   * Test connection with n8n webhook
+   * Emit task:runtime:rescheduled after dueAt change.
    */
-  async testConnection(): Promise<{ success: boolean; message: string }> {
-    if (!this.config.n8n.enabled || !this.config.n8n.webhookUrl) {
-      return { success: false, message: 'n8n webhook not configured' };
-    }
-
-    try {
-      const dedupeKey = `test.ping:${new Date().toISOString()}`;
-      const payload: TaskEventPayload = {
-        event: "test.ping",
-        source: PLUGIN_EVENT_SOURCE,
-        version: PLUGIN_EVENT_VERSION,
-        occurredAt: new Date().toISOString(),
-        delivery: {
-          dedupeKey,
-          attempt: 1,
-        },
-      };
-
-      const response = await this.fetcher(this.config.n8n.webhookUrl, {
-        method: 'POST',
-        headers: await this.buildHeaders(payload),
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        return { success: true, message: 'Connection successful' };
-      } else {
-        return { 
-          success: false, 
-          message: `HTTP ${response.status}: ${response.statusText}` 
-        };
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { 
-        success: false, 
-        message: `Connection failed: ${message}` 
-      };
-    }
+  emitRuntimeRescheduled(
+    taskId: string,
+    previousDueAt: string,
+    newDueAt: string,
+    reason: string,
+  ): void {
+    this.emit("task:runtime:rescheduled", { taskId, previousDueAt, newDueAt, reason });
   }
 
   /**
-   * Flush queued events
+   * Emit task:runtime:recurrence after occurrence generation.
    */
-  async flushQueue(): Promise<void> {
-    if (!this.config.n8n.enabled || !this.config.n8n.webhookUrl) {
-      return;
-    }
+  emitRuntimeRecurrence(taskId: string, nextDueAt: string, rrule: string): void {
+    this.emit("task:runtime:recurrence", { taskId, nextDueAt, rrule });
+  }
 
-    const now = Date.now();
-    let updated = false;
-    const remaining: QueueItem[] = [];
+  // ── Cache Invalidation Helpers ───────────────────────────────
 
-    for (const item of this.queue) {
-      if (new Date(item.nextAttemptAt).getTime() > now) {
-        remaining.push(item);
-        continue;
-      }
-
-      const payload = {
-        ...item.payload,
-        delivery: {
-          ...item.payload.delivery,
-          attempt: item.attempt,
-        },
-      };
-
-      try {
-        const success = await this.sendPayload(payload);
-        if (success) {
-          this.markDelivered(payload.delivery.dedupeKey);
-          updated = true;
-        } else {
-          const nextAttempt = item.attempt + 1;
-          const nextDelay = this.getRetryDelay(nextAttempt);
-          remaining.push({
-            ...item,
-            attempt: nextAttempt,
-            nextAttemptAt: new Date(now + nextDelay).toISOString(),
-          });
-          updated = true;
-        }
-      } catch (error) {
-        logger.error('Error sending queued event', {
-          event: payload.event,
-          taskId: payload.task?.id,
-          attempt: payload.delivery.attempt,
-          error: error instanceof Error ? error.message : String(error)
-        });
-        // Add back to queue for retry
-        const nextAttempt = item.attempt + 1;
-        const nextDelay = this.getRetryDelay(nextAttempt);
-        remaining.push({
-          ...item,
-          attempt: nextAttempt,
-          nextAttemptAt: new Date(now + nextDelay).toISOString(),
-        });
-        updated = true;
-      }
-    }
-
-    if (updated) {
-      this.queue = remaining;
-      try {
-        await this.persistQueue();
-      } catch (error) {
-        logger.error('Failed to persist queue after flush', error);
-        // Non-fatal - will be persisted on next flush
-      }
-    }
+  /**
+   * Emit cache:task:invalidated to trigger cache refresh.
+   */
+  emitCacheInvalidation(scope: "full" | "single" | "due", taskId?: string): void {
+    this.emit("cache:task:invalidated", { scope, taskId });
   }
 
   /**
-   * Get current configuration
+   * Emit query:tasks:invalidated to signal stale query results.
    */
-  getConfig(): NotificationConfig {
-    return { ...this.config };
+  emitQueryInvalidation(scope: "full" | "single", reason: string, taskId?: string): void {
+    this.emit("query:tasks:invalidated", { scope, reason, taskId });
   }
 
-  private buildPayload(
-    event: TaskEventType,
-    task: Task,
-    dedupeKey: string,
-    attempt: number,
-    escalationLevel: number = 0
-  ): TaskEventPayload {
-    const now = new Date();
-    const dueDate = new Date(task.dueAt);
-    const delayMs = now.getTime() - dueDate.getTime();
+  // ── Escalation Helpers ───────────────────────────────────────
 
-    return {
-      event,
-      source: PLUGIN_EVENT_SOURCE,
-      version: PLUGIN_EVENT_VERSION,
-      occurredAt: now.toISOString(),
-      task: createTaskSnapshot(task),
-      context: {
-        timezone: task.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-        delayMs: delayMs > 0 ? delayMs : undefined,
-        previousDueAt: task.lastCompletedAt,
-        nextDueAt: undefined, // Can be set after reschedule
-      },
-      routing: {
-        escalationLevel,
-        channels: task.notificationChannels || [],
-      },
-      delivery: {
-        dedupeKey,
-        attempt,
-      },
-    };
-  }
-
-  private buildDedupeKey(event: TaskEventType, task: Task): string {
-    const dueAtKey = new Date(task.dueAt).toISOString().slice(0, 16);
-    return `${event}:${task.id}:${dueAtKey}`;
-  }
-
-  private isDuplicate(dedupeKey: string): boolean {
-    if (this.dedupeKeys.has(dedupeKey)) {
-      return true;
-    }
-
-    return this.queue.some(
-      (item) => item.payload.delivery.dedupeKey === dedupeKey
-    );
-  }
-
-  private markDelivered(dedupeKey: string): void {
-    this.dedupeKeys.add(dedupeKey);
-    if (this.dedupeKeys.size > EVENT_DEDUPE_LIMIT) {
-      const keys = Array.from(this.dedupeKeys).slice(-EVENT_DEDUPE_LIMIT);
-      this.dedupeKeys = new Set(keys);
-    }
-  }
-
-  private enqueue(payload: TaskEventPayload): void {
-    const now = Date.now();
-    if (this.queue.length >= MAX_QUEUE_SIZE) {
-      const overflow = this.queue.length - MAX_QUEUE_SIZE + 1;
-      this.queue.splice(0, overflow);
-      logger.warn(
-        `Event queue capped at ${MAX_QUEUE_SIZE}. Dropped ${overflow} oldest entr${overflow === 1 ? "y" : "ies"}.`
-      );
-    }
-    this.queue.push({
-      id: `${payload.delivery.dedupeKey}:${payload.delivery.attempt}`,
-      payload,
-      attempt: payload.delivery.attempt,
-      nextAttemptAt: new Date(now + this.getRetryDelay(payload.delivery.attempt)).toISOString(),
-    });
-    // Persist queue with error handling
-    this.persistQueue().catch((error) => {
-      logger.error("Failed to persist event queue", error);
+  /**
+   * Emit task:escalated when escalation fires.
+   */
+  emitEscalation(taskId: string, level: number, reason: string): void {
+    this.emit("task:escalated", {
+      taskId,
+      level,
+      reason,
+      timestamp: new Date().toISOString(),
     });
   }
 
-  private getRetryDelay(attempt: number): number {
-    const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
-    return Math.min(delay, RETRY_MAX_DELAY_MS);
-  }
-
   /**
-   * Generate HMAC signature for payload
+   * Emit task:escalation:resolved when an escalation clears.
    */
-  private async generateSignature(payload: string, secret: string): Promise<string> {
-    try {
-      // Use Web Crypto API if available
-      if (typeof crypto !== "undefined" && crypto.subtle) {
-        const encoder = new TextEncoder();
-        const keyData = encoder.encode(secret);
-        const messageData = encoder.encode(payload);
-        
-        const key = await crypto.subtle.importKey(
-          "raw",
-          keyData,
-          { name: "HMAC", hash: "SHA-256" },
-          false,
-          ["sign"]
-        );
-        
-        const signature = await crypto.subtle.sign("HMAC", key, messageData);
-        const hashArray = Array.from(new Uint8Array(signature));
-        return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-      }
-      
-      // If crypto API is not available, fail gracefully
-      logger.warn("Web Crypto API not available - signature generation disabled");
-      return "";
-    } catch (err) {
-      logger.error("Failed to generate signature", err);
-      return "";
-    }
-  }
-
-  /**
-   * Build headers for webhook request
-   */
-  private async buildHeaders(payload: TaskEventPayload): Promise<Record<string, string>> {
-    const payloadStr = JSON.stringify(payload);
-    const timestamp = new Date().toISOString();
-    
-    // Generate HMAC signature if secret is configured
-    let signature = "";
-    if (this.config.n8n.sharedSecret) {
-      signature = await this.generateSignature(
-        payloadStr + timestamp,
-        this.config.n8n.sharedSecret
-      );
-    }
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "X-Shehab-Event": payload.event,
-      "X-Shehab-Timestamp": timestamp,
-    };
-
-    if (signature) {
-      headers["X-Shehab-Signature"] = signature;
-    }
-
-    // Legacy header gated behind explicit opt-in to avoid leaking the raw secret.
-    // The HMAC signature (X-Shehab-Signature) is the recommended auth mechanism.
-    if (this.config.n8n.useLegacyAuth && this.config.n8n.sharedSecret) {
-      headers["X-Shehab-Note-Secret"] = this.config.n8n.sharedSecret;
-    }
-
-    return headers;
-  }
-
-  private async sendPayload(
-    payload: TaskEventPayload,
-    expectOkResponse = false
-  ): Promise<boolean> {
-    try {
-      const payloadStr = JSON.stringify(payload);
-      const headers = await this.buildHeaders(payload);
-
-      const response = await this.fetcher(this.config.n8n.webhookUrl, {
-        method: "POST",
-        headers,
-        body: payloadStr,
-      });
-
-      if (!response.ok) {
-        logger.error("n8n webhook failed", { status: response.status, statusText: response.statusText });
-        return false;
-      }
-
-      if (expectOkResponse) {
-        const data = await response.json().catch(() => null);
-        return Boolean(data && data.ok);
-      }
-
-      return true;
-    } catch (error) {
-      logger.error("Failed to send n8n event", error);
-      return false;
-    }
-  }
-
-  /**
-   * Validate notification config
-   * 
-   * FIX [CRITICAL-002]: Config validation to prevent invalid state
-   */
-  private isConfigValid(config: NotificationConfig): boolean {
-    // Basic validation
-    if (!config) return false;
-    
-    // If webhook URL configured, validate it
-    if (config.webhookUrl && !this.isValidUrl(config.webhookUrl)) {
-      logger.error('Invalid webhook URL in config', { url: config.webhookUrl });
-      return false;
-    }
-
-    // Validate enabled flag exists
-    if (config.enabled === undefined || config.enabled === null) {
-      logger.error('Config missing enabled flag');
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Validate URL format
-   */
-  private isValidUrl(url: string): boolean {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
+  emitEscalationResolved(
+    taskId: string,
+    resolvedBy: "completed" | "rescheduled" | "deleted" | "manual",
+  ): void {
+    this.emit("task:escalation:resolved", { taskId, resolvedBy });
   }
 }

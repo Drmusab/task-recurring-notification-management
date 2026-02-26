@@ -1,33 +1,57 @@
 <script lang="ts">
 /**
- * TaskEditModal - Task edit dialog with WCAG 2.1 AA accessibility
+ * TaskEditModal — Session 25 Refactored (Runtime Projection Layer)
  * 
- * @module TaskEditModal
+ * BEFORE (violations):
+ *   ❌ import { StatusRegistry } from '../domain/models/TaskStatus'
+ *   ❌ import { createTask } from '../domain/models/Task'
+ *   ❌ import type { Task } from '../domain/models/Task'
+ *   ❌ StatusRegistry.getInstance() domain singleton
+ *   ❌ createTask() domain factory call
+ *
+ * AFTER (clean):
+ *   ✅ TaskDTO from services/DTOs
+ *   ✅ Static status definitions (no domain import)
+ *   ✅ Dispatches raw form data — consumer uses UITaskMutationService
+ * 
  * @accessibility WCAG 2.1 AA compliant modal dialog pattern
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 import DatePicker from './components/DatePicker.svelte';
 import TagSelector from './components/TagSelector.svelte';
 import RecurrencePicker from './components/RecurrencePicker.svelte';
-import { StatusRegistry } from '../domain/models/TaskStatus';
-import { createTask } from '../domain/models/Task';
-import type { Task, TaskPriority } from '../domain/models/Task';
+import type { TaskDTO } from '../services/DTOs';
 import { 
   trapFocus, 
   generateAriaId, 
   announceToScreenReader 
 } from '@frontend/utils/accessibility';
 
-export let task: Task | null = null;
+// ── Static Status Definitions ────────────────────────────────
+// Replaces StatusRegistry.getInstance() — no domain import needed.
+// These are SiYuan's standard task checkbox symbols.
+const STATUS_MAP: Array<{ symbol: string; name: string; status: string }> = [
+  { symbol: ' ', name: 'Todo', status: 'todo' },
+  { symbol: '/', name: 'In Progress', status: 'doing' },
+  { symbol: 'x', name: 'Done', status: 'done' },
+  { symbol: '-', name: 'Cancelled', status: 'cancelled' },
+  { symbol: '>', name: 'Rescheduled', status: 'todo' },
+  { symbol: '!', name: 'Important', status: 'todo' },
+  { symbol: '?', name: 'Question', status: 'todo' },
+];
+
+type TaskPriority = 'highest' | 'high' | 'medium' | 'none' | 'low' | 'lowest';
+
+export let task: TaskDTO | null = null;
 export let open: boolean = false;
 
 const dispatch = createEventDispatcher();
-const registry = StatusRegistry.getInstance();
 
 // Form state
-let formData: Partial<Task> = {};
+let formData: Record<string, any> = {};
+let initialFormData: Record<string, any> = {};
 let isNewTask: boolean = true;
 let isDirty: boolean = false;
 
@@ -57,10 +81,10 @@ const completionActions = [
   { value: 'archive', label: 'Archive when done', icon: '📦' },
 ];
 
-$: statusOptions = registry.getAll().map((status) => ({
-  symbol: status.symbol,
-  name: status.name,
-  type: status.type,
+$: statusOptions = STATUS_MAP.map((s) => ({
+  symbol: s.symbol,
+  name: s.name,
+  type: s.status,
 }));
 
 // Initialize form
@@ -72,19 +96,22 @@ function initializeForm() {
   if (task) {
     isNewTask = false;
     formData = { ...task };
+    initialFormData = { ...task };
   } else {
     isNewTask = true;
-    formData = {
+    const defaults: Record<string, any> = {
       name: '',
       status: 'todo',
       statusSymbol: ' ',
       priority: 'none',
       tags: [],
     };
+    formData = { ...defaults };
+    initialFormData = { ...defaults };
   }
 }
 
-// Handle save
+// Handle save — dispatches form data to consumer (UITaskMutationService handles actual creation)
 async function handleSave() {
   // Validate required fields
   if (!formData.name || !formData.name.trim()) {
@@ -92,12 +119,16 @@ async function handleSave() {
     return;
   }
 
-  // Create or update task
-  const taskToSave: Task = isNewTask
-    ? createTask(formData)
-    : { ...(task as Task), ...formData, updatedAt: new Date().toISOString() };
+  if (isNewTask) {
+    // Dispatch raw form data — consumer creates task via UITaskMutationService
+    formData.id = formData.id || crypto.randomUUID();
+    formData.updatedAt = new Date().toISOString();
+    formData.createdAt = formData.createdAt || formData.updatedAt;
+  } else {
+    formData.updatedAt = new Date().toISOString();
+  }
 
-  dispatch('save', taskToSave);
+  dispatch('save', formData);
   handleClose();
 }
 
@@ -140,7 +171,7 @@ function handleBackdropClick() {
 
 // Track form changes
 $: if (formData) {
-  isDirty = JSON.stringify(formData) !== JSON.stringify(task || {});
+  isDirty = JSON.stringify(formData) !== JSON.stringify(initialFormData);
 }
 
 // Accessibility: Focus trap and restoration
@@ -317,8 +348,8 @@ $: if (!open && cleanupFocusTrap) {
               bind:value={formData.statusSymbol}
               on:change={(e) => {
                 const symbol = e.currentTarget.value;
-                const status = registry.get(symbol);
-                formData.status = registry.mapTypeToStatus(status.type);
+                const match = STATUS_MAP.find(s => s.symbol === symbol);
+                formData.status = match?.status ?? 'todo';
               }}
             >
               {#each statusOptions as status}

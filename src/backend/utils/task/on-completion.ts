@@ -1,4 +1,5 @@
 import type { Task, OnCompletionAction } from "@backend/core/models/Task";
+import * as logger from "@backend/logging/logger";
 
 export enum OnCompletion {
     Ignore = '',
@@ -124,7 +125,7 @@ export function handleOnCompletion(originalTask: Task, newTasks: Task[]): Task[]
                 return newTasks;
             
             default:
-                console.warn(`OnCompletion action ${action.action} not yet fully implemented.`);
+                logger.warn(`OnCompletion action ${action.action} not yet fully implemented.`);
                 return newTasks;
         }
     }
@@ -173,4 +174,5 @@ export function validateOnCompletionAction(action: EnhancedOnCompletionAction): 
     }
     
     return { valid: false, error: 'Invalid action format' };
-}
+}
+

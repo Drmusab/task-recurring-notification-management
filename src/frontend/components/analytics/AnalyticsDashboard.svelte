@@ -8,7 +8,8 @@
   This stub exists to satisfy the import from AdvancedQueryDashboard.svelte.
 -->
 <script lang="ts">
-  import type { Task } from "@backend/core/models/Task";
+  import type { TaskDTO } from '../../services/DTOs';
+  type Task = TaskDTO;
   import { taskAnalyticsStore } from "@stores/TaskAnalytics.store";
 
   // Props

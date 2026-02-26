@@ -1,4 +1,5 @@
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../../../services/DTOs';
+type Task = TaskDTO;
 import { allPriorityInstructions } from "@components/shared/EditInstructions/PriorityInstructions";
 import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/shared/Menus/TaskEditingMenu";
 

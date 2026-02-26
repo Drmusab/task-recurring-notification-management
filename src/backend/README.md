@@ -316,3 +316,128 @@ new ReactiveTaskManager({ storage, scheduler, pluginEventBus, runtimeBridge, blo
 - [Architecture Diagram](../docs/integration/architecture-diagram.md)
 - [Data Flow](../docs/integration/data-flow.md)
 - [AI Features](../docs/AI_FEATURES.md)
+
+
+
+
+task-recurring-notification-management-master/
+│
+├── .github/
+│   └── copilot-instructions.md
+│
+├── scripts/
+│   └── make_dev_link.js                        # Symlink dist/ → SiYuan workspace
+│
+├── src/
+│   ├── index.ts                                # Plugin entry: onload(), addDock(), init TaskManager
+│   │
+│   ├── core/
+│   │   ├── managers/
+│   │   │   └── TaskManager.ts                  # Central singleton: Settings → Storage → Events → Scheduler → PatternLearner
+│   │   │
+│   │   ├── engine/
+│   │   │   └── Scheduler.ts                    # Emits task:due, task:overdue; TimezoneHandler integration
+│   │   │
+│   │   ├── models/
+│   │   │   └── Task.ts                         # Task schema: enabled, version, blockActions[], dependsOn[], analytics
+│   │   │
+│   │   ├── storage/
+│   │   │   └── TaskStorage.ts                  # In-memory Map + SiYuan persistence; triple indexing; chunked archive loading
+│   │   │
+│   │   └── ai/
+│   │       └── SmartSuggestionEngine.ts        # Rule-based: abandonment, reschedule, urgency, frequency optimization
+│   │
+│   ├── services/
+│   │   └── EventService.ts                     # NotificationState owner; reacts to Scheduler events
+│   │
+│   ├── recurrence/
+│   │   ├── RecurrenceCalculator.ts             # Forward progress validation; MAX_RECOVERY_ITERATIONS=1000; horizon check
+│   │   └── RecurrenceEngineRRULE.ts            # rrule library wrapper; OnCompletionHandler for next occurrence
+│   │
+│   ├── parser/
+│   │   └── InlineTaskParser.ts                 # Emoji metadata (📅🔁🔺🔼🔽🆔⛔#); chrono-node NLP; markdown ↔ ParsedTask
+│   │
+│   ├── commands/
+│   │   └── InlineToggleHandler.ts              # Checkbox toggle with 100ms debounce; DOM state sync
+│   │
+│   ├── events/
+│   │   ├── OutboundWebhookEmitter.ts           # Fire-and-forget; n8n, Telegram, Gmail channels
+│   │   ├── EventQueue.ts                       # Async delivery queue
+│   │   ├── RetryManager.ts                     # Failed webhook retry logic
+│   │   └── SignatureGenerator.ts               # HMAC signature for webhook security
+│   │
+│   ├── filters/
+│   │   └── GlobalFilter.ts                     # Singleton; applied at storage load; exclude matching patterns
+│   │
+│   ├── timezone/
+│   │   └── TimezoneHandler.ts                  # Date normalization; respects task.timezone field
+│   │
+│   ├── constants/
+│   │   └── blockAttributes.ts                  # BLOCK_ATTR_TASK_ID, BLOCK_ATTR_TASK_DUE, etc.
+│   │
+│   └── __tests__/
+│       └── siyuan-stub.ts                      # SiYuan API mock for unit tests
+│
+├── tests/
+│   ├── core/
+│   │   ├── TaskManager.test.ts                 # Singleton init order, service coordination
+│   │   ├── Scheduler.test.ts                   # Event emission, timezone edge cases
+│   │   └── SmartSuggestionEngine.test.ts       # Abandonment, reschedule, urgency thresholds
+│   │
+│   ├── recurrence/
+│   │   └── RecurrenceCalculator.test.ts        # Forward progress, RECURRENCE_NO_PROGRESS, interval=0
+│   │
+│   ├── parser/
+│   │   └── InlineTaskParser.test.ts            # Emoji parsing, NLP dates, bidirectional conversion
+│   │
+│   ├── events/
+│   │   └── OutboundWebhookEmitter.test.ts      # Retry, signature, multi-channel delivery
+│   │
+│   └── storage/
+│       └── TaskStorage.test.ts                 # Triple indexing, archive chunking, GlobalFilter
+│
+├── package.json
+├── tsconfig.json                               # @/* → ./src/* path alias
+├── vite.config.ts                              # Build to dist/
+├── vitest.config.ts                            # jsdom environment; src/**/*.test.ts + tests/**/*.test.ts
+└── README.md
+
+
+
+
+┌─────────────────────────────────────────────────────────────┐
+│                       index.ts (Plugin Entry)               │
+│                onload() → addDock() → TaskManager.init()    │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│              TaskManager (Singleton Orchestrator)            │
+│   Init Order: Settings → Storage → Events → Scheduler → AI │
+└──┬──────────┬──────────┬──────────┬──────────┬──────────────┘
+   │          │          │          │          │
+   ▼          ▼          ▼          ▼          ▼
+┌───────┐ ┌────────┐ ┌────────┐ ┌──────┐ ┌──────────────────┐
+│Storage│ │EventSvc│ │Scheduler│ │Parser│ │SmartSuggestion   │
+│       │ │        │ │         │ │      │ │Engine (AI)       │
+│MemMap │ │Notif   │ │task:due │ │Emoji │ │Abandonment       │
+│Archive│ │State   │ │task:over│ │NLP   │ │Reschedule        │
+│3xIndex│ │Reactions│ │Timezone │ │Bidir │ │Urgency/Frequency │
+└───┬───┘ └───┬────┘ └────┬────┘ └──┬───┘ └──────────────────┘
+    │         │            │         │
+    │         ▼            ▼         ▼
+    │    ┌─────────┐  ┌──────────┐ ┌───────────────┐
+    │    │Webhook  │  │Recurrence│ │InlineToggle   │
+    │    │Emitter  │  │Calculator│ │Handler(100ms) │
+    │    │Queue    │  │RRULE     │ └───────────────┘
+    │    │Retry    │  │Forward   │
+    │    │Signature│  │Progress  │
+    │    └─────────┘  └──────────┘
+    │
+    ▼
+┌──────────────────────┐
+│  SiYuan Plugin API   │
+│  fetchPost()         │
+│  Block Attributes    │
+│  BLOCK_ATTR_* const  │
+└──────────────────────┘

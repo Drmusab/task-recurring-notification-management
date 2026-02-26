@@ -14,9 +14,9 @@
    */
 
   import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp.svelte';
-  import type { ShortcutManager } from '@backend/commands/ShortcutManager';
+  import type { KeyboardShortcutManager } from '../../../utils/keyboardShortcuts';
 
-  export let shortcutManager: ShortcutManager;
+  export let shortcutManager: KeyboardShortcutManager;
   export let onClose: () => void;
 </script>
 

@@ -2,14 +2,16 @@
 /**
  * TaskListItem - Individual task row component with WCAG 2.1 AA accessibility
  * 
+ * Session 24: Converted to use TaskDTO instead of domain Task model.
+ * StatusRegistry removed (unused — statusInfo was dead code).
+ * 
  * @module TaskListItem
  * @accessibility WCAG 2.1 AA compliant
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { createEventDispatcher } from 'svelte';
-import { StatusRegistry } from '../../../domain/models/TaskStatus';
-import type { Task } from '../../../domain/models/Task';
+import type { TaskDTO } from '../../services/DTOs';
 import { formatDateRelative } from '../../utils/dateFormatters';
 import { 
   getTaskAriaLabel, 
@@ -17,18 +19,16 @@ import {
   generateAriaId 
 } from '@frontend/utils/accessibility';
 
-export let task: Task;
+export let task: TaskDTO;
 export let index: number = 0;
 
 const dispatch = createEventDispatcher();
-const registry = StatusRegistry.getInstance();
 
 // Generate unique IDs for ARIA relationships
 const taskDescId = generateAriaId('task-desc');
 const taskMetaId = generateAriaId('task-meta');
 
-// Get status icon
-$: statusInfo = registry.get(task.statusSymbol || ' ');
+// Status display (no longer needs StatusRegistry — statusSymbol comes from DTO)
 $: statusIcon = getStatusIcon(task.status);
 
 function getStatusIcon(status: string): string {
@@ -74,17 +74,9 @@ function formatDate(dateStr?: string): string {
   }
 }
 
-// Check if overdue
-function isOverdue(task: Task): boolean {
-  if (!task.dueAt || task.status === 'done' || task.status === 'cancelled') {
-    return false;
-  }
-
-  const dueDate = new Date(task.dueAt);
-  const now = new Date();
-
-  return dueDate < now;
-}
+// Overdue flag: read directly from DTO (pre-computed by UIQueryService)
+// NEVER compute overdue from dates locally — that is domain logic.
+$: overdueFlag = task.isOverdue ?? false;
 
 // Handle checkbox click
 function handleToggle(event: Event) {
@@ -112,13 +104,13 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 // Generate comprehensive ARIA label
-$: ariaLabel = getTaskAriaLabel(task);
-$: statusText = getStatusText(task.status);
+$: ariaLabel = getTaskAriaLabel(task as any);
+$: statusText = getStatusText(task.status as any);
 </script>
 
 <div
   class="task-list-item"
-  class:overdue={isOverdue(task)}
+  class:overdue={overdueFlag}
   class:done={task.status === 'done'}
   on:click={handleClick}
   on:keydown={handleKeyDown}
@@ -200,7 +192,7 @@ $: statusText = getStatusText(task.status);
           </time>
         </span>
       {/if}
-      {#if task.frequency}
+      {#if task.isRecurring}
         <span 
           class="task-recurrence" 
           aria-label="Recurring: {task.recurrenceText || 'recurring'}"

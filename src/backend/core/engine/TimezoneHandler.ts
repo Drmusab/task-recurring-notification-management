@@ -13,6 +13,42 @@ export class TimezoneHandler {
   }
 
   /**
+   * Normalize a due-date value to a UTC-anchored Date.
+   *
+   * All engine time comparisons MUST use this method so that:
+   *  - ISO strings ("2025-01-15T09:00:00Z") → Date
+   *  - Epoch ms (number)                    → Date
+   *  - Already a Date                       → clone (never mutate)
+   *  - Task timezone (optional)             → shift to local equivalent
+   *  - Invalid / missing                    → null (caller decides)
+   *
+   * @param dueAt  Raw due-date from task model
+   * @param taskTimezone  Optional IANA timezone attached to the task
+   * @returns Normalized Date or null if the input is unparseable
+   */
+  normalize(dueAt: string | number | Date | undefined | null, taskTimezone?: string): Date | null {
+    if (dueAt == null) return null;
+
+    let date: Date;
+    if (dueAt instanceof Date) {
+      date = new Date(dueAt.getTime()); // clone
+    } else if (typeof dueAt === "number") {
+      date = new Date(dueAt);
+    } else {
+      date = new Date(dueAt);
+    }
+
+    if (isNaN(date.getTime())) return null;
+
+    // If task carries its own timezone, convert to local-equivalent UTC
+    if (taskTimezone) {
+      return this.toTimezone(date, taskTimezone);
+    }
+
+    return date;
+  }
+
+  /**
    * Convert a date to display in a specific timezone.
    * Uses Intl.DateTimeFormat for proper timezone conversion.
    * @param date The input date

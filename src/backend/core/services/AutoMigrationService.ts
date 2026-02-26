@@ -3,12 +3,21 @@
  * 
  * This service handles automatic migration of legacy Frequency-based tasks
  * to RRule-based recurrence when tasks are edited.
+ *
+ * Trigger safety:
+ *   - migrateAll() only allowed during plugin boot (onload)
+ *   - migrateOnEdit() only allowed during explicit user edit action
+ *   - NEVER during scheduler tick, ML analysis, or notification dispatch
+ *
+ * The migration lifecycle flag prevents repeated batch migrations
+ * after the initial boot-time run.
  */
 
 import type { Task } from '../models/Task';
 import type { PluginSettings } from '../settings/PluginSettings';
 import { FrequencyConverter } from '../utils/FrequencyConverter';
 import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';
+import * as logger from "@backend/logging/logger";
 
 export interface MigrationResult {
   migrated: boolean;
@@ -17,7 +26,15 @@ export interface MigrationResult {
   reason?: string;
 }
 
+/**
+ * Allowed migration triggers — prevents runtime misuse.
+ */
+export type MigrationTrigger = "boot" | "user-edit" | "manual-migrate-all";
+
 export class AutoMigrationService {
+  /** Whether batch migration has already run this session */
+  private batchMigrationComplete = false;
+
   constructor(private settings: PluginSettings) {}
 
   /**
@@ -72,16 +89,21 @@ export class AutoMigrationService {
   }
 
   /**
-   * Batch migrate all tasks in the workspace
-   * Used for manual "Migrate All" button in settings
-   * 
+   * Batch migrate all tasks in the workspace.
+   * Used for manual "Migrate All" button in settings or boot-time migration.
+   *
+   * Trigger safety: only allowed once per session (boot) or on explicit
+   * user action (manual-migrate-all). Prevents accidental re-migration.
+   *
    * @param tasks All tasks to migrate
    * @param updateCallback Callback to persist each migrated task
+   * @param trigger The migration trigger context
    * @returns Migration statistics
    */
   async migrateAll(
     tasks: Task[],
-    updateCallback: (task: Task) => Promise<void>
+    updateCallback: (task: Task) => Promise<void>,
+    trigger: MigrationTrigger = "boot",
   ): Promise<{
     total: number;
     migrated: number;
@@ -89,6 +111,11 @@ export class AutoMigrationService {
     failed: number;
     errors: Array<{ taskId: string; error: string }>;
   }> {
+    // Guard: prevent repeated batch migrations in the same session
+    if (trigger === "boot" && this.batchMigrationComplete) {
+      logger.warn("[AutoMigrationService] Boot migration already completed this session — skipping");
+      return { total: tasks.length, migrated: 0, skipped: tasks.length, failed: 0, errors: [] };
+    }
     const stats = {
       total: tasks.length,
       migrated: 0,
@@ -133,6 +160,11 @@ export class AutoMigrationService {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
+    }
+
+    // Mark batch migration as complete for this session
+    if (trigger === "boot") {
+      this.batchMigrationComplete = true;
     }
 
     return stats;

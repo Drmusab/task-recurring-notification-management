@@ -17,12 +17,10 @@
    */
 
   import { onMount } from "svelte";
-  import type { TaskTemplate } from "@backend/utils/task/task-templates";
-  import {
-    loadTaskTemplates,
-    saveTaskTemplate,
-    deleteTaskTemplate,
-  } from "@backend/utils/task/task-templates";
+  import type { TaskTemplateDTO } from "../../services/DTOs";
+  import { uiQueryService } from "../../services/UIQueryService";
+
+  type TaskTemplate = TaskTemplateDTO;
 
   export let onApplyTemplate: ((template: TaskTemplate) => void) | undefined = undefined;
   export let onClose: (() => void) | undefined = undefined;
@@ -52,7 +50,7 @@
   });
 
   async function loadTemplatesFromStorage() {
-    templates = await loadTaskTemplates();
+    templates = await uiQueryService.selectTaskTemplates() as TaskTemplate[];
   }
 
   function filterTemplates(
@@ -98,9 +96,9 @@
     viewMode = "edit";
   }
 
-  function handleDelete(template: TaskTemplate) {
+  async function handleDelete(template: TaskTemplate) {
     if (confirm(`Are you sure you want to delete template "${template.name}"?`)) {
-      deleteTaskTemplate(template.id);
+      await uiQueryService.deleteTaskTemplate(template.id);
       templates = templates.filter((t) => t.id !== template.id);
     }
   }
@@ -111,7 +109,7 @@
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     const template: TaskTemplate = {
       id: viewMode === "edit" && selectedTemplate ? selectedTemplate.id : generateId(),
       label: formName.trim(),
@@ -138,7 +136,7 @@
       enabled: true,
     };
 
-    saveTaskTemplate(template);
+    await uiQueryService.saveTaskTemplate(template as any);
 
     if (viewMode === "edit") {
       const index = templates.findIndex((t) => t.id === template.id);
@@ -207,7 +205,7 @@
         const imported = JSON.parse(text);
         if (Array.isArray(imported)) {
           for (const template of imported) {
-            await saveTaskTemplate(template);
+            await uiQueryService.saveTaskTemplate(template as any);
           }
           await loadTemplatesFromStorage();
         }

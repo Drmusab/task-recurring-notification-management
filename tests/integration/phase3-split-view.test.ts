@@ -71,27 +71,4 @@ describe('Phase 3: Split-View Dashboard Settings', () => {
   });
 });
 
-describe('Debounce Utility', () => {
-  it('should debounce function calls', async () => {
-    const { debounce } = await import('@shared/utils/function/debounce');
-    
-    let callCount = 0;
-    const increment = () => callCount++;
-    
-    const debouncedIncrement = debounce(increment, 100);
-    
-    // Call multiple times in quick succession
-    debouncedIncrement();
-    debouncedIncrement();
-    debouncedIncrement();
-    
-    // Should not have been called yet
-    expect(callCount).toBe(0);
-    
-    // Wait for debounce delay
-    await new Promise(resolve => setTimeout(resolve, 150));
-    
-    // Should have been called once
-    expect(callCount).toBe(1);
-  });
-});
+

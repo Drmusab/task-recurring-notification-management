@@ -14,15 +14,16 @@
    */
 
   import { onMount } from "svelte";
-  import { SavedQueryStore, type SavedQuery, type SavedQueryFolder } from "@backend/core/query/SavedQueryStore";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import type { SavedQueryDTO, SavedQueryFolderDTO } from "../../services/DTOs";
 
   // Props
   export let onFolderSelect: (folderId: string | null) => void = () => {};
   export let selectedFolderId: string | null = null;
 
   // State
-  let folders: SavedQueryFolder[] = [];
-  let queries: SavedQuery[] = [];
+  let folders: SavedQueryFolderDTO[] = [];
+  let queries: SavedQueryDTO[] = [];
   let showCreateDialog = false;
   let showEditDialog = false;
   let editingFolder: SavedQueryFolder | null = null;
@@ -61,9 +62,9 @@
     loadData();
   });
 
-  function loadData() {
-    folders = SavedQueryStore.getFolders();
-    queries = SavedQueryStore.load();
+  async function loadData() {
+    folders = await uiQueryService.selectSavedQueryFolders();
+    queries = await uiQueryService.selectSavedQueries();
   }
 
   function handleSelectFolder(folderId: string | null) {
@@ -78,7 +79,7 @@
     folderIcon = "📁";
   }
 
-  function openEditDialog(folder: SavedQueryFolder) {
+  function openEditDialog(folder: SavedQueryFolderDTO) {
     editingFolder = folder;
     showEditDialog = true;
     folderName = folder.name;
@@ -86,41 +87,41 @@
     folderIcon = folder.icon || "📁";
   }
 
-  function confirmCreateFolder() {
+  async function confirmCreateFolder() {
     if (!folderName.trim()) {
       alert("Folder name is required");
       return;
     }
 
-    const newFolder: SavedQueryFolder = {
+    const newFolder: SavedQueryFolderDTO = {
       id: `folder-${Date.now()}`,
       name: folderName.trim(),
       color: folderColor,
       icon: folderIcon,
     };
 
-    SavedQueryStore.saveFolder(newFolder);
+    await uiQueryService.saveSavedQueryFolder(newFolder);
     loadData();
     showCreateDialog = false;
   }
 
-  function confirmEditFolder() {
+  async function confirmEditFolder() {
     if (!editingFolder || !folderName.trim()) return;
 
-    const updatedFolder: SavedQueryFolder = {
+    const updatedFolder: SavedQueryFolderDTO = {
       ...editingFolder,
       name: folderName.trim(),
       color: folderColor,
       icon: folderIcon,
     };
 
-    SavedQueryStore.saveFolder(updatedFolder);
+    await uiQueryService.saveSavedQueryFolder(updatedFolder);
     loadData();
     showEditDialog = false;
     editingFolder = null;
   }
 
-  function handleDeleteFolder(folderId: string) {
+  async function handleDeleteFolder(folderId: string) {
     const queriesInFolder = queries.filter(q => q.folder === folderId);
     
     if (queriesInFolder.length > 0) {
@@ -130,12 +131,12 @@
       if (!confirm) return;
 
       // Move queries to unfiled
-      queriesInFolder.forEach(query => {
-        SavedQueryStore.save({ ...query, folder: undefined });
-      });
+      for (const query of queriesInFolder) {
+        await uiQueryService.saveSavedQuery({ ...query, folder: undefined });
+      }
     }
 
-    SavedQueryStore.deleteFolder(folderId);
+    await uiQueryService.deleteSavedQueryFolder(folderId);
     if (selectedFolderId === folderId) {
       handleSelectFolder(null);
     }
@@ -162,13 +163,13 @@
     dragOverFolderId = null;
   }
 
-  function handleDrop(event: DragEvent, folderId: string | null) {
+  async function handleDrop(event: DragEvent, folderId: string | null) {
     event.preventDefault();
     
     if (draggedQueryId) {
-      const query = SavedQueryStore.get(draggedQueryId);
+      const query = await uiQueryService.selectSavedQueryById(draggedQueryId);
       if (query) {
-        SavedQueryStore.save({ ...query, folder: folderId || undefined });
+        await uiQueryService.saveSavedQuery({ ...query, folder: folderId || undefined });
         loadData();
       }
     }

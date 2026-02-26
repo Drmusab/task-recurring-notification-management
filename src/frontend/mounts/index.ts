@@ -5,25 +5,40 @@
  * Each mount function connects a Svelte component to a SiYuan lifecycle hook
  * (addDock, addTab, Dialog, addFloatLayer, etc.)
  *
+ * ── Lifecycle-Aware Architecture ────────────────────────────
+ *
+ * All mounts are gated by the MountService, which waits for specific
+ * lifecycle signals before activating each UI component:
+ *
+ *   plugin.onload()
+ *     ↓
+ *   await BootProgress === 100
+ *     ↓
+ *   TaskStorage.load()  →  BlockAttrSync  →  Cache.rebuild()
+ *     ↓                                        ↓
+ *   Scheduler.sync()  →  Analytics.load()  →  RuntimeReady.emit()
+ *     ↓
+ *   MountService.mountAll()  (gates per-mount on lifecycle signals)
+ *
+ * ── Mount Map ───────────────────────────────────────────────
+ * ┌──────────────────────┬──────────────────────┬──────────────────────┬──────────────────────┐
+ * │ Component            │ Mount Method         │ Trigger              │ Lifecycle Gate       │
+ * ├──────────────────────┼──────────────────────┼──────────────────────┼──────────────────────┤
+ * │ Dashboard.svelte     │ addDock + addTab     │ MountService         │ runtimeReady         │
+ * │ ReminderPanel.svelte │ addDock              │ MountService         │ reminderReady        │
+ * │ CalendarView.svelte  │ addDock              │ MountService         │ runtimeReady         │
+ * │ TaskEditDialog       │ Dialog               │ command/slash/menu   │ modalReady (guarded) │
+ * │ AnalyticsDashboard   │ lazy Dialog          │ dashboard tab click  │ aiPanelReady         │
+ * │ ReminderFloat        │ Dialog               │ notification trigger │ reminderReady        │
+ * │ SharedModals         │ Dialog               │ on-demand            │ (none — read-only)   │
+ * └──────────────────────┴──────────────────────┴──────────────────────┴──────────────────────┘
+ *
  * Usage from index.ts:
- *   import { mountCalendarDock, ... } from "@frontend/mounts";
- *
- * Note: Dashboard and Reminder docks are registered via plugin/docks.ts.
- * Only Calendar dock uses the dockMounts adapter.
- *
- * Mount Map:
- * ┌──────────────────────┬──────────────────────┬──────────────────────┐
- * │ Component            │ Mount Method         │ Trigger              │
- * ├──────────────────────┼──────────────────────┼──────────────────────┤
- * │ Dashboard.svelte     │ addDock + addTab     │ onload()             │
- * │ ReminderPanel.svelte │ addDock              │ onload()             │
- * │ TaskEditDialog       │ Dialog               │ command/slash/menu   │
- * │ CalendarView.svelte  │ addDock              │ onload()             │
- * │ AnalyticsDashboard   │ lazy Dialog          │ dashboard tab click  │
- * │ ReminderFloat        │ addFloatLayer        │ notification trigger │
- * │ SharedModals         │ Dialog               │ on-demand            │
- * └──────────────────────┴──────────────────────┴──────────────────────┘
+ *   import { MountService, mountCalendarDock, ... } from "@frontend/mounts";
  */
+
+// ─── MountService (lifecycle-aware orchestrator) ────────────
+export { MountService } from "./MountService";
 
 // ─── Dock mount adapters ────────────────────────────────────
 export {
@@ -46,4 +61,12 @@ export { showReminderFloat } from "./floatMounts";
 export { openAnalyticsDashboard } from "./lazyMounts";
 
 // ─── Types ──────────────────────────────────────────────────
-export type { MountHandle, DialogMountOptions, FloatMountOptions } from "./types";
+export type {
+  MountHandle,
+  DialogMountOptions,
+  FloatMountOptions,
+  MountServiceConfig,
+  LifecycleGate,
+  DeferredMount,
+  BootProgressConfig,
+} from "./types";

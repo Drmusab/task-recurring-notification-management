@@ -18,6 +18,7 @@ import ReminderPanel from "@frontend/components/reminders/ReminderPanel.svelte";
 import { resolveDockElement, validateDockElement } from "@infrastructure/integrations/siyuan/DockAdapter";
 import { DOCK_TYPE_DASHBOARD, DOCK_TYPE_REMINDERS } from "./constants";
 import type { PluginServices } from "./types";
+import * as logger from "@backend/logging/logger";
 
 /**
  * State holder for dock-mounted components.
@@ -58,20 +59,13 @@ function mountDashboard(
     state.dashboardComponent = mount(TaskDashboardDock, {
       target,
       props: {
-        taskStorage: services.taskStorage,
-        recurrenceEngine: services.recurrenceEngine,
-        taskScheduler: services.scheduler,
-        notificationService: services.eventService,
-        eventBus: services.pluginEventBus,
         plugin: services.plugin,
-        taskCreationService: services.taskCreationService,
-        autoMigrationService: services.autoMigrationService,
         settings: services.settings,
         isMobile: services.isMobile,
       },
     });
   } catch (error) {
-    console.error(`[TaskRecurring] Dashboard mount failed:`, error);
+    logger.error(`[TaskRecurring] Dashboard mount failed:`, error);
   }
 }
 
@@ -83,7 +77,7 @@ export function unmountDashboard(state: DockState): void {
     try {
       unmount(state.dashboardComponent);
     } catch (error) {
-      console.error(`[TaskRecurring] Dashboard unmount error:`, error);
+      logger.error(`[TaskRecurring] Dashboard unmount error:`, error);
     }
     state.dashboardComponent = null;
     state.dockDashboardEl = null;
@@ -106,14 +100,12 @@ function mountReminders(
     state.reminderComponent = mount(ReminderPanel, {
       target,
       props: {
-        taskStorage: services.taskStorage,
-        eventBus: services.pluginEventBus,
         plugin: services.plugin,
         isMobile: services.isMobile,
       },
     });
   } catch (error) {
-    console.error(`[TaskRecurring] Reminder panel mount failed:`, error);
+    logger.error(`[TaskRecurring] Reminder panel mount failed:`, error);
   }
 }
 
@@ -125,7 +117,7 @@ export function unmountReminders(state: DockState): void {
     try {
       unmount(state.reminderComponent);
     } catch (error) {
-      console.error(`[TaskRecurring] Reminder unmount error:`, error);
+      logger.error(`[TaskRecurring] Reminder unmount error:`, error);
     }
     state.reminderComponent = null;
     state.dockReminderEl = null;
@@ -196,7 +188,7 @@ export function registerDashboardDock(
       state.dockDashboardEl = element;
 
       if (!validateDockElement(element)) {
-        console.warn(`[TaskRecurring] Dock element validation failed — mounting anyway`);
+        logger.warn(`[TaskRecurring] Dock element validation failed — mounting anyway`);
       }
 
       element.innerHTML = services.isMobile

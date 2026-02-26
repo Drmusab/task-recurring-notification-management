@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { QuerySyntaxError } from "@backend/core/query/QueryError";
 import { StatusType } from '@shared/constants/statuses/Status';
 import type { DateField, DateComparator } from "@backend/core/query/filters/DateFilter";
@@ -474,7 +473,7 @@ export class QueryParser {
     // Parse each field
     const sortFields: SortField[] = [];
     for (const fieldPart of fieldParts) {
-      const match = fieldPart.match(/^([a-z.]+)(\s+reverse)?$/i);
+      const match = fieldPart.match(/^([a-z0-9_.]+)(\s+reverse)?$/i);
       if (!match) {
         throw new QuerySyntaxError(
           `Invalid sort field: "${fieldPart}"`,
@@ -1034,17 +1033,7 @@ export class QueryParser {
     // Remove quotes if present
     const pattern = this.unquote(patternStr);
     
-    // Validate the pattern
-    const validation = RegexMatcher.validatePattern(pattern);
-    if (!validation.valid) {
-      throw new QuerySyntaxError(
-        `Invalid regex pattern: ${validation.error}`,
-        this.line,
-        this.column,
-        'Check your regex syntax'
-      );
-    }
-    
+    // Return the spec as-is; invalid patterns are handled gracefully by filters
     return { pattern, flags: '' };
   }
 

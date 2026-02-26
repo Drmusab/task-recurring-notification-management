@@ -8,20 +8,46 @@
  * Based on official plugin-sample Dialog usage pattern (svelteDialog in Svelte sample).
  *
  * Uses dynamic import() for code-splitting instead of require().
+ *
+ * ── Lifecycle Gate ───────────────────────────────────────────
+ *   Task-mutating dialogs (TaskEdit, Recurrence) mount with gate: "modalReady".
+ *   MountService ensures these dialogs are only callable AFTER:
+ *     - DomainMapper.ready()
+ *     - TaskLifecycle.ready()
+ *     - StorageLoaded
+ *     - BootComplete
+ *
+ *   Read-only dialogs (About, KeyboardShortcuts, Confirmation) have no gate
+ *   and can be opened at any time.
+ *
+ * ── Forbidden ────────────────────────────────────────────────
+ *   ❌ call Scheduler / TaskStorage / Domain / Analytics / Integration
+ *   ❌ parse Markdown / modify block
+ *   ✔ inject UI only
+ *   ✔ delegate mutations to UITaskMutationService
+ *   ✔ emit events via UIEventService
  */
 
 import { Dialog, showMessage } from "siyuan";
 import { mount, unmount } from "svelte";
 import type { Plugin } from "siyuan";
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../services/DTOs';
+type Task = TaskDTO;
 import type { PluginServices } from "../../plugin/types";
 import type { MountHandle, DialogMountOptions } from "./types";
+import { uiMutationService } from "../services/UITaskMutationService";
+import { uiEventService } from "../services/UIEventService";
+import { isRuntimeReady } from "../stores/RuntimeReady.store";
 
 // ─── Task Edit Dialog ───────────────────────────────────────
 
 /**
  * Open a full-featured task editor in a SiYuan Dialog.
  * Uses the existing TaskModal.ts pattern (Dialog + createUnifiedEditor).
+ *
+ * LIFECYCLE GATE: "modalReady"
+ * Only callable after DomainMapper.ready() + TaskLifecycle.ready().
+ * Prevents editing outdated recurrence instances.
  *
  * Can be triggered from:
  *   - blockMenu (click-blockicon event → "Edit as Task")
@@ -30,6 +56,13 @@ import type { MountHandle, DialogMountOptions } from "./types";
  *   - task click (from Dashboard/Calendar views)
  */
 export async function openTaskEditDialog(options: DialogMountOptions): Promise<MountHandle> {
+  // ── Lifecycle guard: prevent editing with stale domain data ──
+  if (!isRuntimeReady()) {
+    console.warn("[dialogMounts] openTaskEditDialog called before runtimeReady — suppressed");
+    showMessage("Plugin is still loading, please wait…", 4000, "info");
+    return { destroy: () => {} };
+  }
+
   const {
     plugin,
     services,
@@ -107,11 +140,8 @@ export async function openTaskEditDialog(options: DialogMountOptions): Promise<M
           if (onSave) {
             await onSave(updatedTask);
           }
-          // Also sync to block DB and emit refresh
-          if (services.blockMetadataService) {
-            await services.blockMetadataService.syncTaskToBlock(updatedTask);
-          }
-          services.pluginEventBus.emit("task:refresh", undefined);
+          // Emit refresh via UIEventService — NOT direct blockMetadataService/pluginEventBus
+          uiEventService.emitTaskRefresh();
           dialog.destroy();
         },
         onCancel: () => {
@@ -146,12 +176,22 @@ export async function openTaskEditDialog(options: DialogMountOptions): Promise<M
 /**
  * Open the recurrence pattern editor in a SiYuan Dialog.
  * Wraps shared/modals/RecurrenceEditorModal.svelte.
+ *
+ * LIFECYCLE GATE: "modalReady"
+ * Only callable after DomainMapper.ready() + TaskLifecycle.ready().
  */
 export async function openRecurrenceDialog(options: {
   plugin: Plugin;
   currentPattern?: string;
   onSave?: (pattern: string) => void;
 }): Promise<MountHandle> {
+  // ── Lifecycle guard ──
+  if (!isRuntimeReady()) {
+    console.warn("[dialogMounts] openRecurrenceDialog called before runtimeReady — suppressed");
+    showMessage("Plugin is still loading, please wait…", 4000, "info");
+    return { destroy: () => {} };
+  }
+
   const { plugin, currentPattern = "", onSave } = options;
   let svelteHandle: ReturnType<typeof mount> | null = null;
 

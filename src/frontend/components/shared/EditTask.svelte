@@ -11,8 +11,10 @@
    */
 
   import { onMount } from "svelte";
-  import type { Task } from "@backend/core/models/Task";
-  import type { Recurrence } from "@domain/models/Recurrence";
+  import type { TaskDTO } from '../../services/DTOs';
+  type Task = TaskDTO;
+  /** Opaque recurrence type — components pass this through, never construct it */
+  type Recurrence = Record<string, unknown>;
 
   /** Minimal status option for the dropdown */
   interface StatusOption {

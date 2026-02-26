@@ -203,6 +203,19 @@ class InlinedPersistenceController {
       resolve();
     }
   }
+
+  /**
+   * Cancel any pending timers. Must be called on plugin unload
+   * to prevent orphaned callbacks.
+   */
+  destroy(): void {
+    if (this.scheduledTimer) {
+      clearTimeout(this.scheduledTimer);
+      this.scheduledTimer = null;
+    }
+    this.pendingState = null;
+    this.resolveFlushes();
+  }
 }
 
 export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider {
@@ -354,10 +367,14 @@ export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider 
 
   /**
    * Get tasks due on or before a specific date using the index manager.
+   * Optimized: queries only from the earliest stored due date rather than epoch.
    */
   getTasksDueOnOrBefore(date: Date): Task[] {
-    const startDate = new Date('1970-01-01'); // Start from earliest date
-    const taskIds = this.indexManager.queryByDateRange(startDate, date, 'due');
+    const taskIds = this.indexManager.queryByDateRange(
+      this.indexManager.getEarliestDueDate() ?? date,
+      date,
+      'due'
+    );
     return Array.from(taskIds)
       .map(id => this.activeTasks.get(id))
       .filter((task): task is Task => task !== undefined && task.enabled);
@@ -640,34 +657,56 @@ export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider 
   }
 
   /**
-   * Get enabled tasks
+   * Get enabled tasks (single-pass, no double allocation)
    */
   getEnabledTasks(): Task[] {
-    return this.getAllTasks().filter((task) => task.enabled);
+    const result: Task[] = [];
+    for (const task of this.activeTasks.values()) {
+      if (task.enabled) {
+        result.push(task);
+      }
+    }
+    return result;
   }
 
   /**
-   * Get tasks due today or earlier
+   * Get tasks due today or earlier (single-pass over the map)
    */
   getTodayAndOverdueTasks(): Task[] {
     const now = new Date();
     const endOfToday = new Date(now);
     endOfToday.setHours(23, 59, 59, 999);
+    const endMs = endOfToday.getTime();
 
-    return this.getEnabledTasks().filter((task) => {
-      const dueDate = new Date(task.dueAt);
-      return dueDate <= endOfToday;
-    });
+    const result: Task[] = [];
+    for (const task of this.activeTasks.values()) {
+      if (task.enabled && task.dueAt) {
+        const dueMs = new Date(task.dueAt).getTime();
+        if (dueMs <= endMs) {
+          result.push(task);
+        }
+      }
+    }
+    return result;
   }
 
   /**
-   * Get tasks in a date range
+   * Get tasks in a date range (single-pass over the map)
    */
   getTasksInRange(startDate: Date, endDate: Date): Task[] {
-    return this.getEnabledTasks().filter((task) => {
-      const dueDate = new Date(task.dueAt);
-      return dueDate >= startDate && dueDate <= endDate;
-    });
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+
+    const result: Task[] = [];
+    for (const task of this.activeTasks.values()) {
+      if (task.enabled && task.dueAt) {
+        const dueMs = new Date(task.dueAt).getTime();
+        if (dueMs >= startMs && dueMs <= endMs) {
+          result.push(task);
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -805,9 +844,11 @@ export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider 
   }
 
   /**
-   * Cleanup and flush on shutdown
+   * Cleanup and flush on shutdown.
+   * Cancels all timers to prevent memory leaks.
    */
   async destroy(): Promise<void> {
+    this.persistence.destroy();
     await this.batchBlockSync.destroy();
     this.stopSyncRetryProcessor();
   }

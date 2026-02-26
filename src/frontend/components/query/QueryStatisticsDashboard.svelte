@@ -16,14 +16,15 @@
    */
 
   import { onMount } from "svelte";
-  import { SavedQueryStore, type SavedQuery } from "@backend/core/query/SavedQueryStore";
+  import { uiQueryService } from "../../services/UIQueryService";
+  import type { SavedQueryDTO, SavedQueryStatsDTO } from "../../services/DTOs";
 
   // State
-  let queries: SavedQuery[] = [];
-  let stats = SavedQueryStore.getStats();
-  let mostUsed: SavedQuery[] = [];
-  let recentlyUsed: SavedQuery[] = [];
-  let pinned: SavedQuery[] = [];
+  let queries: SavedQueryDTO[] = [];
+  let stats: SavedQueryStatsDTO = { totalQueries: 0, totalFolders: 0, totalUses: 0, averageUsesPerQuery: 0, oldestQuery: null, newestQuery: null };
+  let mostUsed: SavedQueryDTO[] = [];
+  let recentlyUsed: SavedQueryDTO[] = [];
+  let pinned: SavedQueryDTO[] = [];
   let tagDistribution: { tag: string; count: number }[] = [];
   let folderDistribution: { folder: string; count: number }[] = [];
 
@@ -31,12 +32,12 @@
     loadData();
   });
 
-  function loadData() {
-    queries = SavedQueryStore.load();
-    stats = SavedQueryStore.getStats();
-    mostUsed = SavedQueryStore.getMostUsed(10);
-    recentlyUsed = SavedQueryStore.getRecentlyUsed(10);
-    pinned = SavedQueryStore.getPinned();
+  async function loadData() {
+    queries = await uiQueryService.selectSavedQueries();
+    stats = await uiQueryService.selectSavedQueryStats();
+    mostUsed = await uiQueryService.selectMostUsedQueries(10);
+    recentlyUsed = await uiQueryService.selectRecentlyUsedQueries(10);
+    pinned = await uiQueryService.selectPinnedQueries();
     
     computeDistributions();
   }

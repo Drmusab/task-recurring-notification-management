@@ -9,8 +9,35 @@
    * - When block is deleted → pause task recurrence
    */
   
-  import type { BlockLinkedAction, BlockTrigger, TaskAction, ConditionExpr } from '@backend/core/block-actions/BlockActionTypes';
-  import type { TaskPriority } from '@backend/core/models/Task';
+  /** Local types matching block-action shapes (decoupled from @backend) */
+  interface BlockTrigger {
+    type: 'blockCompleted' | 'blockDeleted' | 'blockModified' | 'contentMatch' | string;
+    pattern?: string;
+    condition?: ConditionExpr;
+    [key: string]: unknown;
+  }
+  interface TaskAction {
+    type: 'setPriority' | 'setStatus' | 'pauseRecurrence' | 'resumeRecurrence' | 'addTag' | 'removeTag' | string;
+    value?: string;
+    priority?: TaskPriority;
+    [key: string]: unknown;
+  }
+  interface ConditionExpr {
+    type: string;
+    field?: string;
+    operator?: string;
+    value?: unknown;
+    [key: string]: unknown;
+  }
+  interface BlockLinkedAction {
+    id: string;
+    trigger: BlockTrigger;
+    actions: TaskAction[];
+    enabled: boolean;
+    label?: string;
+    [key: string]: unknown;
+  }
+  type TaskPriority = 'high' | 'medium' | 'low' | 'none' | string;
   import { t } from '@stores/I18n.store';
   import { showMessage } from 'siyuan';
   

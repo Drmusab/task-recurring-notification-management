@@ -1,8 +1,11 @@
-import type { Task } from "@backend/core/models/Task";
-import { replaceTaskWithTasks } from "@backend/core/file/File";
+import type { TaskDTO } from '../../../services/DTOs';
+import { uiQueryService } from '../../../services/UIQueryService';
 import type { TaskEditingInstruction } from "@components/shared/EditInstructions/TaskEditingInstruction";
 import { SEPARATOR_INSTRUCTION_DISPLAY_NAME } from "@components/shared/EditInstructions/MenuDividerInstruction";
 import { Menu, MenuItem } from "@shared/utils/compat/siyuan-compat";
+
+// Local alias for compatibility
+type Task = TaskDTO;
 
 /**
  * A function for replacing one task with zero or more new tasks.
@@ -11,15 +14,12 @@ import { Menu, MenuItem } from "@shared/utils/compat/siyuan-compat";
 export type TaskSaver = (originalTask: Task, newTasks: Task | Task[]) => Promise<void>;
 
 /**
- * A default implementation of {@link TaskSaver} that calls {@link replaceTaskWithTasks}
+ * A default implementation of {@link TaskSaver} that calls replaceTaskInFile via UIQueryService
  * @param originalTask
  * @param newTasks
  */
 export async function defaultTaskSaver(originalTask: Task, newTasks: Task | Task[]) {
-    await replaceTaskWithTasks({
-        originalTask,
-        newTasks,
-    });
+    await uiQueryService.replaceTaskInFile(originalTask as any, newTasks as any);
 }
 
 /**
@@ -30,7 +30,7 @@ export async function defaultTaskSaver(originalTask: Task, newTasks: Task | Task
 export function showMenu(ev: MouseEvent, menu: Menu) {
     ev.preventDefault(); // suppress the default click behavior
     ev.stopPropagation(); // suppress further event propagation
-    menu.showAtPosition({ x: ev.clientX, y: ev.clientY });
+    menu.open({ x: ev.clientX, y: ev.clientY });
 }
 
 /**

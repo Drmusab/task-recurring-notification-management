@@ -47,6 +47,6 @@ export const DEFAULT_URGENCY_SETTINGS: UrgencySettings = {
     high: 1.5,
     highest: 2.0,
   },
-  maxUrgency: 200,
+  maxUrgency: 1000,
   minUrgency: 0,
 };

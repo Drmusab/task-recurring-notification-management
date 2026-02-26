@@ -431,10 +431,10 @@ describe('CycleDetector', () => {
       const index = new DependencyIndex();
       const tasks = [
         createTask('1', 'Task 1'),
-        createTask('2', 'Task 2', ['1']),
+        createTask('2', 'Task 2', ['5']),
         createTask('3', 'Task 3', ['2']),
         createTask('4', 'Task 4', ['3']),
-        createTask('5', 'Task 5', ['4', '2']) // Creates cycle: 2->3->4->5->2
+        createTask('5', 'Task 5', ['4']) // Creates cycle: 2->5->4->3->2
       ];
 
       index.build(tasks);

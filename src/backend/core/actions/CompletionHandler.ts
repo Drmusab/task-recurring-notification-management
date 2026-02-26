@@ -166,7 +166,8 @@ export class CompletionHandler {
       
       // Determine reference date for calculation
       // For whenDone mode, use completion date; otherwise use due date
-      const referenceDate = task.whenDone ? completionDate : new Date(task.dueAt);
+      const isWhenDone = task.whenDone ?? (task.frequency as any)?.whenDone ?? false;
+      const referenceDate = isWhenDone ? completionDate : new Date(task.dueAt);
       
       // Calculate next occurrence
       const nextDueDate = this.recurrenceEngine.next(taskWithRecurrence, referenceDate);

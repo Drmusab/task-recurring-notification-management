@@ -4,8 +4,10 @@
  */
 
 import { createEventDispatcher } from 'svelte';
-import { parseRecurrenceRule, serializeRecurrenceRule } from '@domain/index';
-import type { Frequency } from '@domain/index';
+import { uiQueryService } from '../../../services/UIQueryService';
+
+/** Opaque frequency type — components don't inspect internals */
+type Frequency = Record<string, unknown>;
 
 export let value: Frequency | undefined = undefined;
 
@@ -27,17 +29,18 @@ const shortcuts = [
 ];
 
 // Initialize input value from prop
+// Initialize input value from prop (async serialization)
 $: if (value && !inputValue) {
-  inputValue = serializeRecurrenceRule(value);
+  uiQueryService.serializeRecurrenceRule(value as any).then(s => { inputValue = s; });
 }
 
-function handleInput(event: Event) {
+async function handleInput(event: Event) {
   const target = event.target as HTMLInputElement;
   inputValue = target.value;
   
   // Try to parse recurrence rule
   if (inputValue.trim()) {
-    parsedFrequency = parseRecurrenceRule(inputValue);
+    parsedFrequency = await uiQueryService.parseRecurrenceRule(inputValue);
     showSuggestions = true;
   } else {
     parsedFrequency = null;
@@ -46,13 +49,13 @@ function handleInput(event: Event) {
 }
 
 function handleBlur() {
-  setTimeout(() => {
+  setTimeout(async () => {
     showSuggestions = false;
     
     // Update value if valid frequency parsed
     if (parsedFrequency) {
       value = parsedFrequency;
-      inputValue = serializeRecurrenceRule(parsedFrequency);
+      inputValue = await uiQueryService.serializeRecurrenceRule(parsedFrequency as any);
       dispatch('change', value);
     }
   }, 200);
@@ -64,13 +67,13 @@ function handleFocus() {
   }
 }
 
-function selectShortcut(shortcut: typeof shortcuts[0]) {
+async function selectShortcut(shortcut: typeof shortcuts[0]) {
   inputValue = shortcut.value;
-  parsedFrequency = parseRecurrenceRule(shortcut.value);
+  parsedFrequency = await uiQueryService.parseRecurrenceRule(shortcut.value);
   
   if (parsedFrequency) {
     value = parsedFrequency;
-    inputValue = serializeRecurrenceRule(parsedFrequency);
+    inputValue = await uiQueryService.serializeRecurrenceRule(parsedFrequency as any);
     dispatch('change', value);
   }
   

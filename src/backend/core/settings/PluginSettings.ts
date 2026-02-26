@@ -468,7 +468,12 @@ export function mergeSettings(userSettings: Partial<PluginSettings>): PluginSett
   }
   // ========== END MIGRATION ==========
 
+  // Start from full defaults so any new sections added to DEFAULT_SETTINGS
+  // are automatically picked up, even before mergeSettings is updated.
+  const merged: PluginSettings = { ...DEFAULT_SETTINGS };
+
   return {
+    ...merged,
     dates: {
       ...DEFAULT_SETTINGS.dates,
       ...userSettings.dates,

@@ -2,7 +2,7 @@
  * Task order store for managing drag-and-drop task ordering
  */
 import { writable } from 'svelte/store';
-import type { Task } from '@backend/core/models/Task';
+import type { TaskDTO } from '../services/DTOs';
 
 interface TaskOrderState {
   orderMap: Map<string, number>; // taskId -> order
@@ -24,7 +24,7 @@ const createTaskOrderStore = () => {
     }),
     updateOrders: (orders: Map<string, number>) => set({ orderMap: new Map(orders) }),
     clear: () => set(initialState),
-    reorder: (tasks: Task[], fromIndex: number, toIndex: number) => {
+    reorder: (tasks: TaskDTO[], fromIndex: number, toIndex: number) => {
       const reordered = [...tasks];
       const [moved] = reordered.splice(fromIndex, 1);
       reordered.splice(toIndex, 0, moved);
@@ -45,7 +45,7 @@ export const taskOrderStore = createTaskOrderStore();
 /**
  * Assign sequential order to tasks
  */
-export function reorderTasks(tasks: Task[]): Task[] {
+export function reorderTasks(tasks: TaskDTO[]): TaskDTO[] {
   return tasks.map((task, index) => ({
     ...task,
     order: index,
@@ -55,7 +55,7 @@ export function reorderTasks(tasks: Task[]): Task[] {
 /**
  * Sort tasks by order field
  */
-export function sortTasksByOrder(tasks: Task[]): Task[] {
+export function sortTasksByOrder(tasks: TaskDTO[]): TaskDTO[] {
   return [...tasks].sort((a, b) => {
     const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
     const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
@@ -66,7 +66,7 @@ export function sortTasksByOrder(tasks: Task[]): Task[] {
 /**
  * Initialize order for tasks that don't have it
  */
-export function initializeTaskOrder(tasks: Task[]): Task[] {
+export function initializeTaskOrder(tasks: TaskDTO[]): TaskDTO[] {
   return tasks.map((task, index) => ({
     ...task,
     order: task.order ?? index,

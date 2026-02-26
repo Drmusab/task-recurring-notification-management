@@ -179,3 +179,13 @@ const createKeyboardShortcutsStore = () => {
 };
 
 export const keyboardShortcutsStore = createKeyboardShortcutsStore();
+
+/**
+ * Clear all registered keyboard shortcut actions.
+ * Called on plugin unload to prevent stale action callbacks across hot-reloads.
+ */
+export function resetKeyboardShortcutActions(): void {
+  for (const key of Object.keys(actionRegistry)) {
+    delete actionRegistry[key];
+  }
+}

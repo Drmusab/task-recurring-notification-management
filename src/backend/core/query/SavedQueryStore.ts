@@ -48,6 +48,24 @@ let cachedCollection: SavedQueryCollection | null = null;
 const STORAGE_KEY = "saved-queries";
 
 /**
+ * Reset module-level state for testing isolation.
+ * Must be called in test beforeEach to prevent state leakage.
+ */
+export function _resetSavedQueryStoreForTesting(): void {
+  pluginRef = null;
+  cachedCollection = null;
+}
+
+/**
+ * Reset module-level state on plugin unload.
+ * Called from onunload() to prevent stale plugin references across hot-reloads.
+ */
+export function resetSavedQueryStore(): void {
+  pluginRef = null;
+  cachedCollection = null;
+}
+
+/**
  * Initialize the SavedQueryStore with a plugin reference.
  * Must be called once during plugin onload before any store operations.
  */
@@ -120,7 +138,7 @@ export class SavedQueryStore {
         ...query,
         createdAt: query.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        useCount: 0
+        useCount: query.useCount ?? 0
       });
     }
     

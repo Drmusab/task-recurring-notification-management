@@ -6,7 +6,15 @@
    * Helps users verify their recurrence rule is correct.
    */
   
-  import type { Frequency } from '@backend/core/models/Frequency';
+  /** Local Frequency shape — matches domain Frequency structure */
+  interface Frequency {
+    type: 'daily' | 'weekly' | 'monthly' | 'yearly' | string;
+    interval?: number;
+    dayOfMonth?: number;
+    monthOfYear?: number;
+    weekdays?: number[];
+    [key: string]: unknown;
+  }
   import moment from 'moment';
   import { t, getTranslation } from '@stores/I18n.store';
   

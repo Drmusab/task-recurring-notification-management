@@ -5,7 +5,8 @@
  * Not actively used in SiYuan plugin but kept for reference.
  */
 
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../../services/DTOs';
+type Task = TaskDTO;
 import type { Grouper } from "@components/shared/Query/Group/Grouper";
 
 /**

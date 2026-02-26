@@ -44,6 +44,7 @@ import { RecurrenceEngine } from "@backend/core/engine/recurrence/RecurrenceEngi
 import { Scheduler } from "@backend/core/engine/Scheduler";
 import { OccurrenceBlockCreator } from "@backend/core/engine/OccurrenceBlockCreator";
 import { EventService } from "@backend/services/EventService";
+import { EventService as WebhookEventService } from "@backend/services/WebhookEventService";
 import { PluginEventBus, pluginEventBus } from "@backend/core/events/PluginEventBus";
 import { BlockMetadataService } from "@backend/core/api/BlockMetadataService";
 import { TaskCreationService } from "@backend/core/services/TaskCreationService";
@@ -61,11 +62,22 @@ import { CommandRegistry } from "@backend/commands/CommandRegistry";
 
 // ─── Stores & Modals ────────────────────────────────────────
 import { TaskModal } from "@modals/TaskModal";
-import { initSettingsStore } from "@stores/Settings.store";
-import { initOptionsStorage } from "@modals/OptionsModal";
+import { initSettingsStore, resetSettingsStore } from "@stores/Settings.store";
+import { initOptionsStorage, resetOptionsStorage } from "@modals/OptionsModal";
 import { updateAnalyticsFromTasks } from "@stores/TaskAnalytics.store";
-import { initSavedQueryStore } from "@backend/core/query/SavedQueryStore";
+import { initSavedQueryStore, resetSavedQueryStore } from "@backend/core/query/SavedQueryStore";
 import { taskStore } from "@stores/Task.store";
+import { resetKeyboardShortcutActions } from "@stores/KeyboardShortcuts.store";
+
+// ─── Lifecycle Cleanup Imports ──────────────────────────────
+import { clearLogs as clearBackendLogs } from "@shared/logging/logger";
+import { resetReportedIssues } from "@backend/core/api/SiYuanApiAdapter";
+import { performanceMonitor, logger as perfLogger } from "@shared/utils/PerformanceMonitor";
+import { TaskUIStateManager } from "@backend/core/ui/TaskUIState";
+import { OptimisticUpdateManager } from "@backend/core/ui/OptimisticUpdateManager";
+import { resetBridgeInstance } from "@backend/core/integration/TaskReminderBridge";
+import { resetArchiveCompression } from "@backend/core/storage/ArchiveCompression";
+import { resetOptimizedJSON } from "@backend/core/storage/OptimizedJSON";
 
 // ─── Plugin Modules (Decomposed) ────────────────────────────
 import { registerCustomIcons } from "./plugin/icons";
@@ -106,11 +118,71 @@ import {
 } from "./plugin/constants";
 import type { PluginServices } from "./plugin/types";
 
-// ─── Mount Adapters (Phase 4/5) ─────────────────────────────
+// ─── Frontend Service Singletons (Session 21: Wiring) ───────
+import { uiQueryService } from "@frontend/services/UIQueryService";
+import { uiEventService } from "@frontend/services/UIEventService";
+import { uiMutationService } from "@frontend/services/UITaskMutationService";
+
+// ─── Mount Adapters (Phase 4/5) — Lifecycle-Aware ───────────
+import { MountService } from "@frontend/mounts/MountService";
 import { mountCalendarDock } from "@frontend/mounts/dockMounts";
 import { showReminderFloat } from "@frontend/mounts/floatMounts";
 import { openAnalyticsDashboard } from "@frontend/mounts/lazyMounts";
 import type { MountHandle } from "@frontend/mounts/types";
+
+// ─── Lifecycle Markers (RuntimeReady store) ─────────────────
+import {
+  markPluginLoaded,
+  markStorageLoaded,
+  markBlockAttrsValidated,
+  markCacheRebuilt,
+  markSchedulerSynced,
+  markAnalyticsLoaded,
+  markDependencyGraphReady,
+  markDomainMapperReady,
+  markTaskLifecycleReady,
+  resetRuntimeReady,
+} from "@stores/RuntimeReady.store";
+
+// ─── AI Intelligence Layer ──────────────────────────────────
+import { AIOrchestrator } from "@backend/core/ai/AIOrchestrator";
+
+// ─── Attention-Aware Event Filtering ────────────────────────
+import { AttentionGateFilter } from "@backend/core/attention/AttentionGateFilter";
+import { UrgencyDecayTracker } from "@backend/core/attention/UrgencyDecayTracker";
+
+// ─── Cache Layer ────────────────────────────────────────────
+import { CacheManager } from "@backend/cache/CacheManager";
+
+// ─── Dependency Layer ───────────────────────────────────────
+import { DependencyManager } from "@backend/dependencies/DependencyManager";
+
+// ─── Engine Controller ──────────────────────────────────────
+import { EngineController } from "@backend/core/engine/EngineController";
+
+// ─── Runtime Validation Layer (Session 19) ──────────────────
+import { BlockAttributeValidator } from "@backend/services/BlockAttributeValidator";
+import { RecurrenceResolver } from "@backend/services/RecurrenceResolver";
+import { TaskLifecycle } from "@backend/services/TaskLifecycle";
+import { MLRuntimeAdapter } from "@backend/services/MLRuntimeAdapter";
+
+// ─── TaskService + SyncService (Session 21: Service Wiring) ──
+import { TaskService } from "@backend/services/TaskService";
+import { SyncService } from "@backend/services/SyncService";
+
+// ─── Structural Providers for UIQueryService (Session 21) ──
+import { DateParser } from "@backend/core/parsers/DateParser";
+import { parseRecurrenceRule, serializeRecurrenceRule } from "@backend/core/parsers/RecurrenceRuleParser";
+import { replaceTaskWithTasks } from "@backend/core/file";
+
+// ─── Reminder Pipeline (Session 20) ─────────────────────────
+import { ReminderService } from "@backend/reminders/ReminderService";
+
+// ─── Escalation Pipeline ────────────────────────────────────
+import { IntegrationManager } from "@backend/integrations/IntegrationManager";
+import { EscalationManager } from "@backend/events/EscalationManager";
+import { NotificationState } from "@backend/core/engine/NotificationState";
+import { NOTIFICATION_STATE_KEY } from "@shared/constants/misc-constants";
 
 // ─── Plugin Class ───────────────────────────────────────────
 /**
@@ -124,6 +196,7 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
   private recurrenceEngine!: RecurrenceEngine;
   private scheduler!: Scheduler;
   private eventService!: EventService;
+  private webhookEventService!: WebhookEventService;
   private taskCreationService!: TaskCreationService;
   private autoMigrationService!: AutoMigrationService;
   private blockMetadataService!: BlockMetadataService;
@@ -140,12 +213,50 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
   private tabState: TabState = createTabState();
   private topBarState: TopBarState = createTopBarState();
   private eventState: EventHandlerState = createEventHandlerState();
-  private calendarDockHandle: MountHandle | null = null;
   private reminderFloatHandle: MountHandle | null = null;
+
+  // ── AI Intelligence Layer ──
+  private aiOrchestrator: AIOrchestrator | null = null;
+
+  // ── Attention-Aware Event Filtering ──
+  private attentionGateFilter: AttentionGateFilter | null = null;
+  private urgencyDecayTracker: UrgencyDecayTracker | null = null;
+
+  // ── Cache Layer ──
+  private cacheManager: CacheManager | null = null;
+
+  // ── Dependency Layer ──
+  private dependencyManager: DependencyManager | null = null;
+
+  // ── Engine Controller ──
+  private engineController: EngineController | null = null;
+
+  // ── Runtime Validation Layer (Session 19) ──
+  private blockAttributeValidator: BlockAttributeValidator | null = null;
+  private recurrenceResolver: RecurrenceResolver | null = null;
+  private taskLifecycle: TaskLifecycle | null = null;
+  private mlRuntimeAdapter: MLRuntimeAdapter | null = null;
+
+  // ── Reminder Pipeline (Session 20) ──
+  private reminderService: ReminderService | null = null;
+
+  // ── TaskService + SyncService (Session 21: Service Wiring) ──
+  private syncService: SyncService | null = null;
+  private taskService: TaskService | null = null;
+
+  // ── Escalation Pipeline ──
+  private integrationManager: IntegrationManager | null = null;
+  private escalationManager: EscalationManager | null = null;
+  private sharedNotificationState: NotificationState | null = null;
+
+  // ── MountService (Lifecycle-Aware UI Orchestrator) ──
+  private mountService: MountService | null = null;
 
   // ── State ──
   private initialized = false;
   private isMobile = false;
+  /** Cleanup functions for event listeners registered in onLayoutReady */
+  private layoutReadyCleanups: Array<() => void> = [];
 
   // ═════════════════════════════════════════════════════════════
   // LIFECYCLE: onload()
@@ -184,15 +295,22 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
       this.taskStorage = new TaskStorage(this);
       await this.taskStorage.init();
 
+      // Create shared NotificationState (shared between EventService + EscalationManager)
+      this.sharedNotificationState = new NotificationState(this, NOTIFICATION_STATE_KEY);
+
       this.scheduler = new Scheduler(
         this.taskStorage,
         undefined,
         this
       );
 
-      this.eventService = new EventService(this);
+      this.eventService = new EventService({ pluginEventBus: this.pluginEventBus });
       await this.eventService.init();
-      this.eventService.bindScheduler(this.scheduler);
+
+      // Legacy webhook event service (n8n direct) — preserved for backward compatibility
+      this.webhookEventService = new WebhookEventService(this, { notificationState: this.sharedNotificationState! });
+      await this.webhookEventService.init();
+      this.webhookEventService.bindScheduler(this.scheduler);
 
       // Phase 7: Wire occurrence block creator for recurring tasks
       const occurrenceCreator = new OccurrenceBlockCreator(
@@ -200,7 +318,7 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
         this.taskStorage,
         this.blockMetadataService
       );
-      this.eventService.setOccurrenceCreator(occurrenceCreator);
+      this.webhookEventService.setOccurrenceCreator(occurrenceCreator);
 
       this.taskCreationService = new TaskCreationService(this.settings);
       this.autoMigrationService = new AutoMigrationService(this.settings);
@@ -220,8 +338,27 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
       this.reactiveBlockLayer = new ReactiveBlockLayer({
         runtimeBridge: this.runtimeBridge,
         pluginEventBus: this.pluginEventBus,
+        repository: this.taskStorage,
+        settingsProvider: () => this.settings,
+        recurrenceEngine: this.recurrenceEngine,
       });
       this.commandRegistry = new CommandRegistry();
+
+      // ── Session 21: TaskService + SyncService (needed by UITaskMutationService) ──
+      this.syncService = new SyncService({
+        blockAttributeSync: this.reactiveBlockLayer.attributeSync,
+        blockMetadataService: this.blockMetadataService,
+        eventService: this.eventService,
+      });
+      this.syncService.start();
+
+      this.taskService = new TaskService({
+        taskStorage: this.taskStorage,
+        recurrenceEngine: this.recurrenceEngine,
+        eventService: this.eventService,
+        syncService: this.syncService,
+      });
+      this.taskService.start();
 
       console.log(`[${this.name}] Core services initialized (with CQRS runtime bridge)`);
 
@@ -252,15 +389,43 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
         pluginEventBus: this.pluginEventBus,
       });
 
+      // ── 5c. Session 21: Wire frontend service singletons to backend ──
+      uiQueryService.connect({
+        taskStorage: this.taskStorage,
+        dateParser: {
+          parseNaturalLanguageDate: (input: string, ref?: Date) =>
+            DateParser.parseNaturalLanguageDate(input, ref),
+          toISODateString: (date: Date) =>
+            DateParser.toISODateString(date),
+        },
+        recurrenceParser: {
+          parseRecurrenceRule: (input: string) => parseRecurrenceRule(input),
+          serializeRecurrenceRule: (rule: unknown) =>
+            serializeRecurrenceRule(rule as any),
+        },
+        fileReplacer: {
+          replaceTaskWithTasks: (opts: { originalTask: unknown; newTasks: unknown }) =>
+            replaceTaskWithTasks(opts as any),
+        },
+      });
+      uiEventService.connect({
+        pluginEventBus: this.pluginEventBus,
+      });
+      uiMutationService.connect({
+        taskService: this.taskService!,
+      });
+
       // ── 6. Build service container for UI modules ──
       const services = this.buildServiceContainer();
 
       // ── 7. Keyboard commands registered via CommandRegistry in onLayoutReady ──
 
-      // ── 8. Register dock panel: Dashboard ──
-      registerDashboardDock(this, this.dockState, services);
+      // ── 8. Mark plugin loaded + storage loaded lifecycle flags ──
+      markPluginLoaded();
+      markStorageLoaded();
 
-      // ── 9. Register dock panel: Reminders ──
+      // ── 9. Register dock panels (deferred mounting via MountService) ──
+      registerDashboardDock(this, this.dockState, services);
       registerReminderDock(this, this.dockState, services);
 
       // ── 10. Register custom tab type ──
@@ -269,8 +434,15 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
       // ── 11. Register protyleSlash for inline task creation ──
       registerProtyleSlash(this, () => this.openQuickTaskEditor());
 
-      // ── 12. Register calendar dock panel (Phase 4) ──
-      this.calendarDockHandle = mountCalendarDock(this, services);
+      // ── 12. Initialize MountService (registrations only — not started yet) ──
+      // MountService.start() is deferred to onLayoutReady() where it awaits
+      // BootProgress === 100 and subscribes to lifecycle gate stores.
+      this.mountService = new MountService({ plugin: this, services });
+
+      // Register calendar dock with runtimeReady gate
+      this.mountService.register("CalendarDock", "runtimeReady", () =>
+        mountCalendarDock(this, services)
+      );
 
       this.initialized = true;
       console.log(`[${this.name}] Plugin loaded successfully`);
@@ -319,11 +491,9 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
     });
 
     // ── Recover missed tasks from last session ──
-    this.scheduler.recoverMissedTasks().catch((err) => {
-      console.warn(`[${this.name}] Missed task recovery failed:`, err);
-    });
+    // (Now handled by EngineController.start() in deterministic boot sequence)
 
-    // ── Populate analytics store ──
+    // ── Populate analytics store + mark lifecycle flag ──
     this.taskStorage
       .loadActive()
       .then((tasks) => {
@@ -331,29 +501,162 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
         if (tasksArray.length > 0) {
           updateAnalyticsFromTasks(tasksArray);
         }
+        markAnalyticsLoaded();
       })
       .catch((err) => {
         console.warn(
           `[${this.name}] Initial analytics population failed:`,
           err
         );
+        // Mark anyway to unblock AI panel in degraded mode
+        markAnalyticsLoaded();
       });
 
     // ── Sync tasks to block DB (non-blocking) ──
     this.syncTasksToBlockDB();
 
-    // ── Start scheduler with event-driven enhancements ──
-    this.scheduler.start();
+    // ── Register scheduler event triggers (wires PluginEventBus → scheduler.triggerCheck) ──
     registerSchedulerEventTriggers(
       this.eventState,
       this.pluginEventBus,
       this.scheduler
     );
 
-    // ── Phase 5: Wire reminder float to task:due events ──
-    this.pluginEventBus.on("task:due", () => {
+    // ── Block attribute validation lifecycle marker ──
+    markBlockAttrsValidated();
+
+    // ── Cache Layer: Block-validated runtime caches ──
+    this.cacheManager = new CacheManager({
+      repository: this.taskStorage,
+      pluginEventBus: this.pluginEventBus,
+      computeNextOccurrence: (task) => {
+        try {
+          const ref = task.dueAt ? new Date(task.dueAt) : new Date();
+          // Cast needed: backend/core/models/Task ↔ domain/models/Task mismatch (pre-existing)
+          const next = this.recurrenceEngine.next(task as any, ref);
+          return next ? next.toISOString() : null;
+        } catch { return null; }
+      },
+    });
+
+    // ── Dependency Layer: Block-validated dependency graph ──
+    this.dependencyManager = new DependencyManager({
+      repository: this.taskStorage,
+      pluginEventBus: this.pluginEventBus,
+    });
+
+    // ── Engine Controller: Deterministic boot ──
+    // Sequence: CacheManager.start() → DependencyManager.start() → EventQueue.start()
+    //   → Scheduler.injectDependencies() → Scheduler.recoverMissedTasks() → Scheduler.start()
+    this.engineController = new EngineController({
+      scheduler: this.scheduler,
+      cacheManager: this.cacheManager,
+      dependencyManager: this.dependencyManager,
+      pluginEventBus: this.pluginEventBus,
+    });
+    this.engineController.start().then(() => {
+      // ── Lifecycle markers after engine boot ──
+      markCacheRebuilt();
+      markSchedulerSynced();
+      markDependencyGraphReady();
+      console.log(`[${this.name}] EngineController started — lifecycle gates: cache + scheduler + dependency marked`);
+    }).catch((err) => {
+      console.error(`[${this.name}] EngineController start failed:`, err);
+      // Mark anyway to unblock UI (degraded mode)
+      markCacheRebuilt();
+      markSchedulerSynced();
+      markDependencyGraphReady();
+    });
+    console.log(`[${this.name}] EngineController starting (CacheManager + DependencyManager + Scheduler)`);
+
+    // ── Runtime Validation Layer (Session 19) ──
+    // Constructed AFTER EngineController (needs DependencyGuard + BlockAttributeSync).
+    if (this.reactiveBlockLayer && this.dependencyManager) {
+      this.blockAttributeValidator = new BlockAttributeValidator({
+        blockAttributeSync: this.reactiveBlockLayer.attributeSync,
+      });
+
+      this.recurrenceResolver = new RecurrenceResolver({
+        recurrenceEngine: this.recurrenceEngine,
+      });
+
+      this.taskLifecycle = new TaskLifecycle({
+        dependencyGuard: this.dependencyManager.guard,
+        blockValidator: this.blockAttributeValidator,
+        recurrenceResolver: this.recurrenceResolver,
+        eventService: this.eventService,
+      });
+      this.taskLifecycle.start();
+
+      // ── Lifecycle markers: domain mapper + task lifecycle ready ──
+      markDomainMapperReady();
+      markTaskLifecycleReady();
+
+      this.mlRuntimeAdapter = new MLRuntimeAdapter({
+        eventService: this.eventService,
+        blockValidator: this.blockAttributeValidator,
+        getTask: (taskId: string) => this.taskStorage.getTask(taskId),
+      });
+      this.mlRuntimeAdapter.start();
+      console.log(`[${this.name}] Runtime validation layer started (BlockValidator + RecurrenceResolver + TaskLifecycle + MLAdapter)`);
+
+      // ── Reminder Pipeline (Session 20) ──
+      // Constructed AFTER Runtime Validation Layer (needs dependencyGuard + blockValidator + recurrenceResolver).
+      this.reminderService = new ReminderService({
+        eventService: this.eventService,
+        dependencyGuard: this.dependencyManager!.guard,
+        blockValidator: this.blockAttributeValidator,
+        recurrenceResolver: this.recurrenceResolver,
+        getTask: (taskId: string) => this.taskStorage.getTask(taskId),
+      });
+      this.reminderService.start();
+      console.log(`[${this.name}] ReminderService started (Session 20 reminder pipeline)`);
+    } else {
+      // No runtime validation layer — mark gates anyway to unblock UI (degraded mode)
+      markDomainMapperReady();
+      markTaskLifecycleReady();
+    }
+
+    // ── Escalation Pipeline: IntegrationManager + EscalationManager ──
+    // Starts AFTER EngineController (needs EventQueue, DependencyGuard active).
+    if (this.reactiveBlockLayer && this.dependencyManager) {
+      this.integrationManager = new IntegrationManager(
+        {
+          pluginEventBus: this.pluginEventBus,
+          blockAttributeSync: this.reactiveBlockLayer.attributeSync,
+        },
+        { workspaceId: "" }
+      );
+      this.integrationManager.start();
+
+      const eventQueue = this.engineController.getEventQueue();
+      if (eventQueue && this.sharedNotificationState) {
+        this.escalationManager = new EscalationManager({
+          pluginEventBus: this.pluginEventBus,
+          dependencyGuard: this.dependencyManager.guard,
+          blockAttributeSync: this.reactiveBlockLayer.attributeSync,
+          notificationState: this.sharedNotificationState,
+          eventQueue,
+          integrationManager: this.integrationManager,
+          getTask: async (taskId) => this.taskStorage.getTask(taskId),
+        });
+        this.escalationManager.start();
+        console.log(`[${this.name}] EscalationManager started`);
+      }
+      console.log(`[${this.name}] IntegrationManager started`);
+    }
+
+
+    // ── Phase 5: Wire reminder float to attention-filtered events ──
+    // REPLACED: blind task:due → showReminderNotification() with attention gate.
+    // Frontend now reacts ONLY to task:attention:due (filtered, scored).
+    const unsubAttentionDue = this.pluginEventBus.on("task:attention:due", () => {
       this.showReminderNotification();
     });
+    const unsubAttentionUrgent = this.pluginEventBus.on("task:attention:urgent", () => {
+      this.showReminderNotification();
+    });
+    this.layoutReadyCleanups.push(unsubAttentionDue, unsubAttentionUrgent);
 
     // ── CQRS Phase: Start reactive runtime services ──
     if (this.runtimeBridge) {
@@ -383,15 +686,45 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
     }
 
     // ── CQRS Phase: Wire workspace events to scheduler ──
-    this.pluginEventBus.on("workspace:changed", (payload: { workspaceId: string }) => {
+    const unsubChanged = this.pluginEventBus.on("workspace:changed", (payload: { workspaceId: string }) => {
       this.scheduler.setWorkspace(payload.workspaceId);
     });
-    this.pluginEventBus.on("workspace:opened", () => {
+    const unsubOpened = this.pluginEventBus.on("workspace:opened", () => {
       this.scheduler.resume();
     });
-    this.pluginEventBus.on("workspace:closed", () => {
+    const unsubClosed = this.pluginEventBus.on("workspace:closed", () => {
       this.scheduler.pause("workspace closed");
     });
+    this.layoutReadyCleanups.push(unsubChanged, unsubOpened, unsubClosed);
+
+    // ── AI Intelligence Layer: Event-driven, starts AFTER scheduler ──
+    this.aiOrchestrator = new AIOrchestrator(
+      this,
+      (taskId: string) => this.taskStorage.getTask(taskId)
+    );
+    this.aiOrchestrator.init().catch((err) => {
+      console.warn(`[${this.name}] AI Orchestrator init failed:`, err);
+    });
+
+    // ── Attention-Aware Event Filtering: Gates scheduler → frontend/notifications ──
+    this.urgencyDecayTracker = new UrgencyDecayTracker(this);
+    this.urgencyDecayTracker.load().then(() => {
+      this.attentionGateFilter = new AttentionGateFilter(this.urgencyDecayTracker!);
+      this.attentionGateFilter.bind(this.scheduler);
+      console.log(`[${this.name}] AttentionGateFilter bound to scheduler`);
+    }).catch((err) => {
+      console.warn(`[${this.name}] AttentionGateFilter init failed:`, err);
+    });
+
+    // ── Start MountService: awaits BootProgress, then gates per-mount ──
+    // This is the LAST thing in onLayoutReady — all lifecycle markers above
+    // are set (or will be set async) so MountService subscribes to their
+    // derived stores and mounts components as soon as their gates open.
+    if (this.mountService) {
+      this.mountService.start().catch((err) => {
+        console.error(`[${this.name}] MountService start failed:`, err);
+      });
+    }
   }
 
   // ═════════════════════════════════════════════════════════════
@@ -405,7 +738,69 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
     console.log(`[${this.name}] Unloading plugin...`);
 
     try {
-      // 0. CQRS Phase: Tear down reactive services (before scheduler)
+      // 0. Clean up event listeners registered in onLayoutReady
+      for (const cleanup of this.layoutReadyCleanups) {
+        try { cleanup(); } catch { /* already cleared */ }
+      }
+      this.layoutReadyCleanups = [];
+
+      // 0b. CQRS Phase: Tear down reactive services (before scheduler)
+      if (this.aiOrchestrator) {
+        this.aiOrchestrator.destroy();
+        this.aiOrchestrator = null;
+      }
+      // Attention gate filter (destroy before scheduler stop)
+      if (this.attentionGateFilter) {
+        this.attentionGateFilter.destroy();
+        this.attentionGateFilter = null;
+      }
+      this.urgencyDecayTracker = null;
+
+      // Reminder Pipeline: stop before Runtime Validation Layer
+      if (this.reminderService) {
+        this.reminderService.stop();
+        this.reminderService = null;
+      }
+
+      // Runtime Validation Layer: stop before EngineController
+      if (this.mlRuntimeAdapter) {
+        this.mlRuntimeAdapter.stop();
+        this.mlRuntimeAdapter = null;
+      }
+      if (this.taskLifecycle) {
+        this.taskLifecycle.stop();
+        this.taskLifecycle = null;
+      }
+      this.recurrenceResolver = null;
+      this.blockAttributeValidator = null;
+
+      // Escalation Pipeline: stop before EngineController (depends on EventQueue)
+      if (this.escalationManager) {
+        this.escalationManager.stop();
+        this.escalationManager = null;
+      }
+      if (this.integrationManager) {
+        this.integrationManager.stop();
+        this.integrationManager = null;
+      }
+      this.sharedNotificationState = null;
+
+      // Engine Controller: stops Scheduler + EventQueue (deterministic shutdown)
+      if (this.engineController) {
+        await this.engineController.stop();
+        this.engineController = null;
+      }
+
+      // Dependency layer (stop before cache layer)
+      if (this.dependencyManager) {
+        this.dependencyManager.stop();
+        this.dependencyManager = null;
+      }
+      // Cache layer (stop before command registry / block layer teardown)
+      if (this.cacheManager) {
+        this.cacheManager.stop();
+        this.cacheManager = null;
+      }
       if (this.commandRegistry) {
         this.commandRegistry.destroy();
         this.commandRegistry = null;
@@ -423,21 +818,20 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
         this.runtimeBridge = null;
       }
 
-      // 1. Stop scheduler
-      if (this.scheduler) {
-        await this.scheduler.stop();
+      // 1. Scheduler already stopped by EngineController above
+
+      // 2. Destroy MountService (unsubscribes gates + destroys all lifecycle-aware mounts)
+      if (this.mountService) {
+        this.mountService.destroyAll();
+        this.mountService = null;
       }
 
-      // 2. Unmount all Svelte components
+      // 2b. Unmount all Svelte components (dock panels registered in onload)
       unmountDashboard(this.dockState);
       unmountReminders(this.dockState);
       unmountTabDashboard(this.tabState);
 
-      // 2b. Unmount calendar dock (Phase 4) and reminder float (Phase 5)
-      if (this.calendarDockHandle) {
-        this.calendarDockHandle.destroy();
-        this.calendarDockHandle = null;
-      }
+      // 2c. Unmount reminder float (Phase 5) — calendar dock handled by MountService
       if (this.reminderFloatHandle) {
         this.reminderFloatHandle.destroy();
         this.reminderFloatHandle = null;
@@ -457,9 +851,12 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
         this.taskStorage.stopSyncRetryProcessor();
       }
 
-      // 5. Shutdown event service
+      // 5. Shutdown event services
       if (this.eventService) {
         await this.eventService.shutdown();
+      }
+      if (this.webhookEventService) {
+        await this.webhookEventService.shutdown();
       }
 
       // 6. Unregister all event handlers
@@ -470,8 +867,43 @@ export default class TaskRecurringNotificationManagementPlugin extends Plugin {
         this.pluginEventBus.clear();
       }
 
-      // 8. Disconnect TaskStore from backend (Phase 7)
+      // 8. Disconnect frontend service singletons (Session 21)
+      uiMutationService.disconnect();
+      uiEventService.disconnect();
+      uiQueryService.disconnect();
+
+      // 8b. Stop TaskService + SyncService (Session 21)
+      if (this.taskService) {
+        this.taskService.stop();
+        this.taskService = null;
+      }
+      if (this.syncService) {
+        this.syncService.stop();
+        this.syncService = null;
+      }
+
+      // 9. Disconnect TaskStore from backend (Phase 7)
       taskStore.disconnectBackend();
+
+      // 9. Reset all module-level singletons to prevent hot-reload leaks
+      resetSettingsStore();
+      resetOptionsStorage();
+      resetSavedQueryStore();
+      resetKeyboardShortcutActions();
+      resetRuntimeReady();
+
+      // 10. Clear backend singletons (UI state managers, logging, performance)
+      OptimisticUpdateManager.resetInstance();
+      TaskUIStateManager.resetInstance();
+      resetBridgeInstance();
+      resetArchiveCompression();
+      resetOptimizedJSON();
+      resetReportedIssues();
+
+      // 11. Flush accumulated logs and metrics
+      clearBackendLogs();
+      performanceMonitor.clearMetrics();
+      perfLogger.clearLogs();
 
       this.initialized = false;
       console.log(`[${this.name}] Plugin unloaded successfully`);

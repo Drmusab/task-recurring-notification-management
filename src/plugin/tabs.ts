@@ -66,14 +66,7 @@ export function registerDashboardTab(
       state.tabDashboardComponent = mount(TaskDashboardDock, {
         target: tabDiv,
         props: {
-          taskStorage: services.taskStorage,
-          recurrenceEngine: services.recurrenceEngine,
-          taskScheduler: services.scheduler,
-          notificationService: services.eventService,
-          eventBus: services.pluginEventBus,
           plugin: services.plugin,
-          taskCreationService: services.taskCreationService,
-          autoMigrationService: services.autoMigrationService,
           settings: services.settings,
         },
       });

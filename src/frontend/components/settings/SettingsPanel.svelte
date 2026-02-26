@@ -4,13 +4,15 @@
  */
 
 import { settingsStore } from '@stores/Settings.store';
-import type { Settings } from '@/domain/models/Settings';
+import type { SettingsDTO } from '../../services/DTOs';
 
-let settings: Settings = settingsStore.getSettings();
+type Settings = SettingsDTO;
+
+let settings: Settings = settingsStore.getSettings() as Settings;
 
 // Subscribe to settings changes
 settingsStore.subscribe((newSettings) => {
-  settings = newSettings;
+  settings = newSettings as Settings;
 });
 
 // Tab state

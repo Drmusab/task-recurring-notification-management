@@ -7,6 +7,77 @@ import type {
   GlobalFilterConfig 
 } from "@backend/core/filtering/FilterRule";
 import { DEFAULT_GLOBAL_FILTER_CONFIG } from "@backend/core/filtering/FilterRule";
+import * as logger from "@backend/logging/logger";
+
+// ──────────────────────────────────────────────────────────────
+// Filter Context Guard
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Allowed contexts for filter execution.
+ *
+ * GlobalFilter MUST only run during:
+ *   - 'storage-load'   — TaskStorage.load() / initial parse
+ *   - 'cache-rebuild'  — CacheManager.rebuild() / invalidation
+ *   - 'query'          — QueryEngine explicit filter
+ *   - 'explain'        — Debug / explain mode (read-only)
+ *
+ * FORBIDDEN contexts (not listed → blocked):
+ *   - scheduler tick
+ *   - ML analysis
+ *   - recurrence generation
+ *   - notification dispatch
+ */
+export type FilterContext =
+  | "storage-load"
+  | "cache-rebuild"
+  | "query"
+  | "explain";
+
+/** Thread-local-style context stack (sync — single-threaded JS) */
+let activeFilterContext: FilterContext | null = null;
+
+/**
+ * Run a callback within a valid filter context.
+ * GlobalFilter methods that filter tasks will only execute inside this scope.
+ *
+ * @example
+ *   withFilterContext("storage-load", () => {
+ *     const included = globalFilter.shouldIncludeTask(task);
+ *   });
+ */
+export function withFilterContext<T>(ctx: FilterContext, fn: () => T): T {
+  const prev = activeFilterContext;
+  activeFilterContext = ctx;
+  try {
+    return fn();
+  } finally {
+    activeFilterContext = prev;
+  }
+}
+
+/**
+ * Async version of withFilterContext.
+ */
+export async function withFilterContextAsync<T>(ctx: FilterContext, fn: () => Promise<T>): Promise<T> {
+  const prev = activeFilterContext;
+  activeFilterContext = ctx;
+  try {
+    return await fn();
+  } finally {
+    activeFilterContext = prev;
+  }
+}
+
+/** Check if we're inside a valid filter context. */
+function assertFilterContext(methodName: string): void {
+  if (activeFilterContext === null) {
+    logger.warn(
+      `[GlobalFilter] ${methodName}() called outside FilterContext — ` +
+      `wrap with withFilterContext("storage-load"|"cache-rebuild"|"query"|"explain")`
+    );
+  }
+}
 
 /**
  * Precompiled filter for maximum performance
@@ -356,9 +427,11 @@ export class GlobalFilter {
   }
   
   /**
-   * Call BEFORE parsing (raw block content)
+   * Call BEFORE parsing (raw block content).
+   * Must be invoked inside withFilterContext().
    */
   shouldTreatAsTask(blockContent: string, blockPath?: string): boolean {
+    assertFilterContext("shouldTreatAsTask");
     if (!this.config.enabled) return true;
     
     // Tag-based mode: check for global filter tag
@@ -383,9 +456,11 @@ export class GlobalFilter {
   }
   
   /**
-   * Call AFTER parsing (full task object)
+   * Call AFTER parsing (full task object).
+   * Must be invoked inside withFilterContext().
    */
   shouldIncludeTask(task: Task): boolean {
+    assertFilterContext("shouldIncludeTask");
     if (!this.config.enabled) return true;
     
     // Tag-based mode: check for global filter tag
@@ -400,9 +475,11 @@ export class GlobalFilter {
   }
   
   /**
-   * Explain why task was excluded (for debugging)
+   * Explain why task was excluded (for debugging).
+   * Must be invoked inside withFilterContext("explain").
    */
   explainTask(task: Task): FilterDecision {
+    assertFilterContext("explainTask");
     if (!this.compiled) {
       return { included: true, reason: 'Global filter disabled' };
     }

@@ -7,7 +7,6 @@
 
 // Compatibility layer
 export * from './compat/siyuan-compat';
-export * from './compat/daily-notes-compat';
 
 // Date utilities
 export * from './date/date';

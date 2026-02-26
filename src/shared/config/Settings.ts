@@ -1,5 +1,4 @@
-﻿// @ts-nocheck
-/**
+﻿/**
  * Settings - Central configuration module for the task management plugin
  * 
  * This file provides:
@@ -64,17 +63,19 @@ export interface TaskSerializer {
 }
 
 /**
- * Parsed task information from deserialization
+ * Parsed task information from deserialization.
+ * Date fields are ISO 8601 strings (matching the Task interface),
+ * or null when not present in the serialized text.
  */
 export interface TaskInfo {
   description: string;
   priority: string;
-  startDate: moment.Moment | null;
-  scheduledDate: moment.Moment | null;
-  dueDate: moment.Moment | null;
-  createdDate: moment.Moment | null;
-  doneDate: moment.Moment | null;
-  cancelledDate: moment.Moment | null;
+  startDate: string | null;
+  scheduledDate: string | null;
+  dueDate: string | null;
+  createdDate: string | null;
+  doneDate: string | null;
+  cancelledDate: string | null;
   recurrenceRule: string;
   tags: string[];
   id: string;
@@ -127,7 +128,10 @@ class DefaultTaskSerializer implements TaskSerializer {
   public readonly symbols: TaskSymbols = DEFAULT_TASK_SYMBOLS;
 
   /**
-   * Serialize a task to its string representation
+   * Serialize a task to its string representation.
+   *
+   * Maps the canonical Task field names (dueAt, scheduledAt, etc.)
+   * to the emoji-signifier format.
    */
   serialize(task: Task): string {
     const parts: string[] = [];
@@ -143,29 +147,29 @@ class DefaultTaskSerializer implements TaskSerializer {
       parts.push(prioritySymbol);
     }
 
-    // Add recurrence
+    // Add recurrence (use humanReadable string, not toText())
     if (task.recurrence) {
-      parts.push(`${this.symbols.recurrenceSymbol} ${task.recurrence.toText()}`);
+      parts.push(`${this.symbols.recurrenceSymbol} ${task.recurrence.humanReadable || task.recurrence.rrule}`);
     }
 
-    // Add dates
-    if (task.startDate) {
-      parts.push(`${this.symbols.startDateSymbol} ${this.formatDate(task.startDate)}`);
+    // Add dates (Task uses ISO string fields, not Moment)
+    if (task.startAt) {
+      parts.push(`${this.symbols.startDateSymbol} ${this.formatISODate(task.startAt)}`);
     }
-    if (task.scheduledDate && !task.scheduledDateIsInferred) {
-      parts.push(`${this.symbols.scheduledDateSymbol} ${this.formatDate(task.scheduledDate)}`);
+    if (task.scheduledAt) {
+      parts.push(`${this.symbols.scheduledDateSymbol} ${this.formatISODate(task.scheduledAt)}`);
     }
-    if (task.dueDate) {
-      parts.push(`${this.symbols.dueDateSymbol} ${this.formatDate(task.dueDate)}`);
+    if (task.dueAt) {
+      parts.push(`${this.symbols.dueDateSymbol} ${this.formatISODate(task.dueAt)}`);
     }
-    if (task.createdDate) {
-      parts.push(`${this.symbols.createdDateSymbol} ${this.formatDate(task.createdDate)}`);
+    if (task.createdAt) {
+      parts.push(`${this.symbols.createdDateSymbol} ${this.formatISODate(task.createdAt)}`);
     }
-    if (task.doneDate) {
-      parts.push(`${this.symbols.doneDateSymbol} ${this.formatDate(task.doneDate)}`);
+    if (task.status === 'done' && task.lastCompletedAt) {
+      parts.push(`${this.symbols.doneDateSymbol} ${this.formatISODate(task.lastCompletedAt)}`);
     }
-    if (task.cancelledDate) {
-      parts.push(`${this.symbols.cancelledDateSymbol} ${this.formatDate(task.cancelledDate)}`);
+    if (task.status === 'cancelled' && task.updatedAt) {
+      parts.push(`${this.symbols.cancelledDateSymbol} ${this.formatISODate(task.updatedAt)}`);
     }
 
     // Add ID if present
@@ -215,41 +219,42 @@ class DefaultTaskSerializer implements TaskSerializer {
   }
 
   /**
-   * Convert a task component to its string representation
+   * Convert a task component to its string representation.
+   * Maps canonical Task fields to emoji-signifier display strings.
    */
   componentToString(task: Task, shortMode: boolean, component: string): string {
     switch (component) {
       case 'description':
-        return task.description;
+        return task.description ?? '';
       case 'priority':
         return this.getPrioritySymbol(task.priority) || '';
       case 'recurrence':
         return task.recurrence 
-          ? `${this.symbols.recurrenceSymbol} ${task.recurrence.toText()}`
+          ? `${this.symbols.recurrenceSymbol} ${task.recurrence.humanReadable || task.recurrence.rrule}`
           : '';
       case 'startDate':
-        return task.startDate 
-          ? `${this.symbols.startDateSymbol} ${this.formatDate(task.startDate)}`
+        return task.startAt 
+          ? `${this.symbols.startDateSymbol} ${this.formatISODate(task.startAt)}`
           : '';
       case 'scheduledDate':
-        return task.scheduledDate && !task.scheduledDateIsInferred
-          ? `${this.symbols.scheduledDateSymbol} ${this.formatDate(task.scheduledDate)}`
+        return task.scheduledAt
+          ? `${this.symbols.scheduledDateSymbol} ${this.formatISODate(task.scheduledAt)}`
           : '';
       case 'dueDate':
-        return task.dueDate 
-          ? `${this.symbols.dueDateSymbol} ${this.formatDate(task.dueDate)}`
+        return task.dueAt 
+          ? `${this.symbols.dueDateSymbol} ${this.formatISODate(task.dueAt)}`
           : '';
       case 'createdDate':
-        return task.createdDate
-          ? `${this.symbols.createdDateSymbol} ${this.formatDate(task.createdDate)}`
+        return task.createdAt
+          ? `${this.symbols.createdDateSymbol} ${this.formatISODate(task.createdAt)}`
           : '';
       case 'doneDate':
-        return task.doneDate
-          ? `${this.symbols.doneDateSymbol} ${this.formatDate(task.doneDate)}`
+        return (task.status === 'done' && task.lastCompletedAt)
+          ? `${this.symbols.doneDateSymbol} ${this.formatISODate(task.lastCompletedAt)}`
           : '';
       case 'cancelledDate':
-        return task.cancelledDate
-          ? `${this.symbols.cancelledDateSymbol} ${this.formatDate(task.cancelledDate)}`
+        return (task.status === 'cancelled' && task.updatedAt)
+          ? `${this.symbols.cancelledDateSymbol} ${this.formatISODate(task.updatedAt)}`
           : '';
       default:
         return '';
@@ -268,34 +273,68 @@ class DefaultTaskSerializer implements TaskSerializer {
     return this.symbols.prioritySymbols[normalizedPriority as keyof PrioritySymbols] || '';
   }
 
-  private formatDate(date: moment.Moment): string {
-    return date.format('YYYY-MM-DD');
+  private formatISODate(isoString: string): string {
+    // Extract YYYY-MM-DD from an ISO 8601 string
+    return isoString.slice(0, 10);
   }
 
   private extractAndRemove(body: string, info: TaskInfo): string {
     let description = body;
+    const datePattern = '(\\d{4}-\\d{2}-\\d{2})';
 
-    // This is a simplified extraction - real implementation would be more complex
-    // Remove date patterns, priority symbols, etc. from description
-    
-    // Remove emoji signifiers and their associated values
-    const patterns = [
-      new RegExp(`${this.escapeRegex(this.symbols.startDateSymbol)}\\s*\\d{4}-\\d{2}-\\d{2}`, 'g'),
-      new RegExp(`${this.escapeRegex(this.symbols.scheduledDateSymbol)}\\s*\\d{4}-\\d{2}-\\d{2}`, 'g'),
-      new RegExp(`${this.escapeRegex(this.symbols.dueDateSymbol)}\\s*\\d{4}-\\d{2}-\\d{2}`, 'g'),
-      new RegExp(`${this.escapeRegex(this.symbols.createdDateSymbol)}\\s*\\d{4}-\\d{2}-\\d{2}`, 'g'),
-      new RegExp(`${this.escapeRegex(this.symbols.doneDateSymbol)}\\s*\\d{4}-\\d{2}-\\d{2}`, 'g'),
-      new RegExp(`${this.escapeRegex(this.symbols.cancelledDateSymbol)}\\s*\\d{4}-\\d{2}-\\d{2}`, 'g'),
-      new RegExp(`${this.escapeRegex(this.symbols.recurrenceSymbol)}\\s*[^📅⏳🛫➕✅❌🔁🏁🆔⛔🔺⏫🔼🔽⏬]+`, 'g'),
+    // Extract dates and capture values
+    const dateFields: Array<{
+      symbol: string;
+      field: 'startDate' | 'scheduledDate' | 'dueDate' | 'createdDate' | 'doneDate' | 'cancelledDate';
+    }> = [
+      { symbol: this.symbols.startDateSymbol, field: 'startDate' },
+      { symbol: this.symbols.scheduledDateSymbol, field: 'scheduledDate' },
+      { symbol: this.symbols.dueDateSymbol, field: 'dueDate' },
+      { symbol: this.symbols.createdDateSymbol, field: 'createdDate' },
+      { symbol: this.symbols.doneDateSymbol, field: 'doneDate' },
+      { symbol: this.symbols.cancelledDateSymbol, field: 'cancelledDate' },
     ];
 
-    for (const pattern of patterns) {
-      description = description.replace(pattern, '');
+    for (const { symbol, field } of dateFields) {
+      const regex = new RegExp(`${this.escapeRegex(symbol)}\\s*${datePattern}`, 'g');
+      const match = regex.exec(body);
+      if (match?.[1]) {
+        info[field] = match[1]; // ISO date string YYYY-MM-DD
+      }
+      description = description.replace(regex, '');
     }
 
+    // Extract recurrence rule
+    const recurrenceRegex = new RegExp(
+      `${this.escapeRegex(this.symbols.recurrenceSymbol)}\\s*([^📅⏳🛫➕✅❌🔁🏁🆔⛔🔺⏫🔼🔽⏬]+)`,
+      'g',
+    );
+    const recurrenceMatch = recurrenceRegex.exec(body);
+    if (recurrenceMatch?.[1]) {
+      info.recurrenceRule = recurrenceMatch[1].trim();
+    }
+    description = description.replace(recurrenceRegex, '');
+
+    // Extract ID
+    const idRegex = new RegExp(`${this.escapeRegex(this.symbols.idSymbol)}\\s*(\\S+)`, 'g');
+    const idMatch = idRegex.exec(body);
+    if (idMatch?.[1]) {
+      info.id = idMatch[1];
+    }
+    description = description.replace(idRegex, '');
+
+    // Extract dependencies
+    const depsRegex = new RegExp(`${this.escapeRegex(this.symbols.dependsOnSymbol)}\\s*(\\S+)`, 'g');
+    const depsMatch = depsRegex.exec(body);
+    if (depsMatch?.[1]) {
+      info.dependsOn = depsMatch[1].split(',').filter(Boolean);
+    }
+    description = description.replace(depsRegex, '');
+
     // Remove priority symbols
-    for (const symbol of Object.values(this.symbols.prioritySymbols)) {
-      if (symbol) {
+    for (const [name, symbol] of Object.entries(this.symbols.prioritySymbols)) {
+      if (symbol && description.includes(symbol)) {
+        info.priority = name.toLowerCase();
         description = description.replace(new RegExp(this.escapeRegex(symbol), 'g'), '');
       }
     }
@@ -427,38 +466,40 @@ const DEFAULT_SETTINGS: Settings = {
 /**
  * Current settings state (module-level singleton)
  */
-let currentSettings: Settings = { ...DEFAULT_SETTINGS };
+let currentSettings: Readonly<Settings> = Object.freeze({ ...DEFAULT_SETTINGS });
 
 /**
- * Get current plugin settings
- * @returns Current settings object
+ * Get current plugin settings (immutable snapshot).
+ * Returns a frozen object — callers cannot mutate plugin state.
+ * @returns Frozen settings object
  */
-export function getSettings(): Settings {
+export function getSettings(): Readonly<Settings> {
   return currentSettings;
 }
 
 /**
- * Update plugin settings
+ * Update plugin settings.
+ * Creates a new frozen settings object — previous references remain unchanged.
  * @param newSettings - Partial settings to merge with current settings
  */
 export function updateSettings(newSettings: Partial<Settings> | null | undefined): void {
   if (newSettings) {
-    currentSettings = {
+    currentSettings = Object.freeze({
       ...currentSettings,
       ...newSettings,
-      isShownInEditModal: {
+      isShownInEditModal: Object.freeze({
         ...currentSettings.isShownInEditModal,
         ...(newSettings.isShownInEditModal || {}),
-      },
-      statusSettings: {
+      }),
+      statusSettings: Object.freeze({
         ...currentSettings.statusSettings,
         ...(newSettings.statusSettings || {}),
-      },
-      loggingOptions: {
+      }),
+      loggingOptions: Object.freeze({
         ...currentSettings.loggingOptions,
         ...(newSettings.loggingOptions || {}),
-      },
-    };
+      }),
+    });
   }
 }
 
@@ -466,7 +507,7 @@ export function updateSettings(newSettings: Partial<Settings> | null | undefined
  * Reset settings to defaults (useful for testing)
  */
 export function resetSettings(): void {
-  currentSettings = { ...DEFAULT_SETTINGS };
+  currentSettings = Object.freeze({ ...DEFAULT_SETTINGS });
 }
 
 /**

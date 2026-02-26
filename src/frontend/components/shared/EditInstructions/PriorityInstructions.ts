@@ -1,4 +1,5 @@
-import type { Task } from "@backend/core/models/Task";
+import type { TaskDTO } from '../../../services/DTOs';
+type Task = TaskDTO;
 import type { TaskEditingInstruction } from "./TaskEditingInstruction";
 
 /**
