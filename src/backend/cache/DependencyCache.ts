@@ -74,7 +74,8 @@ export class DependencyCache {
   }
 
   getBlockedBy(taskId: string): string[] {
-    return this.graph.getDependents(taskId);
+    // Semantic: "who blocks this task?" = upstream dependencies
+    return this.graph.getDependencies(taskId);
   }
 
   getUnblockCandidates(taskId: string): string[] {

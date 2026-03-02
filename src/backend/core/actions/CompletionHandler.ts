@@ -80,9 +80,15 @@ export class CompletionHandler {
         nextTask = await this.generateNextInstance(updatedTask, completionDate);
         
         if (nextTask) {
-          // 3. Place next instance
-          const placed = await this.placeNextInstance(updatedTask, nextTask);
-          if (!placed) {
+          // 3. Place next instance (returns new blockId, or undefined)
+          const newBlockId = await this.placeNextInstance(updatedTask, nextTask);
+          if (newBlockId) {
+            // Rebuild with block info (frozen objects can't be mutated)
+            nextTask = duplicateTask(nextTask, {
+              linkedBlockId: newBlockId,
+              linkedBlockContent: serializeTask(nextTask),
+            });
+          } else {
             warnings.push('Could not place next instance in document (API unavailable)');
           }
           
@@ -166,7 +172,7 @@ export class CompletionHandler {
       
       // Determine reference date for calculation
       // For whenDone mode, use completion date; otherwise use due date
-      const isWhenDone = task.whenDone ?? (task.frequency as any)?.whenDone ?? false;
+      const isWhenDone = task.whenDone ?? (task.frequency && 'whenDone' in task.frequency ? (task.frequency as unknown as { whenDone?: boolean }).whenDone : false);
       const referenceDate = isWhenDone ? completionDate : new Date(task.dueAt);
       
       // Calculate next occurrence
@@ -178,25 +184,28 @@ export class CompletionHandler {
         return undefined;
       }
       
-      // Create next task instance
-      const nextTask = duplicateTask(task, {
+      // Build overrides for duplicateTask (the result is frozen, so gather all mutations first)
+      const overrides: { -readonly [K in keyof Task]?: Task[K] } = {
         dueAt: nextDueDate.toISOString(),
         status: 'todo',
         doneAt: undefined,
         cancelledAt: undefined,
         linkedBlockId: undefined, // Will be set after insertion
         linkedBlockContent: undefined,
-      });
-      
-      // Update with converted recurrence if it was migrated
-      if (!nextTask.recurrence && taskWithRecurrence.recurrence) {
-        nextTask.recurrence = taskWithRecurrence.recurrence;
+      };
+
+      // Include converted recurrence if it was migrated
+      if (!task.recurrence && taskWithRecurrence.recurrence) {
+        overrides.recurrence = taskWithRecurrence.recurrence;
       }
-      
+
       // Remove scheduled date if setting enabled
       if (this.settings.recurrence.removeScheduledOnRecurrence) {
-        nextTask.scheduledAt = undefined;
+        overrides.scheduledAt = undefined;
       }
+
+      // Create next task instance (returns frozen object)
+      const nextTask = duplicateTask(task, overrides);
       
       return nextTask;
     } catch (err) {
@@ -209,20 +218,22 @@ export class CompletionHandler {
   }
 
   /**
-   * Place next instance in document (above/below per settings)
+   * Place next instance in document (above/below per settings).
+   * Returns the new block ID if placed, or undefined if placement failed.
+   * Does NOT mutate the task (frozen objects).
    */
   private async placeNextInstance(
     originalTask: Task,
     nextTask: Task
-  ): Promise<boolean> {
+  ): Promise<string | undefined> {
     if (!originalTask.linkedBlockId) {
       logger.warn('Original task has no linkedBlockId, cannot place next instance');
-      return false;
+      return undefined;
     }
     
     if (!this.siyuanApi) {
       logger.warn('SiYuan API not available, cannot place next instance');
-      return false;
+      return undefined;
     }
     
     const placement = this.settings.recurrence.newTaskPosition;
@@ -237,20 +248,14 @@ export class CompletionHandler {
         result = await this.siyuanApi.insertBlockBelow(originalTask.linkedBlockId, markdown);
       }
       
-      if (result?.id) {
-        nextTask.linkedBlockId = result.id;
-        nextTask.linkedBlockContent = markdown;
-        return true;
-      }
-      
-      return false;
+      return result?.id;
     } catch (err) {
       logger.error('Failed to place next instance in document', {
         taskId: originalTask.id,
         placement,
         error: err,
       });
-      return false;
+      return undefined;
     }
   }
 

@@ -266,6 +266,13 @@ export class EventService {
     this.emit("task:runtime:recurrence", { taskId, nextDueAt, rrule });
   }
 
+  /**
+   * Emit task:runtime:deleted after a task is permanently removed.
+   */
+  emitRuntimeDeleted(taskId: string, task?: Task): void {
+    this.emit("task:runtime:deleted", { taskId, task });
+  }
+
   // ── Cache Invalidation Helpers ───────────────────────────────
 
   /**

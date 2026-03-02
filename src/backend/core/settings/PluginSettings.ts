@@ -3,6 +3,7 @@
  */
 import type { FilenameDateConfig } from "@backend/core/settings/FilenameDate";
 import type { GlobalFilterConfig, GlobalFilterProfile } from '@backend/core/filtering/FilterRule';
+import type { StatusType } from '@shared/constants/statuses/Status';
 import type { GlobalQueryConfig } from '@backend/core/query/GlobalQuery';
 import { DEFAULT_GLOBAL_FILTER_CONFIG } from '@backend/core/filtering/FilterRule';
 import { DEFAULT_GLOBAL_QUERY_CONFIG } from '@backend/core/query/GlobalQuery';
@@ -439,8 +440,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
  */
 export function mergeSettings(userSettings: Partial<PluginSettings>): PluginSettings {
   // ========== NEW: Migrate old globalFilter format to profiles ==========
-  if (userSettings.globalFilter && !(userSettings.globalFilter as Record<string, unknown>).profiles) {
-    const legacyConfig = userSettings.globalFilter as Record<string, unknown>;
+  if (userSettings.globalFilter && !(userSettings.globalFilter as unknown as Record<string, unknown>).profiles) {
+    const legacyConfig = userSettings.globalFilter as unknown as Record<string, unknown>;
 
     const migratedProfile: GlobalFilterProfile = {
       id: 'migrated-default',
@@ -456,12 +457,12 @@ export function mergeSettings(userSettings: Partial<PluginSettings>): PluginSett
       includeRegex: undefined,
       excludeRegex: undefined,
       regexTargets: ['taskText'],
-      excludeStatusTypes: (legacyConfig.excludeStatusTypes as string[]) || [],
+      excludeStatusTypes: (legacyConfig.excludeStatusTypes as StatusType[]) || [],
     };
 
     userSettings.globalFilter = {
       enabled: (legacyConfig.enabled as boolean) ?? false,
-      mode: (legacyConfig.mode as string) ?? 'all',
+      mode: ((legacyConfig.mode as string) ?? 'all') as GlobalFilterConfig['mode'],
       activeProfileId: 'migrated-default',
       profiles: [migratedProfile],
     };

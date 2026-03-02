@@ -1,4 +1,4 @@
-import type { FrequencyType } from "@backend/core/models/Frequency";
+import type { Frequency } from "@backend/core/models/Frequency";
 import type { TaskPriority } from "@backend/core/models/Task";
 import * as logger from "@backend/logging/logger";
 
@@ -6,7 +6,7 @@ export interface TaskTemplate {
   id: string;
   label: string;
   name: string;
-  frequencyType: FrequencyType;
+  frequencyType: Frequency['type'];
   interval: number;
   time: string;
   weekdays: number[];

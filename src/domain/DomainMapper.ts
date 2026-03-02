@@ -230,25 +230,25 @@ export function fromPersistenceBatch(records: readonly PersistedTask[]): DomainT
  * for display purposes only. The frontend cannot write back to the domain.
  */
 export interface TaskDTO {
-  id: string;
-  name: string;
-  status: string;
-  lifecycleState: string;
-  dueAt?: string;
-  scheduledAt?: string;
-  priority?: string;
-  tags?: string[];
-  category?: string;
-  isRecurring: boolean;
-  isBlocked: boolean;
-  isOverdue: boolean;
-  completionCount: number;
-  missCount: number;
-  currentStreak: number;
-  healthScore: number;
-  blockId?: string;
-  path?: string;
-  heading?: string;
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  readonly lifecycleState: string;
+  readonly dueAt?: string;
+  readonly scheduledAt?: string;
+  readonly priority?: string;
+  readonly tags?: readonly string[];
+  readonly category?: string;
+  readonly isRecurring: boolean;
+  readonly isBlocked: boolean;
+  readonly isOverdue: boolean;
+  readonly completionCount: number;
+  readonly missCount: number;
+  readonly currentStreak: number;
+  readonly healthScore: number;
+  readonly blockId?: string;
+  readonly path?: string;
+  readonly heading?: string;
 }
 
 /**

@@ -30,12 +30,12 @@ import * as logger from "@backend/logging/logger";
 // ──────────────────────────────────────────────────────────────
 
 export interface RecurrenceCacheEntry {
-  taskId: string;
-  rrule: string | null;
+  readonly taskId: string;
+  readonly rrule: string | null;
   /** Computed next occurrence (ISO string) — null if no recurrence */
-  nextDue: string | null;
+  readonly nextDue: string | null;
   /** Epoch ms when this entry was validated against the block */
-  validatedAt: number;
+  readonly validatedAt: number;
 }
 
 export interface RecurrenceCacheStats {
@@ -135,9 +135,10 @@ export class RecurrenceCache {
 
     const blockId = task.linkedBlockId ?? task.blockId;
     if (!blockId) {
-      e.validatedAt = now;
+      const updated = { ...e, validatedAt: now };
+      this.entries.set(taskId, updated);
       this.hits++;
-      return e;
+      return updated;
     }
 
     try {
@@ -145,22 +146,28 @@ export class RecurrenceCache {
       const attrs = await getBlockAttrs(blockId);
       const blockRrule = attrs[BLOCK_ATTR_TASK_RECURRENCE] ?? null;
 
-      if (blockRrule !== e.rrule) {
+      let rrule = e.rrule;
+      let nextDue = e.nextDue;
+
+      if (blockRrule !== rrule) {
         this.staleCorrections++;
-        logger.info("[RecurrenceCache] RRULE diverged, correcting", { taskId, cached: e.rrule, block: blockRrule });
-        e.rrule = blockRrule;
+        logger.info("[RecurrenceCache] RRULE diverged, correcting", { taskId, cached: rrule, block: blockRrule });
+        rrule = blockRrule;
         // Recompute next occurrence
         const patchedTask = { ...task, recurrence: blockRrule ? { ...task.recurrence, rrule: blockRrule } : undefined } as Task;
-        e.nextDue = this.computeNext(patchedTask);
+        nextDue = this.computeNext(patchedTask);
       }
-      e.validatedAt = now;
+
+      const validated: RecurrenceCacheEntry = { ...e, rrule, nextDue, validatedAt: now };
+      this.entries.set(taskId, validated);
       this.hits++;
-      return e;
+      return validated;
     } catch (err) {
       logger.warn("[RecurrenceCache] Validation failed", { taskId, err });
-      e.validatedAt = now; // prevent retry storm
+      const fallback = { ...e, validatedAt: now }; // prevent retry storm
+      this.entries.set(taskId, fallback);
       this.hits++;
-      return e;
+      return fallback;
     }
   }
 
@@ -178,6 +185,7 @@ export class RecurrenceCache {
     for (const task of this.repository.getAllTasks()) {
       this.populateEntry(task);
     }
+    this.eventBus.emit("cache:recurrence:updated", { scope: "full" });
   }
 
   invalidateTask(taskId: string): void {
@@ -187,6 +195,7 @@ export class RecurrenceCache {
     } else {
       this.entries.delete(taskId);
     }
+    this.eventBus.emit("cache:recurrence:updated", { scope: "task", taskId });
   }
 
   evict(taskId: string): void {

@@ -24,7 +24,6 @@ import {
   getBlockAttrs,
 } from "@backend/core/api/SiYuanApiClient";
 import {
-  BLOCK_ATTR_TASK_ID,
   BLOCK_ATTR_TASK_DUE,
   BLOCK_ATTR_TASK_STATUS,
   BLOCK_ATTR_TASK_COMPLETED_AT,
@@ -190,44 +189,51 @@ export class TaskCache {
       return task;
     }
 
-    // Fetch block attrs and reconcile
+    // Fetch block attrs and reconcile — immutable copy pattern
     try {
       this.validations++;
       const attrs = await getBlockAttrs(blockId);
       this.validatedAt.set(taskId, now);
 
+      const patches: { -readonly [K in keyof Task]?: Task[K] } = {};
       let patched = false;
+
       const blockDue = attrs[BLOCK_ATTR_TASK_DUE];
       if (blockDue && blockDue !== task.dueAt) {
-        (task as any).dueAt = blockDue;
+        patches.dueAt = blockDue;
         patched = true;
       }
       const blockStatus = attrs[BLOCK_ATTR_TASK_STATUS];
       if (blockStatus && blockStatus !== task.status) {
-        (task as any).status = blockStatus;
+        patches.status = blockStatus as Task['status'];
         patched = true;
       }
       const blockEnabled = attrs[BLOCK_ATTR_TASK_ENABLED];
       if (blockEnabled !== undefined) {
         const en = blockEnabled === "true";
         if (en !== task.enabled) {
-          (task as any).enabled = en;
+          patches.enabled = en;
           patched = true;
         }
       }
       const blockCompleted = attrs[BLOCK_ATTR_TASK_COMPLETED_AT];
       if (blockCompleted && blockCompleted !== task.lastCompletedAt) {
-        (task as any).lastCompletedAt = blockCompleted;
+        patches.lastCompletedAt = blockCompleted;
         patched = true;
       }
       const blockRecurrence = attrs[BLOCK_ATTR_TASK_RECURRENCE];
       if (blockRecurrence && task.recurrence && blockRecurrence !== task.recurrence.rrule) {
-        (task as any).recurrence = { ...task.recurrence, rrule: blockRecurrence };
+        patches.recurrence = { ...task.recurrence, rrule: blockRecurrence };
         patched = true;
       }
 
       if (patched) {
+        // Replace cache entry with a new object — never mutate in place
+        const patchedTask: Task = { ...task, ...patches };
+        this.tasks.set(taskId, patchedTask);
         this.eventBus.emit("cache:task:updated", { taskId });
+        this.hits++;
+        return patchedTask;
       }
 
       this.hits++;
@@ -324,6 +330,19 @@ export class TaskCache {
     // Full-scope invalidations
     this.unsubscribes.push(
       bus.on("task:refresh", () => this.rebuild()),
+    );
+
+    // Spec §4.2 — cache invalidation from runtime domain events
+    this.unsubscribes.push(
+      bus.on("plugin:storage:reload", () => {
+        this.rebuild();
+      }),
+    );
+    this.unsubscribes.push(
+      bus.on("task:runtime:recurrenceGenerated", (p) => {
+        // New recurrence child created — invalidate so next query picks it up
+        this.invalidateTask(p.taskId);
+      }),
     );
   }
 }

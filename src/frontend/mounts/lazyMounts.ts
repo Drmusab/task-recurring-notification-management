@@ -30,7 +30,9 @@ import type { Plugin } from "siyuan";
 import type { PluginServices } from "../../plugin/types";
 import type { MountHandle } from "./types";
 import { uiQueryService } from "../services/UIQueryService";
-import { isRuntimeReady } from "../stores/RuntimeReady.store";
+import { aiPanelReady } from "../stores/RuntimeReady.store";
+import { get } from "svelte/store";
+import * as logger from "@shared/logging/logger";
 
 /**
  * Open the Analytics Dashboard in a SiYuan Dialog.
@@ -56,9 +58,9 @@ export function openAnalyticsDashboard(options: {
   const { plugin, services } = options;
   let svelteHandle: ReturnType<typeof mount> | null = null;
 
-  // ── Lifecycle guard ──
-  if (!isRuntimeReady()) {
-    console.warn("[lazyMounts] openAnalyticsDashboard called before runtimeReady — suppressed");
+  // ── Lifecycle guard — must use aiPanelReady, not generic runtimeReady ──
+  if (!get(aiPanelReady)) {
+    logger.warn("[lazyMounts] openAnalyticsDashboard called before aiPanelReady — suppressed");
     return { destroy: () => {} };
   }
 
@@ -85,7 +87,7 @@ export function openAnalyticsDashboard(options: {
   if (container) {
     // Lazy load analytics module
     lazyLoadAnalytics(container, services).catch((err) => {
-      console.error("[TaskRecurring] Analytics lazy load failed:", err);
+      logger.error("[TaskRecurring] Analytics lazy load failed", { err });
       container.innerHTML = `
         <div style="padding:40px;text-align:center;">
           <p style="color:var(--b3-theme-error);font-size:14px;">Failed to load analytics</p>
@@ -109,7 +111,7 @@ async function lazyLoadAnalytics(
   const tasks = uiQueryService.selectDashboard();
 
   // Update the analytics store
-  const { updateAnalyticsFromTasks, taskAnalyticsStore } = await import("@stores/TaskAnalytics.store");
+  const { updateAnalyticsFromTasks, taskAnalyticsStore } = await import("@stores/index");
   updateAnalyticsFromTasks(tasks);
 
   // Get analytics snapshot

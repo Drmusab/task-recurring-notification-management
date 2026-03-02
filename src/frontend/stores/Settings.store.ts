@@ -9,6 +9,7 @@ import { writable, get } from 'svelte/store';
 import type { Writable } from 'svelte/store';
 import type { Plugin } from 'siyuan';
 import type { SettingsDTO } from '../services/DTOs';
+import * as logger from "@shared/logging/logger";
 
 /**
  * Alias for internal use — the store holds a SettingsDTO-shaped object.
@@ -94,12 +95,11 @@ function validateSettings(settings: Partial<Settings>): Settings {
 }
 
 class SettingsStore {
-  private store: Writable<Settings>;
+  private store: Writable<Settings> = writable<Settings>(getDefaultSettings());
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // Start with defaults; actual load happens async in initSettingsStore()
-    this.store = writable<Settings>(getDefaultSettings());
+    // store already initialized as field initializer
   }
 
   /**
@@ -120,7 +120,7 @@ class SettingsStore {
    */
   async load(): Promise<void> {
     if (!pluginRef) {
-      console.warn("[SettingsStore] No plugin reference — using defaults");
+      logger.warn("[SettingsStore] No plugin reference — using defaults");
       return;
     }
 
@@ -130,10 +130,10 @@ class SettingsStore {
         // Merge with defaults (new fields from updates) and validate ranges
         const merged = validateSettings(stored as Partial<Settings>);
         this.store.set(merged);
-        console.info("[SettingsStore] Loaded settings from SiYuan storage");
+        logger.info("[SettingsStore] Loaded settings from SiYuan storage");
       }
     } catch (error) {
-      console.error("[SettingsStore] Failed to load settings:", error);
+      logger.error("[SettingsStore] Failed to load settings", { error: error });
     }
   }
 
@@ -174,7 +174,7 @@ class SettingsStore {
    */
   private persistSettings(settings: Settings): void {
     if (!pluginRef) {
-      console.warn("[SettingsStore] Cannot save — no plugin reference");
+      logger.warn("[SettingsStore] Cannot save — no plugin reference");
       return;
     }
 
@@ -185,7 +185,7 @@ class SettingsStore {
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null;
       pluginRef!.saveData(SETTINGS_STORAGE_KEY, settings).catch((error) => {
-        console.error("[SettingsStore] Failed to save settings:", error);
+        logger.error("[SettingsStore] Failed to save settings", { error: error });
       });
     }, SAVE_DEBOUNCE_MS);
   }

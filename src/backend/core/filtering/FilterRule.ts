@@ -113,48 +113,8 @@ export function validateFilterRule(rule: FilterRule): { valid: boolean; error?: 
       return { valid: true };
 
     default:
-      return { valid: false, error: `Unknown rule type: ${(rule as any).type}` };
+      return { valid: false, error: `Unknown rule type: ${(rule as { type: string }).type}` };
   }
-}
-
-/**
- * NEW: Validate a profile
- */
-export function validateProfile(profile: GlobalFilterProfile): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (!profile.name || profile.name.trim().length === 0) {
-    errors.push('name: Profile name cannot be empty');
-  }
-
-  if (!profile.regexTargets || profile.regexTargets.length === 0) {
-    errors.push('regexTargets: Must include at least one target');
-  }
-
-  if (profile.includeRegex) {
-    try {
-      new RegExp(profile.includeRegex);
-    } catch (e) {
-      errors.push(`includeRegex: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
-  if (profile.excludeRegex) {
-    try {
-      new RegExp(profile.excludeRegex);
-    } catch (e) {
-      errors.push(`excludeRegex: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
-  // Validate tags start with #
-  [...profile.includeTags, ...profile.excludeTags].forEach((tag) => {
-    if (!tag.startsWith('#')) {
-      errors.push(`Invalid tag "${tag}" - must start with #`);
-    }
-  });
-
-  return { valid: errors.length === 0, errors };
 }
 
 /**

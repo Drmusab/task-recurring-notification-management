@@ -18,6 +18,7 @@
   import { uiQueryService } from "../../../services/UIQueryService";
   import QueryExplanationPanel from "@components/query/QueryExplanationPanel.svelte";
   import SavedQueriesDropdown from "@components/query/SavedQueriesDropdown.svelte";
+  import * as logger from "@shared/logging/logger";
 
   // Props — NO backend types
   export let tabPanelId: string;
@@ -73,7 +74,7 @@
         queryError = error instanceof Error ? error.message : "Query execution failed";
         queryResults = [];
         statusMessage = `Query error: ${queryError}`;
-        console.error("[QueriesView] Execution error:", error);
+        logger.error("[QueriesView] Execution error:", error);
       }
     } finally {
       if (!signal.aborted) {
@@ -120,7 +121,7 @@
         queryExplanation = null;
         showExplanation = false;
         statusMessage = `Explanation error: ${queryError}`;
-        console.error("[QueriesView] Explanation error:", error);
+        logger.error("[QueriesView] Explanation error:", error);
       }
     } finally {
       if (!signal.aborted) {

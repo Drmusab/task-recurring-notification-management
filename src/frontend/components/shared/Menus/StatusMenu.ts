@@ -1,8 +1,8 @@
-import type { StatusRegistry } from "@shared/types/StatusRegistry";
+import type { StatusRegistry } from "@shared/constants/statuses/StatusRegistry";
 import type { TaskDTO } from '../../../services/DTOs';
 type Task = TaskDTO;
-import { allStatusInstructions } from "@components/shared/EditInstructions/StatusInstructions";
-import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/shared/Menus/TaskEditingMenu";
+import { allStatusInstructions } from "@frontend/components/shared/EditInstructions/StatusInstructions";
+import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@frontend/components/shared/Menus/TaskEditingMenu";
 
 /**
  * A Menu of options for editing the status of a Task object.

@@ -2,6 +2,7 @@
  * Keyboard shortcuts store for managing custom keybindings
  */
 import { writable, get } from 'svelte/store';
+import * as logger from "@shared/logging/logger";
 
 interface KeyboardShortcut {
   id: string;
@@ -122,9 +123,9 @@ const createKeyboardShortcutsStore = () => {
       }
       
       // Update the shortcut
-      update(shortcuts => ({
+      update((shortcuts): ShortcutMap => ({
         ...shortcuts,
-        [id]: { ...shortcuts[id], keys },
+        [id]: { ...shortcuts[id]!, keys },
       }));
       
       // Auto-persist to localStorage
@@ -133,9 +134,9 @@ const createKeyboardShortcutsStore = () => {
       
       return { success: true, error: undefined };
     },
-    resetShortcut: (id: string) => update(shortcuts => ({
+    resetShortcut: (id: string) => update((shortcuts): ShortcutMap => ({
       ...shortcuts,
-      [id]: DEFAULT_SHORTCUTS[id],
+      [id]: DEFAULT_SHORTCUTS[id]!,
     })),
     resetAll: () => set(DEFAULT_SHORTCUTS),
     findConflict: (keys: string[], excludeId?: string) => {
@@ -157,7 +158,7 @@ const createKeyboardShortcutsStore = () => {
         try {
           set(JSON.parse(saved));
         } catch (e) {
-          console.error('Failed to load keyboard shortcuts', e);
+          logger.error('Failed to load keyboard shortcuts', { error: e });
           // Reset to defaults on parse error
           set(DEFAULT_SHORTCUTS);
         }

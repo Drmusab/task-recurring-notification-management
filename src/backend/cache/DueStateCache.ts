@@ -38,12 +38,12 @@ import * as logger from "@backend/logging/logger";
 // ──────────────────────────────────────────────────────────────
 
 export interface DueStateEntry {
-  taskId: string;
-  dueMs: number;
-  enabled: boolean;
-  status: string;
+  readonly taskId: string;
+  readonly dueMs: number;
+  readonly enabled: boolean;
+  readonly status: string;
   /** Epoch ms when this entry was last validated against block attrs */
-  validatedAt: number;
+  readonly validatedAt: number;
 }
 
 export interface DueStateCacheStats {
@@ -184,9 +184,11 @@ export class DueStateCache {
       // Revalidate if stale
       if (now - entry.validatedAt > DUE_VALIDATION_TTL_MS) {
         await this.revalidateEntry(entry, task);
-        // After revalidation, re-check eligibility
-        if (!entry.enabled || entry.status === "done" || entry.status === "cancelled") continue;
-        if (entry.dueMs > ms) continue;
+        // Re-read entry from map (revalidateEntry replaces it immutably)
+        const refreshed = this.entries.get(entry.taskId);
+        if (!refreshed) continue;
+        if (!refreshed.enabled || refreshed.status === "done" || refreshed.status === "cancelled") continue;
+        if (refreshed.dueMs > ms) continue;
       }
 
       freshTasks.push(task);
@@ -258,7 +260,7 @@ export class DueStateCache {
   private async revalidateEntry(entry: DueStateEntry, task: Task): Promise<void> {
     const blockId = task.linkedBlockId ?? task.blockId;
     if (!blockId) {
-      entry.validatedAt = Date.now();
+      this.entries.set(entry.taskId, { ...entry, validatedAt: Date.now() });
       return;
     }
 
@@ -266,40 +268,50 @@ export class DueStateCache {
       this.validations++;
       const attrs = await getBlockAttrs(blockId);
 
+      let dueMs = entry.dueMs;
+      let status = entry.status;
+      let enabled = entry.enabled;
+
       // Check due date
       const blockDue = attrs[BLOCK_ATTR_TASK_DUE];
       if (blockDue) {
         const blockDueMs = new Date(blockDue).getTime();
-        if (!isNaN(blockDueMs) && blockDueMs !== entry.dueMs) {
+        if (!isNaN(blockDueMs) && blockDueMs !== dueMs) {
           this.corrections++;
           logger.info("[DueStateCache] Due date corrected from block", {
             taskId: entry.taskId,
-            cached: new Date(entry.dueMs).toISOString(),
+            cached: new Date(dueMs).toISOString(),
             block: blockDue,
           });
-          entry.dueMs = blockDueMs;
+          dueMs = blockDueMs;
         }
       }
 
       // Check status
       const blockStatus = attrs[BLOCK_ATTR_TASK_STATUS];
-      if (blockStatus && blockStatus !== entry.status) {
+      if (blockStatus && blockStatus !== status) {
         this.corrections++;
-        entry.status = blockStatus;
+        status = blockStatus;
       }
 
       // Check if completed
       const completedAt = attrs[BLOCK_ATTR_TASK_COMPLETED_AT];
-      if (completedAt && entry.status !== "done") {
+      if (completedAt && status !== "done") {
         this.corrections++;
-        entry.status = "done";
-        entry.enabled = false;
+        status = "done";
+        enabled = false;
       }
 
-      entry.validatedAt = Date.now();
+      this.entries.set(entry.taskId, {
+        ...entry,
+        dueMs,
+        status,
+        enabled,
+        validatedAt: Date.now(),
+      });
     } catch (err) {
       logger.warn("[DueStateCache] Block revalidation failed", { taskId: entry.taskId, err });
-      entry.validatedAt = Date.now(); // prevent rapid retry
+      this.entries.set(entry.taskId, { ...entry, validatedAt: Date.now() }); // prevent rapid retry
     }
   }
 

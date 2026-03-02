@@ -59,6 +59,8 @@ import type {
   BootProgressConfig,
   LifecycleGate,
 } from "./types";
+import * as logger from "@shared/logging/logger";
+import { siyuanRequestSafe } from "@backend/core/api/SiYuanApiClient";
 import {
   runtimeReady,
   reminderReady,
@@ -84,17 +86,12 @@ async function waitForBootProgress(config?: BootProgressConfig): Promise<boolean
 
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch("/api/system/bootProgress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const progress = json?.data?.progress ?? json?.data ?? 0;
-        if (progress >= 100) {
-          return true;
-        }
+      const result = await siyuanRequestSafe<{ progress: number; details?: string }>(
+        "/api/system/bootProgress",
+        {},
+      );
+      if (result && result.progress >= 100) {
+        return true;
       }
     } catch {
       // Network error during boot — keep polling
@@ -102,7 +99,7 @@ async function waitForBootProgress(config?: BootProgressConfig): Promise<boolean
     await sleep(pollMs);
   }
 
-  console.warn("[MountService] Boot progress poll timed out — proceeding anyway");
+  logger.warn("[MountService] Boot progress poll timed out — proceeding anyway");
   return false;
 }
 
@@ -164,7 +161,7 @@ export class MountService {
    */
   register(name: string, gate: LifecycleGate, mountFn: () => MountHandle | void): void {
     if (this.started) {
-      console.warn(`[MountService] Cannot register "${name}" — service already started`);
+      logger.warn(`[MountService] Cannot register "${name}" — service already started`);
       return;
     }
     this.mounts.push({
@@ -194,12 +191,12 @@ export class MountService {
     if (this.started) return;
     this.started = true;
 
-    console.log("[MountService] Starting — awaiting boot progress...");
+    logger.info("[MountService] Starting — awaiting boot progress...");
 
     // Phase 1: Wait for SiYuan kernel boot to complete
     this.bootConfirmed = await waitForBootProgress(bootConfig);
     markBootComplete();
-    console.log(`[MountService] Boot progress confirmed: ${this.bootConfirmed}`);
+    logger.info(`[MountService] Boot progress confirmed: ${this.bootConfirmed}`);
 
     // Phase 2: Subscribe to gate stores and mount when ready
     this.subscribeToGates();
@@ -207,7 +204,7 @@ export class MountService {
     // Phase 3: Check if any gates are already satisfied (late start scenario)
     this.checkAndMountReady();
 
-    console.log("[MountService] Started — monitoring lifecycle gates", {
+    logger.info("[MountService] Started — monitoring lifecycle gates", {
       pendingMounts: this.mounts.filter(m => !m.mounted).map(m => m.name),
       snapshot: getLifecycleSnapshot(),
     });
@@ -266,12 +263,12 @@ export class MountService {
     if (deferred.mounted) return;
 
     try {
-      console.log(`[MountService] Mounting "${deferred.name}" (gate: ${deferred.gate})`);
+      logger.info(`[MountService] Mounting "${deferred.name}" (gate: ${deferred.gate})`);
       const handle = deferred.mount();
       deferred.handle = handle ?? null;
       deferred.mounted = true;
     } catch (err) {
-      console.error(`[MountService] Failed to mount "${deferred.name}":`, err);
+      logger.error(`[MountService] Failed to mount "${deferred.name}":`, err);
       // Mark as mounted to prevent retry loops — mount errors are not transient
       deferred.mounted = true;
     }
@@ -318,7 +315,7 @@ export class MountService {
    * This prevents gate callbacks from re-mounting during teardown.
    */
   destroyAll(): void {
-    console.log("[MountService] Destroying all mounts...");
+    logger.info("[MountService] Destroying all mounts...");
 
     // 1. Unsubscribe from gate stores (prevents new mounts during teardown)
     for (const unsub of this.gateUnsubscribers) {
@@ -333,9 +330,9 @@ export class MountService {
       if (deferred.handle) {
         try {
           deferred.handle.destroy();
-          console.log(`[MountService] Destroyed "${deferred.name}"`);
+          logger.info(`[MountService] Destroyed "${deferred.name}"`);
         } catch (err) {
-          console.error(`[MountService] Error destroying "${deferred.name}":`, err);
+          logger.error(`[MountService] Error destroying "${deferred.name}":`, err);
         }
         deferred.handle = null;
       }
@@ -347,6 +344,6 @@ export class MountService {
     this.started = false;
     this.bootConfirmed = false;
 
-    console.log("[MountService] All mounts destroyed");
+    logger.info("[MountService] All mounts destroyed");
   }
 }

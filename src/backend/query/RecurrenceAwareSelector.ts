@@ -163,11 +163,7 @@ export class RecurrenceAwareSelector {
    */
   private computeNext(task: ReadonlyTask, refDate: Date): string | null {
     try {
-      // RecurrenceEngine.next() expects a mutable Task from @domain/models/Task —
-      // we cast via `unknown` to bridge the dual-Task-type gap safely since
-      // the engine only reads from the task (it's a PURE function).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nextDate = this.engine.next(task as any, refDate);
+      const nextDate = this.engine.next(task, refDate);
       return nextDate ? nextDate.toISOString() : null;
     } catch (err) {
       logger.warn("[RecurrenceAwareSelector] Engine.next() failed", {

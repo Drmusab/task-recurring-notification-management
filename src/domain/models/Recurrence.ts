@@ -120,7 +120,7 @@ export function createRecurrence(config: {
     throw new Error(`Invalid time format: ${config.time}. Expected HH:MM`);
   }
   
-  return {
+  return Object.freeze({
     rrule: config.rrule,
     baseOnToday: config.baseOnToday ?? false,
     humanReadable: config.humanReadable || config.rrule,
@@ -128,7 +128,7 @@ export function createRecurrence(config: {
     timezone: config.timezone,
     time: config.time,
     originalInput: config.originalInput,
-  };
+  });
 }
 
 /**
@@ -180,19 +180,8 @@ export function validateRRule(rrule: string): RecurrenceValidation {
   return { valid: true, warnings: warnings.length > 0 ? warnings : undefined };
 }
 
-/**
- * Check if an object is a valid Recurrence
- */
-export function isRecurrence(obj: unknown): obj is Recurrence {
-  if (!obj || typeof obj !== 'object') return false;
-  const r = obj as Partial<Recurrence>;
-  return (
-    typeof r.rrule === 'string' &&
-    r.rrule.length > 0 &&
-    typeof r.baseOnToday === 'boolean' &&
-    typeof r.humanReadable === 'string'
-  );
-}
+// NOTE: Duplicate isRecurrence() removed (Session 25) — the canonical
+// definition is above (line ~137). The second copy was identical dead code.
 
 /**
  * Clone a Recurrence object with optional overrides
@@ -201,7 +190,7 @@ export function cloneRecurrence(
   recurrence: Recurrence,
   overrides?: Partial<Recurrence>
 ): Recurrence {
-  return {
+  return Object.freeze({
     rrule: overrides?.rrule ?? recurrence.rrule,
     baseOnToday: overrides?.baseOnToday ?? recurrence.baseOnToday,
     humanReadable: overrides?.humanReadable ?? recurrence.humanReadable,
@@ -209,7 +198,7 @@ export function cloneRecurrence(
     timezone: overrides?.timezone ?? recurrence.timezone,
     time: overrides?.time ?? recurrence.time,
     originalInput: overrides?.originalInput ?? recurrence.originalInput,
-  };
+  });
 }
 
 /**

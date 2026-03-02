@@ -1,16 +1,35 @@
 /**
- * Task Model - Single Source of Truth
- * Consolidated from previous duplicate implementations
+ * Task Model — LEGACY (DEPRECATED)
+ *
+ * @deprecated This module is superseded by two canonical sources:
+ *   - **Domain layer**: `@domain/DomainTask` — immutable entity with branded types
+ *   - **Runtime layer**: `@backend/core/models/Task` — runtime model used by all services
+ *
+ * This file remains for backward compatibility with:
+ *   - RecurrenceEngine (legacy Frequency types)
+ *   - FrequencyConverter / RecurrenceMigrationHelper
+ *   - TaskIndex
+ *
+ * Migration path:
+ *   1. New code MUST import from `@domain/DomainTask` or `@backend/core/models/Task`
+ *   2. Existing imports will be migrated incrementally
+ *   3. `TaskPriority` here includes `'none'` — use `normalizePriority()` from
+ *      `@backend/core/models/Task` which maps `'none' → 'normal'`
+ *
  * Version: 2.1.0 (Phase 3 - Hardened with Value Objects)
+ * Status: DEPRECATED — do not add new consumers
  */
 
 import type { Recurrence } from './Recurrence';
 import type { Frequency } from './Frequency';
 import type { TaskId, ISODateString } from './ValueObjects';
 
+/** @deprecated Use `TaskStatus` from `@domain/DomainTask` or `@backend/core/models/Task` */
 export type TaskStatus = 'todo' | 'done' | 'cancelled';
-export type TaskPriority = 'highest' | 'high' | 'medium' | 'low' | 'lowest' | 'none';
-export type CompletionAction = 'keep' | 'delete' | 'archive';
+/** @deprecated Use `TaskPriority` from `@domain/DomainTask` (no 'none' — uses 'normal' instead) */
+export type TaskPriority = 'highest' | 'high' | 'medium' | 'low' | 'lowest' | 'none' | 'normal';
+/** @deprecated Use `CompletionAction` from `@domain/DomainTask` */
+export type CompletionAction = 'keep' | 'delete' | 'archive' | 'customTransition';
 
 /**
  * Priority sorting weights (lower = higher priority)
@@ -19,6 +38,7 @@ export const PRIORITY_WEIGHTS: Record<TaskPriority, number> = {
   highest: 1,
   high: 2,
   medium: 3,
+  normal: 4,    // Alias for 'none' — used by backend model
   none: 4,      // No priority sits between medium and low
   low: 5,
   lowest: 6,
@@ -61,177 +81,184 @@ export interface SmartRecurrence {
 }
 
 /**
- * Task entity representing a task with full Obsidian Tasks parity
- * 
- * Schema Version: 2.1 (Phase 3 - Hardened)
+ * Task entity representing a task with full Obsidian Tasks parity.
+ *
+ * @deprecated Use `DomainTask` from `@domain/DomainTask` for domain logic,
+ * or `Task` from `@backend/core/models/Task` for runtime services.
+ * This interface remains for backward compatibility with legacy modules.
+ *
+ * Schema Version: 2.2 (Phase 3 - Immutable)
  * Migration: Version 1-2 tasks will be auto-migrated on load
- * 
- * Immutable fields: id, createdAt, version
- * All other fields can be updated via methods or direct assignment
+ *
+ * ALL fields are now readonly. Mutations go through TaskFactory or
+ * TaskService — NEVER via direct property assignment.
  */
 export interface Task {
-  // ===== Core Identity (IMMUTABLE) =====
+  // ===== Core Identity =====
   /** Unique task identifier (UUID v4) */
-  readonly id: string;  // Will use TaskId in future (breaking change)
+  readonly id: string;
   
   /** Task title/description */
-  name: string;
+  readonly name: string;
   
   /** Schema version for migrations */
   readonly version: number;
   
-  /** Creation timestamp (ISO 8601) - IMMUTABLE */
-  readonly createdAt: string;  // Will use ISODateString in future
+  /** Creation timestamp (ISO 8601) */
+  readonly createdAt: string;
   
   /** Last update timestamp (ISO 8601) */
-  updatedAt: string;  // Will use ISODateString in future
+  readonly updatedAt: string;
 
   // ===== Status & Lifecycle =====
-  /** Task status (replaces legacy 'enabled' field) */
-  status: TaskStatus;
+  /** Task status */
+  readonly status: TaskStatus;
   
   /** The character inside checkbox (e.g., ' ', 'x', '/', '>') */
-  statusSymbol?: string;
+  readonly statusSymbol?: string;
   
   /** Task completion timestamp (ISO 8601) */
-  doneAt?: string;
+  readonly doneAt?: string;
   
   /** Task cancellation timestamp (ISO 8601) */
-  cancelledAt?: string;
+  readonly cancelledAt?: string;
   
   /** LEGACY: Whether task is active (deprecated, use status) */
-  enabled?: boolean;
+  readonly enabled?: boolean;
 
   // ===== Dates (Obsidian Tasks Parity) =====
   /** Due date & time (ISO 8601) */
-  dueAt?: string;
+  readonly dueAt?: string;
   
   /** Scheduled date (when to work on it) (ISO 8601) */
-  scheduledAt?: string;
+  readonly scheduledAt?: string;
   
   /** Start date (earliest date task can begin) (ISO 8601) */
-  startAt?: string;
+  readonly startAt?: string;
   
   /** LEGACY: Last completion timestamp (deprecated, use doneAt) */
-  lastCompletedAt?: string;
+  readonly lastCompletedAt?: string;
 
   // ===== Recurrence =====
   /** LEGACY: Recurrence rule definition (deprecated in favor of 'recurrence') */
-  frequency?: Frequency;
+  readonly frequency?: Frequency;
   
   /** NEW: RRule-based recurrence (Phase 1: Dual-Engine Mode) */
-  recurrence?: Recurrence;
+  readonly recurrence?: Recurrence;
   
   /** Human-readable recurrence string (e.g., "every week") */
-  recurrenceText?: string;
+  readonly recurrenceText?: string;
   
   /** Calculate next recurrence from completion date instead of due date */
-  whenDone?: boolean;
+  readonly whenDone?: boolean;
   
   /** Links recurring task instances in a series */
-  seriesId?: string;
+  readonly seriesId?: string;
   
   /** Which instance in recurring series (0-based) */
-  occurrenceIndex?: number;
+  readonly occurrenceIndex?: number;
 
   // ===== Priority & Organization =====
   /** Task priority for routing and sorting */
-  priority?: TaskPriority;
+  readonly priority?: TaskPriority;
   
   /** Tags for categorization and filtering */
-  tags?: string[];
+  readonly tags?: readonly string[];
   
   /** Category for grouping */
-  category?: string;
+  readonly category?: string;
   
   /** Display order for manual task ordering (drag-to-reorder) */
-  order?: number;
+  readonly order?: number;
 
   // ===== Dependencies (Obsidian Tasks Parity) =====
   /** Unique task ID for dependency references */
-  taskId?: string;
+  readonly taskId?: string;
   
   /** Task IDs this task depends on (blocks this task) */
-  dependsOn?: string[];
+  readonly dependsOn?: readonly string[];
   
   /** Task IDs that depend on this task (derived, computed) */
-  blocks?: string[];
+  readonly blocks?: readonly string[];
   
   /** Task IDs blocking this task (derived, computed) */
-  blockedBy?: string[];
+  readonly blockedBy?: readonly string[];
 
   // ===== Completion Actions =====
   /** Action to take when task is completed */
-  onCompletion?: CompletionAction | OnCompletionAction;
+  readonly onCompletion?: CompletionAction | OnCompletionAction;
 
   // ===== SiYuan Integration =====
   /** Linked block ID in SiYuan */
-  linkedBlockId?: string;
+  readonly linkedBlockId?: string;
   
   /** Cached block content for quick access */
-  linkedBlockContent?: string;
+  readonly linkedBlockContent?: string;
   
   /** File path (for path-based filtering) */
-  path?: string;
+  readonly path?: string;
   
   /** Document heading/section where task is located */
-  heading?: string;
+  readonly heading?: string;
 
   // ===== Metadata & Context =====
   /** Long description or notes */
-  description?: string;
+  readonly description?: string;
   
   /** Notification channels (e.g., ["email", "telegram"]) */
-  notificationChannels?: string[];
+  readonly notificationChannels?: readonly string[];
   
   /** Timezone for scheduling (IANA timezone string) */
-  timezone?: string;
+  readonly timezone?: string;
 
   // ===== Analytics & Tracking =====
   /** Number of times task has been completed */
-  completionCount?: number;
+  readonly completionCount?: number;
   
   /** Number of times task was missed */
-  missCount?: number;
+  readonly missCount?: number;
   
   /** Current completion streak */
-  currentStreak?: number;
+  readonly currentStreak?: number;
   
   /** Best completion streak achieved */
-  bestStreak?: number;
+  readonly bestStreak?: number;
   
   /** Recent completion timestamps (ISO 8601, limited to last N) */
-  recentCompletions?: string[];
+  readonly recentCompletions?: readonly string[];
   
   /** Detailed completion history for pattern learning */
-  completionHistory?: CompletionHistoryEntry[];
+  readonly completionHistory?: readonly CompletionHistoryEntry[];
   
   /** Snooze count for this occurrence */
-  snoozeCount?: number;
+  readonly snoozeCount?: number;
   
   /** Maximum number of snoozes allowed */
-  maxSnoozes?: number;
+  readonly maxSnoozes?: number;
 
   // ===== Smart Features =====
   /** Smart recurrence configuration (ML-based pattern learning) */
-  smartRecurrence?: SmartRecurrence;
+  readonly smartRecurrence?: SmartRecurrence;
   
   /** Learning metrics from pattern analysis */
-  learningMetrics?: {
-    averageDelayMinutes: number;
-    optimalHour: number;
-    consistencyScore: number;
-    lastLearningUpdate: string;
+  readonly learningMetrics?: {
+    readonly averageDelayMinutes: number;
+    readonly optimalHour: number;
+    readonly consistencyScore: number;
+    readonly lastLearningUpdate: string;
   };
 
   // ===== Lossless Parsing (CRITICAL) =====
   /** Unrecognized line metadata preserved for lossless serialization */
-  unknownFields?: string[];
+  readonly unknownFields?: readonly string[];
 }
 
 /**
- * Create a new task with defaults and validation
- * 
+ * Create a new task with defaults and validation.
+ *
+ * @deprecated Use `TaskFactory.create()` from `@domain/TaskFactory` for domain entities,
+ * or `TaskCreationService` from `@backend/core/services/TaskCreationService` for runtime tasks.
+ *
  * @param partial - Partial task data
  * @returns Validated task with defaults
  * @throws Error if validation fails
@@ -257,7 +284,7 @@ export function createTask(partial: Partial<Task>): Task {
     throw new Error(`Invalid startAt date: ${partial.startAt}`);
   }
   
-  return {
+  const task: Task = {
     id: partial.id || generateTaskId(),
     name: partial.name || '',
     version: 2,
@@ -265,14 +292,16 @@ export function createTask(partial: Partial<Task>): Task {
     updatedAt: now,
     status: partial.status || 'todo',
     priority: partial.priority || 'none',
-    tags: partial.tags || [],
+    tags: partial.tags ? Object.freeze([...partial.tags]) : Object.freeze([] as string[]),
     completionCount: 0,
     missCount: 0,
     currentStreak: 0,
     bestStreak: 0,
-    recentCompletions: [],
+    recentCompletions: Object.freeze([] as string[]),
     ...partial,
   };
+  
+  return Object.freeze(task);
 }
 
 /**
@@ -293,7 +322,10 @@ export function generateTaskId(): string {
 }
 
 /**
- * Normalize priority value to standard enum
+ * Normalize priority value to standard enum.
+ *
+ * @deprecated Use `normalizePriority()` from `@backend/core/models/Task`
+ * which maps `'none' → 'normal'` (DomainTask-compatible).
  */
 export function normalizePriority(priority: string | undefined): TaskPriority {
   if (!priority) return 'none';

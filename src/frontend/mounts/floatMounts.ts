@@ -33,7 +33,9 @@ import type { PluginServices } from "../../plugin/types";
 import type { MountHandle, FloatMountOptions } from "./types";
 import { uiQueryService } from "../services/UIQueryService";
 import type { TaskDTO } from "../services/DTOs";
-import { isRuntimeReady } from "../stores/RuntimeReady.store";
+import { reminderReady } from "../stores/RuntimeReady.store";
+import { get } from "svelte/store";
+import * as logger from "@shared/logging/logger";
 
 /**
  * Show a reminder notification using SiYuan's Dialog API.
@@ -55,9 +57,9 @@ export function showReminderFloat(options: FloatMountOptions): MountHandle {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let dialogInstance: Dialog | null = null;
 
-  // ── Lifecycle guard ──
-  if (!isRuntimeReady()) {
-    console.warn("[floatMounts] showReminderFloat called before runtimeReady — suppressed");
+  // ── Lifecycle guard — must use reminderReady, not generic runtimeReady ──
+  if (!get(reminderReady)) {
+    logger.warn("[floatMounts] showReminderFloat called before reminderReady — suppressed");
     return { destroy: () => {} };
   }
 
@@ -117,13 +119,11 @@ async function loadDueReminders(
   try {
     // Use UIQueryService — NOT services.taskStorage.loadActive()
     const allTasks = uiQueryService.selectDashboard();
-    const now = new Date();
 
-    // Filter to due/overdue tasks via DTO fields
+    // Filter to due/overdue tasks using DTO's pre-computed isOverdue flag
     const dueOrOverdue = allTasks.filter((task: TaskDTO) => {
       if (task.status === "done" || task.status === "cancelled") return false;
-      if (!task.dueAt) return false;
-      return new Date(task.dueAt) <= now;
+      return task.isOverdue || task.lifecycleState === "due";
     });
 
     if (dueOrOverdue.length === 0) {
@@ -173,7 +173,7 @@ async function loadDueReminders(
         </div>`;
     }
   } catch (err) {
-    console.error("[TaskRecurring] Failed to load reminders for float:", err);
+    logger.error("[TaskRecurring] Failed to load reminders for float", { error: err });
     container.innerHTML = `<div style="padding:12px;color:var(--b3-theme-error);font-size:13px;">${plugin.i18n?.reminderLoadError || "Failed to load reminders"}</div>`;
   }
 }

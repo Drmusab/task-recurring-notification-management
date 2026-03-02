@@ -6,6 +6,7 @@
  */
 
 import type { Plugin } from "siyuan";
+import * as logger from "@shared/logging/logger";
 
 export interface SavedQuery {
   id: string;
@@ -104,7 +105,7 @@ export class SavedQueryStore {
       const collection = this.loadCollection();
       return collection.queries;
     } catch (error) {
-      console.error('Failed to load saved queries:', error);
+      logger.error('Failed to load saved queries', { error: error });
       return [];
     }
   }
@@ -469,7 +470,7 @@ export class SavedQueryStore {
     cachedCollection = collection;
     if (pluginRef) {
       pluginRef.saveData(STORAGE_KEY, collection).catch((err: unknown) => {
-        console.error("Failed to persist saved queries:", err);
+        logger.error("Failed to persist saved queries", { error: err });
       });
     }
   }

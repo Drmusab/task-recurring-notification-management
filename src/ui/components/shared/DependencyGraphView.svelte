@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Task } from '@backend/core/models/Task';
+  import type { BackendTask as Task } from '@models/index';
   import { DependencyGraph, type GraphNode, type GraphEdge, type DependencyGraphOptions } from '@backend/core/dependencies/DependencyGraph';
   import { onMount } from 'svelte';
 

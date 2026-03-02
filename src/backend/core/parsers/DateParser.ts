@@ -73,8 +73,8 @@ export class DateParser {
     // "in X days/weeks/months"
     const inMatch = trimmedLower.match(/^in\s+(\d+)\s+(day|days|week|weeks|month|months)$/);
     if (inMatch) {
-      const amount = parseInt(inMatch[1]);
-      const unit = inMatch[2];
+      const amount = parseInt(inMatch[1]!);
+      const unit = inMatch[2]!;
       const date = new Date(today);
       if (unit.startsWith('day')) {
         date.setDate(date.getDate() + amount);
@@ -89,8 +89,8 @@ export class DateParser {
     // "X days/weeks ago"
     const agoMatch = trimmedLower.match(/^(\d+)\s+(day|days|week|weeks|month|months)\s+ago$/);
     if (agoMatch) {
-      const amount = parseInt(agoMatch[1]);
-      const unit = agoMatch[2];
+      const amount = parseInt(agoMatch[1]!);
+      const unit = agoMatch[2]!;
       const date = new Date(today);
       if (unit.startsWith('day')) {
         date.setDate(date.getDate() - amount);
@@ -106,8 +106,8 @@ export class DateParser {
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const nextLastMatch = trimmedLower.match(/^(next|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
     if (nextLastMatch) {
-      const direction = nextLastMatch[1];
-      const targetDay = dayNames.indexOf(nextLastMatch[2]);
+      const direction = nextLastMatch[1]!;
+      const targetDay = dayNames.indexOf(nextLastMatch[2]!);
       const currentDay = today.getDay();
       let daysToAdd = targetDay - currentDay;
       
@@ -125,7 +125,7 @@ export class DateParser {
     // "Monday/Tuesday/etc" (next occurrence, including today)
     const dayOnlyMatch = trimmedLower.match(/^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
     if (dayOnlyMatch) {
-      const targetDay = dayNames.indexOf(dayOnlyMatch[1]);
+      const targetDay = dayNames.indexOf(dayOnlyMatch[1]!);
       const currentDay = today.getDay();
       let daysToAdd = targetDay - currentDay;
       if (daysToAdd < 0) daysToAdd += 7;
@@ -273,7 +273,7 @@ export class DateParser {
     // Named days (next occurrence)
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     for (let i = 0; i < dayNames.length; i++) {
-      const dayName = dayNames[i];
+      const dayName = dayNames[i]!;
       if (!input || dayName.toLowerCase().includes(input) || `next ${dayName}`.toLowerCase().includes(input)) {
         const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         // Convert our array index (0=Monday, 1=Tuesday, ..., 6=Sunday) to Date.getDay() format
@@ -358,8 +358,8 @@ export class DateParser {
     // 24-hour format (14:00, 09:30)
     const time24Match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
     if (time24Match) {
-      const hours = parseInt(time24Match[1]);
-      const minutes = parseInt(time24Match[2]);
+      const hours = parseInt(time24Match[1]!);
+      const minutes = parseInt(time24Match[2]!);
       if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
         return { hours, minutes };
       }
@@ -368,7 +368,7 @@ export class DateParser {
     // 12-hour format with am/pm (9am, 2:30pm, 3:45 pm)
     const time12Match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
     if (time12Match) {
-      let hours = parseInt(time12Match[1]);
+      let hours = parseInt(time12Match[1]!);
       const minutes = time12Match[2] ? parseInt(time12Match[2]) : 0;
       const period = time12Match[3];
 

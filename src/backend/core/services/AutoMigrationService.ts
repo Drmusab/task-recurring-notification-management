@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Auto-Migration Service - Phase 2 automatic migration on edit
  * 
  * This service handles automatic migration of legacy Frequency-based tasks
@@ -27,7 +27,7 @@ export interface MigrationResult {
 }
 
 /**
- * Allowed migration triggers — prevents runtime misuse.
+ * Allowed migration triggers â€” prevents runtime misuse.
  */
 export type MigrationTrigger = "boot" | "user-edit" | "manual-migrate-all";
 
@@ -49,7 +49,7 @@ export class AutoMigrationService {
       return false;
     }
 
-    return FrequencyConverter.shouldConvert(task as any);
+    return FrequencyConverter.shouldConvert(task);
   }
 
   /**
@@ -70,7 +70,7 @@ export class AutoMigrationService {
     }
 
     // Attempt conversion
-    const migratedTask = FrequencyConverter.updateTaskRecurrence(task as any, true);
+    const migratedTask = FrequencyConverter.updateTaskRecurrence(task, true);
 
     if (!migratedTask) {
       return {
@@ -84,7 +84,7 @@ export class AutoMigrationService {
     return {
       migrated: true,
       originalTask: task,
-      migratedTask: migratedTask as any,
+      migratedTask: migratedTask,
     };
   }
 
@@ -113,7 +113,7 @@ export class AutoMigrationService {
   }> {
     // Guard: prevent repeated batch migrations in the same session
     if (trigger === "boot" && this.batchMigrationComplete) {
-      logger.warn("[AutoMigrationService] Boot migration already completed this session — skipping");
+      logger.warn("[AutoMigrationService] Boot migration already completed this session â€” skipping");
       return { total: tasks.length, migrated: 0, skipped: tasks.length, failed: 0, errors: [] };
     }
     const stats = {
@@ -139,7 +139,7 @@ export class AutoMigrationService {
         }
 
         // Convert - Phase 3: Remove frequency field after migration (preserveFrequency = false)
-        const migrated = FrequencyConverter.updateTaskRecurrence(task as any, false);
+        const migrated = FrequencyConverter.updateTaskRecurrence(task, false);
 
         if (!migrated) {
           stats.failed++;
@@ -151,7 +151,7 @@ export class AutoMigrationService {
         }
 
         // Persist
-        await updateCallback(migrated as any);
+        await updateCallback(migrated);
         stats.migrated++;
       } catch (error) {
         stats.failed++;
@@ -180,7 +180,7 @@ export class AutoMigrationService {
     migrated?: string;
     warning?: string;
   } {
-    const preview = FrequencyConverter.previewConversion(task as any);
+    const preview = FrequencyConverter.previewConversion(task);
     return {
       canMigrate: preview.canConvert,
       current: preview.current,
@@ -193,14 +193,14 @@ export class AutoMigrationService {
    * Get count of tasks that need migration
    */
   getTasksNeedingMigrationCount(tasks: Task[]): number {
-    return tasks.filter(task => FrequencyConverter.shouldConvert(task as any)).length;
+    return tasks.filter(task => FrequencyConverter.shouldConvert(task)).length;
   }
 
   /**
    * Get all tasks that need migration
    */
   getTasksNeedingMigration(tasks: Task[]): Task[] {
-    return tasks.filter(task => FrequencyConverter.shouldConvert(task as any));
+    return tasks.filter(task => FrequencyConverter.shouldConvert(task));
   }
 }
 

@@ -278,7 +278,8 @@ export class EventService {
       this.notificationState.resetEscalation(task.id);
       await this.notificationState.save();
     } catch (error) {
-      logger.error("Failed to handle task completed event", error, {
+      logger.error("Failed to handle task completed event", {
+        error,
         taskId: task.id,
         taskName: task.name
       });
@@ -295,7 +296,8 @@ export class EventService {
     try {
       await this.emitTaskEvent("task.snoozed", task, 0);
     } catch (error) {
-      logger.error("Failed to handle task snoozed event", error, {
+      logger.error("Failed to handle task snoozed event", {
+        error,
         taskId: task.id,
         taskName: task.name
       });
@@ -339,7 +341,8 @@ export class EventService {
       // Save state with error handling
       await this.notificationState.save();
     } catch (error) {
-      logger.error("Failed to handle task due event", error, {
+      logger.error("Failed to handle task due event", {
+        error,
         taskId: event.taskId,
         dueAt: event.dueAt.toISOString()
       });
@@ -370,7 +373,8 @@ export class EventService {
       // Save state with error handling
       await this.notificationState.save();
     } catch (error) {
-      logger.error("Failed to handle task overdue event", error, {
+      logger.error("Failed to handle task overdue event", {
+        error,
         taskId: event.taskId,
         dueAt: event.dueAt.toISOString()
       });
@@ -404,7 +408,8 @@ export class EventService {
         this.enqueue(payload);
       }
     } catch (error) {
-      logger.error("Failed to emit task event", error, {
+      logger.error("Failed to emit task event", {
+        error,
         event,
         taskId: task.id,
         taskName: task.name,
@@ -561,7 +566,7 @@ export class EventService {
       },
       routing: {
         escalationLevel,
-        channels: task.notificationChannels || [],
+        channels: [...(task.notificationChannels || [])],
       },
       delivery: {
         dedupeKey,
@@ -728,13 +733,13 @@ export class EventService {
     if (!config) return false;
     
     // If webhook URL configured, validate it
-    if (config.webhookUrl && !this.isValidUrl(config.webhookUrl)) {
-      logger.error('Invalid webhook URL in config', { url: config.webhookUrl });
+    if (config.n8n?.webhookUrl && !this.isValidUrl(config.n8n.webhookUrl)) {
+      logger.error('Invalid webhook URL in config', { url: config.n8n.webhookUrl });
       return false;
     }
 
     // Validate enabled flag exists
-    if (config.enabled === undefined || config.enabled === null) {
+    if (config.n8n?.enabled === undefined || config.n8n?.enabled === null) {
       logger.error('Config missing enabled flag');
       return false;
     }

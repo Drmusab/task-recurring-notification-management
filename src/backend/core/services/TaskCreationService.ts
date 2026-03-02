@@ -59,36 +59,42 @@ export class TaskCreationService {
     // Create base task (legacy method)
     // Note: Legacy createTask requires a frequency, we'll use a dummy one if needed
     const freq = frequency || this.getDefaultFrequency();
-    const task = createTaskLegacy(options.name, freq, dueDate);
+    const baseTask = createTaskLegacy(options.name, freq as unknown as Parameters<typeof createTaskLegacy>[1], dueDate);
+
+    // Build overrides — baseTask is frozen, so we collect all patches and spread
+    const overrides: { -readonly [K in keyof Task]?: Task[K] } = {};
 
     // Add RRule recurrence if available
     if (recurrence) {
-      task.recurrence = recurrence;
-      task.recurrenceText = this.recurrenceEngine.toNaturalLanguage(recurrence.rrule, recurrence.referenceDate ? new Date(recurrence.referenceDate) : undefined);
+      overrides.recurrence = recurrence;
+      overrides.recurrenceText = this.recurrenceEngine.toNaturalLanguage(recurrence.rrule, recurrence.referenceDate ? new Date(recurrence.referenceDate) : undefined);
     }
 
     // Apply additional options
     if (options.priority) {
-      task.priority = options.priority as any;
+      overrides.priority = options.priority as Task['priority'];
     }
 
     if (options.tags) {
-      task.tags = options.tags;
+      overrides.tags = options.tags;
     }
 
     if (options.description) {
-      task.description = options.description;
+      overrides.description = options.description;
     }
 
     if (options.notificationChannels) {
-      task.notificationChannels = options.notificationChannels;
+      overrides.notificationChannels = options.notificationChannels;
     }
 
     if (options.timezone) {
-      task.timezone = options.timezone;
+      overrides.timezone = options.timezone;
     }
 
-    return task;
+    // Return merged task (frozen copy)
+    return Object.keys(overrides).length > 0
+      ? { ...baseTask, ...overrides }
+      : baseTask;
   }
 
   /**
@@ -114,18 +120,6 @@ export class TaskCreationService {
     // TODO: Phase 3 - Implement natural language parser
     // For now, throw an error to indicate this feature is not yet available
     throw new Error('Natural language recurrence parsing not yet implemented. Use RRULE strings or Frequency objects instead.');
-    
-    /* Future implementation:
-    const dueDate = this.parseDueDate(options.dueAt);
-    const rruleString = parseNaturalLanguageToRRule(options.recurrenceText);
-    const recurrence: Recurrence = {
-      rrule: rruleString,
-      baseOnToday: false,
-      humanReadable: options.recurrenceText,
-      referenceDate: dueDate
-    };
-    return this.createTask({ ...options, recurrence });
-    */
   }
 
   /**

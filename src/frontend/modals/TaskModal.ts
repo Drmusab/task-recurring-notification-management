@@ -21,9 +21,9 @@
 
 import { Dialog, showMessage } from "siyuan";
 import type { Plugin } from "siyuan";
-import { createUnifiedEditor } from "@components/shared/EditTaskUnified";
+import { createUnifiedEditor } from "@frontend/components/shared/EditTaskUnified";
 import type { TaskDTO } from '../services/DTOs';
-import type { Status } from "@shared/types/Status";
+import type { Status } from "@shared/constants/statuses/Status";
 import { uiMutationService } from '../services/UITaskMutationService';
 import { uiEventService } from '../services/UIEventService';
 import * as logger from "@shared/logging/logger";
@@ -85,7 +85,7 @@ export class TaskModal {
         const taskData = this.task;
 
         this.editorInstance = createUnifiedEditor(container, {
-            task: taskData,
+            task: taskData!,
             statusOptions: this.statusOptions,
             onSubmit: async (updatedTask: TaskDTO) => {
                 try {

@@ -38,6 +38,7 @@ import type { MountHandle, DialogMountOptions } from "./types";
 import { uiMutationService } from "../services/UITaskMutationService";
 import { uiEventService } from "../services/UIEventService";
 import { isRuntimeReady } from "../stores/RuntimeReady.store";
+import * as logger from "@shared/logging/logger";
 
 // ─── Task Edit Dialog ───────────────────────────────────────
 
@@ -58,7 +59,7 @@ import { isRuntimeReady } from "../stores/RuntimeReady.store";
 export async function openTaskEditDialog(options: DialogMountOptions): Promise<MountHandle> {
   // ── Lifecycle guard: prevent editing with stale domain data ──
   if (!isRuntimeReady()) {
-    console.warn("[dialogMounts] openTaskEditDialog called before runtimeReady — suppressed");
+    logger.warn("[dialogMounts] openTaskEditDialog called before runtimeReady — suppressed");
     showMessage("Plugin is still loading, please wait…", 4000, "info");
     return { destroy: () => {} };
   }
@@ -109,7 +110,7 @@ export async function openTaskEditDialog(options: DialogMountOptions): Promise<M
     try {
       // Use the existing createUnifiedEditor from EditTaskUnified.ts
       // which mounts EditTask + BlockActionsEditor + TagsCategoryEditor + AISuggestionsPanel
-      const { createUnifiedEditor } = await import("@components/shared/EditTaskUnified");
+      const { createUnifiedEditor } = await import("@frontend/components/shared/EditTaskUnified");
 
       const defaultTask = task || {
         id: crypto.randomUUID(),
@@ -134,7 +135,7 @@ export async function openTaskEditDialog(options: DialogMountOptions): Promise<M
       };
 
       const editor = createUnifiedEditor(container, {
-        task: defaultTask,
+        task: defaultTask as TaskDTO,
         statusOptions: [],
         onSubmit: async (updatedTask: Task) => {
           if (onSave) {
@@ -156,10 +157,10 @@ export async function openTaskEditDialog(options: DialogMountOptions): Promise<M
         "#task-edit-dialog-root"
       );
       if (originalDestroy) {
-        (originalDestroy as any).__editorInstance = editor;
+        (originalDestroy as HTMLElement & { __editorInstance?: unknown }).__editorInstance = editor;
       }
     } catch (err) {
-      console.error("[TaskRecurring] Failed to mount task editor in dialog:", err);
+      logger.error("[TaskRecurring] Failed to mount task editor in dialog", { error: err });
       container.innerHTML = `<div style="padding:20px;color:var(--b3-theme-error);">Failed to load task editor</div>`;
     }
   }
@@ -187,7 +188,7 @@ export async function openRecurrenceDialog(options: {
 }): Promise<MountHandle> {
   // ── Lifecycle guard ──
   if (!isRuntimeReady()) {
-    console.warn("[dialogMounts] openRecurrenceDialog called before runtimeReady — suppressed");
+    logger.warn("[dialogMounts] openRecurrenceDialog called before runtimeReady — suppressed");
     showMessage("Plugin is still loading, please wait…", 4000, "info");
     return { destroy: () => {} };
   }
@@ -224,7 +225,7 @@ export async function openRecurrenceDialog(options: {
         },
       });
     } catch (err) {
-      console.error("[TaskRecurring] Failed to mount recurrence editor:", err);
+      logger.error("[TaskRecurring] Failed to mount recurrence editor", { error: err });
       container.innerHTML = `<div style="padding:20px;color:var(--b3-theme-error);">Failed to load recurrence editor</div>`;
     }
   }

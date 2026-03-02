@@ -395,25 +395,30 @@ export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider 
   }
 
   /**
-   * Get all tasks
+   * Get all tasks.
+   * Returns shallow-frozen copies to enforce immutability outside storage.
    */
   getAllTasks(): Task[] {
-    return Array.from(this.activeTasks.values());
+    return Array.from(this.activeTasks.values()).map(t => Object.freeze({ ...t }));
   }
 
   /**
-   * Get a task by ID
+   * Get a task by ID.
+   * Returns a shallow-frozen copy to prevent external mutation.
    */
   getTask(id: string): Task | undefined {
-    return this.activeTasks.get(id);
+    const task = this.activeTasks.get(id);
+    return task ? Object.freeze({ ...task }) : undefined;
   }
 
   /**
-   * Get a task by linked block ID
+   * Get a task by linked block ID.
+   * Returns a shallow-frozen copy to prevent external mutation.
    */
   getTaskByBlockId(blockId: string): Task | undefined {
     const taskId = this.indexManager.getTaskByBlockId(blockId);
-    return taskId ? this.activeTasks.get(taskId) : undefined;
+    const task = taskId ? this.activeTasks.get(taskId) : undefined;
+    return task ? Object.freeze({ ...task }) : undefined;
   }
 
   /**
@@ -431,53 +436,52 @@ export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider 
       }
     }
     
-    // Increment version on save
-    task.version = (task.version ?? 0) + 1;
+    // Increment version on save — work on a mutable copy to avoid mutating caller's frozen object
+    const mutable: { -readonly [K in keyof Task]: Task[K] } = { ...task, version: (task.version ?? 0) + 1 };
     
-    const previousTask = this.activeTasks.get(task.id);
+    const previousTask = this.activeTasks.get(mutable.id);
     const previousBlockId = previousTask?.linkedBlockId;
     
     // ✅ FIX: Create snapshot for transaction rollback
     const snapshot: TaskSnapshot = {
-      task: { ...task },
-      existed: this.activeTasks.has(task.id),
+      task: { ...mutable },
+      existed: this.activeTasks.has(mutable.id),
       previousTask: previousTask ? { ...previousTask } : undefined,
-      version: task.version
+      version: mutable.version
     };
 
     try {
       // Phase 1: Update index manager
       if (previousTask) {
-        this.indexManager.updateTask(task.id, previousTask, task);
+        this.indexManager.updateTask(mutable.id, previousTask, mutable);
       } else {
-        this.indexManager.addTask(task.id, task);
+        this.indexManager.addTask(mutable.id, mutable);
       }
 
       // Phase 2: Update in-memory state
-      task.updatedAt = new Date().toISOString();
-      this.activeTasks.set(task.id, task);
+      mutable.updatedAt = new Date().toISOString();
+      this.activeTasks.set(mutable.id, mutable);
       
       // Phase 3: Persist to disk
       await this.save();
 
       // Phase 4: Sync to block attributes for persistence with retry
-      if (task.linkedBlockId) {
-        await this.syncTaskToBlockAttrsWithRetry(task);
+      if (mutable.linkedBlockId) {
+        await this.syncTaskToBlockAttrsWithRetry(mutable);
       }
 
       // Phase 5: Clean up old block attributes if block changed
-      if (previousBlockId && previousBlockId !== task.linkedBlockId) {
+      if (previousBlockId && previousBlockId !== mutable.linkedBlockId) {
         await this.clearBlockAttrs(previousBlockId);
       }
 
-      logger.info(`Task saved successfully: ${task.name}`, { taskId: task.id });
+      logger.info(`Task saved successfully: ${mutable.name}`, { taskId: mutable.id });
 
     } catch (error) {
       // ✅ FIX: Rollback on any error to maintain consistency
       logger.error(
         `Failed to save task "${task.name}", rolling back changes`,
-        error as Error,
-        { taskId: task.id }
+        { error: error as Error, taskId: task.id }
       );
 
       await this.rollbackTaskSave(snapshot);
@@ -501,15 +505,14 @@ export class TaskStorage implements TaskStorageProvider, TaskRepositoryProvider 
       } else {
         // Remove the new task that failed to save
         this.activeTasks.delete(snapshot.task.id);
-        this.indexManager.removeTask(snapshot.task.id);
+        this.indexManager.removeTask(snapshot.task.id, snapshot.task);
       }
 
       logger.info('Task save rolled back successfully', { taskId: snapshot.task.id });
     } catch (rollbackError) {
       logger.error(
         'CRITICAL: Rollback failed - data may be inconsistent',
-        rollbackError as Error,
-        { taskId: snapshot.task.id }
+        { error: rollbackError as Error, taskId: snapshot.task.id }
       );
       // Note: We cannot recover from rollback failure
       // This should trigger manual intervention

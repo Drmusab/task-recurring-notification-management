@@ -56,6 +56,15 @@ export class AIOrchestrator {
     // NOTE: No computation here — subscriptions are deferred to init()
   }
 
+  /**
+   * Expose the SmartSuggestionEngine for late-binding into ExecutionPipeline.
+   * The pipeline is created in Phase 6 but AIOrchestrator in Phase 7,
+   * so this getter enables post-construction injection.
+   */
+  getEngine(): SmartSuggestionEngine {
+    return this.engine;
+  }
+
   // ─── Lifecycle ────────────────────────────────────────────
 
   /** Call from onLayoutReady(). Loads persisted state and subscribes to events. */

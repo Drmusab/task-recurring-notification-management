@@ -11,22 +11,22 @@
 
 export interface Frequency {
   /** Recurrence type */
-  type: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+  readonly type: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
   
   /** Interval between recurrences (e.g., every 2 weeks) */
-  interval: number;
+  readonly interval: number;
   
   /** Days of week for weekly recurrence (0=Sunday, 6=Saturday) */
-  daysOfWeek?: number[];
+  readonly daysOfWeek?: readonly number[];
   
   /** Day of month for monthly recurrence (1-31) */
-  dayOfMonth?: number;
+  readonly dayOfMonth?: number;
   
   /** Month of year for yearly recurrence (1-12) */
-  monthOfYear?: number;
+  readonly monthOfYear?: number;
   
   /** Optional RRule string (migration path to Phase 3) */
-  rrule?: string;
+  readonly rrule?: string;
 }
 
 /**

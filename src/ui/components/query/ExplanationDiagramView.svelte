@@ -4,6 +4,7 @@
   import type { QueryAST } from "@backend/core/query/QueryParser";
   import type { Explanation } from "@backend/core/query/QueryExplanation";
   import type { DiagramOptions, DiagramResult } from "@backend/core/query/ExplanationDiagramGenerator";
+  import * as logger from "@shared/logging/logger";
 
   // Lazy-loaded mermaid module (loaded only when component mounts)
   let mermaidModule: any = null;
@@ -41,7 +42,7 @@
       const { svg } = await mermaidModule.render(id, syntax);
       return svg;
     } catch (error) {
-      console.error("Mermaid rendering error:", error);
+      logger.error("Mermaid rendering error:", error);
       return `<pre class="mermaid-error">${error instanceof Error ? error.message : "Rendering failed"}</pre>`;
     }
   }
@@ -185,7 +186,7 @@
       
       img.src = url;
     } catch (error) {
-      console.error("PNG export failed:", error);
+      logger.error("PNG export failed:", error);
       alert("Failed to export PNG. Please try copying the syntax instead.");
     }
   }

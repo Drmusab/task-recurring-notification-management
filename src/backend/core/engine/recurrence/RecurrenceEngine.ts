@@ -13,9 +13,9 @@
  */
 
 import { RRule, rrulestr, RRuleSet } from 'rrule';
-import type { Task } from '@domain/models/Task';
-import type { Frequency } from '@domain/models/Frequency';
-import { frequencyToRRule } from '@domain/models/Frequency';
+import type { Task } from '@backend/core/models/Task';
+import type { Frequency } from '@backend/core/models/Frequency';
+import { frequencyToRRule } from '@backend/core/models/Frequency';
 import type { 
   IRecurrenceEngine, 
   RecurrenceExplanation, 
@@ -506,10 +506,10 @@ export class RecurrenceEngine implements IRecurrenceEngine {
       return ref;
     }
     
-    // Fixed mode: anchor to the original dtstart so the schedule doesn't drift
-    const dtstart = task.recurrence?.dtstart;
-    if (dtstart) {
-      const parsed = new Date(dtstart);
+    // Fixed mode: anchor to the original referenceDate so the schedule doesn't drift
+    const refDate = task.recurrence?.referenceDate;
+    if (refDate) {
+      const parsed = new Date(refDate);
       if (!isNaN(parsed.getTime())) {
         return parsed;
       }
@@ -581,7 +581,7 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     options?: CalculateNextOptions
   ): Date {
     // Resolve whenDone: options overrides frequency-level whenDone
-    const whenDone = options?.whenDone ?? (frequency as any).whenDone ?? false;
+    const whenDone = options?.whenDone ?? frequency.whenDone ?? false;
     const completionDate = options?.completionDate;
     
     // Determine base date for calculation
@@ -597,7 +597,7 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     }
     
     // Normalize weekdays: tests use `weekdays` (0=Mon..6=Sun) but Frequency uses `daysOfWeek` (0=Sun..6=Sat)
-    const rawWeekdays = frequency.daysOfWeek ?? (frequency as any).weekdays;
+    const rawWeekdays = frequency.daysOfWeek ?? frequency.weekdays;
     const normalizedFreq: Frequency = {
       ...frequency,
       interval: safeInterval,
@@ -651,7 +651,7 @@ export class RecurrenceEngine implements IRecurrenceEngine {
     
     try {
       const parts = frequency.time.split(':').map(Number);
-      const hours = parts[0];
+      const hours = parts[0]!;
       const minutes = parts[1] ?? 0;
       if (!Number.isFinite(hours)) return date;
       

@@ -59,6 +59,6 @@ export class SchedulerTimer {
     this.timeoutId = globalThis.setTimeout(() => {
       this.onTick();
       this.scheduleNextTick();
-    }, delay) as number;
+    }, delay) as unknown as number;
   }
 }

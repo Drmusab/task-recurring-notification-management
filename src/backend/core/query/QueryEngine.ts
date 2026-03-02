@@ -3,7 +3,9 @@ import { normalizePriority } from '@backend/core/models/Task';
 import { calculateUrgencyScore } from '@backend/core/urgency/UrgencyScoreCalculator';
 import type { UrgencySettings } from '@backend/core/urgency/UrgencySettings';
 import { DEFAULT_URGENCY_SETTINGS } from '@backend/core/urgency/UrgencySettings';
-import type { QueryAST, FilterNode, SortNode, GroupNode } from "@backend/core/query/QueryParser";
+import type { QueryAST, FilterNode, SortNode, GroupNode, DateFilterValue } from "@backend/core/query/QueryParser";
+import { StatusType } from '@shared/constants/statuses/Status';
+import type { RegexSpec } from '@backend/core/query/utils/RegexMatcher';
 import { QueryParser } from "@backend/core/query/QueryParser";
 import { QueryCache } from '@backend/core/cache/QueryCache';
 import { QueryExecutionError } from "@backend/core/query/QueryError";
@@ -302,31 +304,33 @@ export class QueryEngine {
 
       case 'status':
         if (node.operator === 'type-is') {
-          return new StatusTypeFilter(node.value, node.negate);
+          return new StatusTypeFilter(node.value as StatusType, node.negate);
         } else if (node.operator === 'name-includes') {
-          return new StatusNameFilter(node.value, node.negate);
+          return new StatusNameFilter(node.value as string, node.negate);
         } else if (node.operator === 'symbol-is') {
-          return new StatusSymbolFilter(node.value, node.negate);
+          return new StatusSymbolFilter(node.value as string, node.negate);
         }
         throw new QueryExecutionError(`Unknown status operator: ${node.operator}`);
 
-      case 'date':
+      case 'date': {
+        const dateVal = node.value as DateFilterValue;
         if (node.operator === 'has') {
-          return new HasDateFilter(node.value.field, node.negate);
+          return new HasDateFilter(dateVal.field, node.negate);
         } else if (node.operator === 'between') {
           return new DateComparisonFilter(
-            node.value.field as DateField,
+            dateVal.field,
             node.operator as DateComparator,
-            node.value.date,
-            node.value.endDate
+            dateVal.date!,
+            dateVal.endDate
           );
         } else {
           return new DateComparisonFilter(
-            node.value.field as DateField,
+            dateVal.field,
             node.operator as DateComparator,
-            node.value.date
+            dateVal.date!
           );
         }
+      }
 
       case 'priority':
         return new PriorityFilter(
@@ -364,11 +368,11 @@ export class QueryEngine {
         if (node.operator === 'has') {
           return new HasTagsFilter(!node.value);
         } else {
-          return new TagIncludesFilter(node.value, node.negate);
+          return new TagIncludesFilter(node.value as string, node.negate);
         }
 
       case 'path':
-        return new PathFilter(node.value, node.negate);
+        return new PathFilter(node.value as string, node.negate);
 
       case 'dependency':
         if (node.operator === 'is-blocked') {
@@ -384,38 +388,38 @@ export class QueryEngine {
       case 'description':
         return new DescriptionFilter(
           node.operator as 'includes' | 'does not include' | 'regex',
-          node.value,
+          node.value as string,
           node.negate
         );
 
       case 'description-regex':
-        return new DescriptionRegexFilter(node.value, node.negate);
+        return new DescriptionRegexFilter(node.value as RegexSpec, node.negate);
 
       case 'path-regex':
-        return new PathRegexFilter(node.value, node.negate);
+        return new PathRegexFilter(node.value as RegexSpec, node.negate);
 
       case 'tag-regex':
-        return new TagRegexFilter(node.value, node.negate);
+        return new TagRegexFilter(node.value as RegexSpec, node.negate);
 
       case 'heading':
         return new HeadingFilter(
           node.operator as 'includes' | 'does not include',
-          node.value
+          node.value as string
         );
 
       case 'boolean':
         if (node.operator === 'AND' && node.left && node.right) {
           return new AndFilter(
-            this.createFilter(node.left, referenceDate),
-            this.createFilter(node.right, referenceDate)
+            this.createFilter(node.left, referenceDate, attentionProfileProvider),
+            this.createFilter(node.right, referenceDate, attentionProfileProvider)
           );
         } else if (node.operator === 'OR' && node.left && node.right) {
           return new OrFilter(
-            this.createFilter(node.left, referenceDate),
-            this.createFilter(node.right, referenceDate)
+            this.createFilter(node.left, referenceDate, attentionProfileProvider),
+            this.createFilter(node.right, referenceDate, attentionProfileProvider)
           );
         } else if (node.operator === 'NOT' && node.inner) {
-          return new NotFilter(this.createFilter(node.inner, referenceDate));
+          return new NotFilter(this.createFilter(node.inner, referenceDate, attentionProfileProvider));
         }
         throw new QueryExecutionError(`Invalid boolean operator: ${node.operator}`);
 
@@ -431,7 +435,7 @@ export class QueryEngine {
     const sorted = [...tasks];
     
     // Check if multi-field sorting is used
-    const sortFields = (sort as any).sortFields as { field: string; reverse?: boolean }[] | undefined;
+    const sortFields = sort.sortFields;
     const fieldsToSort = sortFields || [{ field: sort.field, reverse: sort.reverse }];
 
     sorted.sort((a, b) => {

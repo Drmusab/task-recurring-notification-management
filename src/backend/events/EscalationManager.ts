@@ -270,7 +270,7 @@ export class EscalationManager {
       return { escalated: false, level: currentLevel, reason: "Escalation policy disabled" };
     }
 
-    const levels = policy?.levels ?? DEFAULT_ESCALATION_LEVELS;
+    const levels = [...(policy?.levels ?? DEFAULT_ESCALATION_LEVELS)] as Array<{ missCount: number; action: string; channels?: string[] }>;
     const newLevel = this.notifState.incrementEscalation(taskId);
 
     // Find the matching escalation tier

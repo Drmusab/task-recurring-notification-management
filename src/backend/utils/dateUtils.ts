@@ -114,7 +114,7 @@ export function normalizeDueDateFull(
  * Convenience wrapper for the most common use case.
  */
 export function getTaskDueDate(task: ReadonlyTask): Date | null {
-  return normalizeDueDate(task.dueAt, (task as any).timezone);
+  return normalizeDueDate(task.dueAt, task.timezone);
 }
 
 // ──────────────────────────────────────────────────────────────

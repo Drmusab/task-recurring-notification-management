@@ -49,6 +49,8 @@ export interface RetryManagerDeps {
   pluginEventBus: PluginEventBus;
   /** Called when a delivery should be retried (typically IntegrationDispatcher.retry) */
   onRetry: (record: DeliveryRecord) => Promise<boolean>;
+  /** Lookup current task status before retry — returns undefined if task not found */
+  getTaskStatus?: (taskId: string) => string | undefined;
 }
 
 export interface RetryConfig {
@@ -130,6 +132,7 @@ export class RetryManager {
   private readonly blockValidator: BlockAttributeValidator;
   private readonly eventBus: PluginEventBus;
   private readonly onRetry: (record: DeliveryRecord) => Promise<boolean>;
+  private readonly getTaskStatus?: (taskId: string) => string | undefined;
   private readonly config: RetryConfig;
 
   private records: Map<string, DeliveryRecord> = new Map();
@@ -146,6 +149,7 @@ export class RetryManager {
     this.blockValidator = deps.blockValidator;
     this.eventBus = deps.pluginEventBus;
     this.onRetry = deps.onRetry;
+    this.getTaskStatus = deps.getTaskStatus;
     this.config = { ...DEFAULT_RETRY_CONFIG, ...config };
   }
 
@@ -366,6 +370,15 @@ export class RetryManager {
    * SmartSuggestionEngine — only task:webhook:retry is emitted.
    */
   private async retryDelivery(record: DeliveryRecord): Promise<void> {
+    // ── Task status check: abandon if task reached terminal status ──
+    if (this.getTaskStatus) {
+      const currentStatus = this.getTaskStatus(record.taskId);
+      if (currentStatus && NON_RETRYABLE_STATUSES.has(currentStatus)) {
+        this.abandon(record, `Task status is '${currentStatus}' — non-retryable`);
+        return;
+      }
+    }
+
     // ── Block validation: task must still be actionable ──
     try {
       // Use a minimal task-like object for BlockAttributeValidator

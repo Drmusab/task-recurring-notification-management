@@ -48,7 +48,7 @@ export interface BlockLinkedAction {
 
 export interface BlockActionTaskContext {
   status?: string;
-  tags?: string[];
+  tags?: readonly string[];
   priority?: TaskPriority;
 }
 

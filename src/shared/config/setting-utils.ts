@@ -1,4 +1,5 @@
 import type { Plugin } from "siyuan";
+import * as logger from "@shared/logging/logger";
 
 /**
  * SettingUtils provides type-safe settings management with automatic persistence.
@@ -27,7 +28,7 @@ export class SettingUtils<T extends Record<string, any>> {
         this.settings = { ...this.defaults, ...data };
       }
     } catch (err) {
-      console.error(`Failed to load settings from ${this.storageKey}:`, err);
+      logger.error(`Failed to load settings from ${this.storageKey}`, { err });
       this.settings = { ...this.defaults };
     }
     return this.settings;
@@ -43,7 +44,7 @@ export class SettingUtils<T extends Record<string, any>> {
     try {
       await this.plugin.saveData(this.storageKey, this.settings);
     } catch (err) {
-      console.error(`Failed to save settings to ${this.storageKey}:`, err);
+      logger.error(`Failed to save settings to ${this.storageKey}`, { err });
       throw err;
     }
   }

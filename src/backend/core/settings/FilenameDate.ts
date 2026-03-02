@@ -69,9 +69,9 @@ export class FilenameDateExtractor {
       case 'YYYY-MM-DD':
         regex = /(\d{4})-(\d{2})-(\d{2})/;
         dateBuilder = (match) => {
-          const year = parseInt(match[1], 10);
-          const month = parseInt(match[2], 10);
-          const day = parseInt(match[3], 10);
+          const year = parseInt(match[1]!, 10);
+          const month = parseInt(match[2]!, 10);
+          const day = parseInt(match[3]!, 10);
           return this.createValidDate(year, month, day);
         };
         break;
@@ -79,9 +79,9 @@ export class FilenameDateExtractor {
       case 'YYYYMMDD':
         regex = /(\d{4})(\d{2})(\d{2})/;
         dateBuilder = (match) => {
-          const year = parseInt(match[1], 10);
-          const month = parseInt(match[2], 10);
-          const day = parseInt(match[3], 10);
+          const year = parseInt(match[1]!, 10);
+          const month = parseInt(match[2]!, 10);
+          const day = parseInt(match[3]!, 10);
           return this.createValidDate(year, month, day);
         };
         break;
@@ -89,9 +89,9 @@ export class FilenameDateExtractor {
       case 'DD-MM-YYYY':
         regex = /(\d{2})-(\d{2})-(\d{4})/;
         dateBuilder = (match) => {
-          const day = parseInt(match[1], 10);
-          const month = parseInt(match[2], 10);
-          const year = parseInt(match[3], 10);
+          const day = parseInt(match[1]!, 10);
+          const month = parseInt(match[2]!, 10);
+          const year = parseInt(match[3]!, 10);
           return this.createValidDate(year, month, day);
         };
         break;
@@ -99,9 +99,9 @@ export class FilenameDateExtractor {
       case 'MM-DD-YYYY':
         regex = /(\d{2})-(\d{2})-(\d{4})/;
         dateBuilder = (match) => {
-          const month = parseInt(match[1], 10);
-          const day = parseInt(match[2], 10);
-          const year = parseInt(match[3], 10);
+          const month = parseInt(match[1]!, 10);
+          const day = parseInt(match[2]!, 10);
+          const year = parseInt(match[3]!, 10);
           return this.createValidDate(year, month, day);
         };
         break;
@@ -109,9 +109,9 @@ export class FilenameDateExtractor {
       case 'YYYY.MM.DD':
         regex = /(\d{4})\.(\d{2})\.(\d{2})/;
         dateBuilder = (match) => {
-          const year = parseInt(match[1], 10);
-          const month = parseInt(match[2], 10);
-          const day = parseInt(match[3], 10);
+          const year = parseInt(match[1]!, 10);
+          const month = parseInt(match[2]!, 10);
+          const day = parseInt(match[3]!, 10);
           return this.createValidDate(year, month, day);
         };
         break;
@@ -119,9 +119,9 @@ export class FilenameDateExtractor {
       case 'DD.MM.YYYY':
         regex = /(\d{2})\.(\d{2})\.(\d{4})/;
         dateBuilder = (match) => {
-          const day = parseInt(match[1], 10);
-          const month = parseInt(match[2], 10);
-          const year = parseInt(match[3], 10);
+          const day = parseInt(match[1]!, 10);
+          const month = parseInt(match[2]!, 10);
+          const year = parseInt(match[3]!, 10);
           return this.createValidDate(year, month, day);
         };
         break;

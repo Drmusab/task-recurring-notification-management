@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { Task } from '@backend/core/models/Task';
-  import { calculateUrgencyWithBreakdown } from '@backend/core/urgency/UrgencyScoreCalculator';
-  import { DEFAULT_URGENCY_SETTINGS } from '@backend/core/urgency/UrgencySettings';
+  import type { BackendTask as Task } from '@models/index';
+  import { calculateUrgencyWithBreakdown, DEFAULT_URGENCY_SETTINGS } from '@escalation/index';
 
   export let task: Task;
   export let showBreakdown = false;

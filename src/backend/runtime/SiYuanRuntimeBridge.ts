@@ -17,12 +17,13 @@ import type { Plugin, EventBus } from "siyuan";
 import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
 import * as logger from "@backend/logging/logger";
 import {
-  siyuanRequest,
   siyuanRequestSafe,
   setBlockAttrs as clientSetBlockAttrs,
   getBlockAttrs as clientGetBlockAttrs,
+  getChildBlocks as clientGetChildBlocks,
   querySql as clientQuerySql,
 } from "@backend/core/api/SiYuanApiClient";
+import { escapeSqlString, assertBlockId } from "@shared/utils/sql-sanitize";
 
 // ─── Block Mutation Types ────────────────────────────────────
 
@@ -185,10 +186,7 @@ export class SiYuanRuntimeBridge {
    */
   async getBlockTree(blockId: string): Promise<BlockTreeNode[]> {
     try {
-      const data = await siyuanRequest<BlockTreeNode[]>(
-        "/api/block/getChildBlocks",
-        { id: blockId },
-      );
+      const data = await clientGetChildBlocks(blockId);
       return Array.isArray(data) ? data : [];
     } catch (err) {
       logger.error("[SiYuanRuntimeBridge] getBlockTree failed", { blockId, error: err });
@@ -228,7 +226,9 @@ export class SiYuanRuntimeBridge {
    */
   async getBlockInfo(blockId: string): Promise<{ content: string; markdown: string; type: string } | null> {
     try {
-      const sql = `SELECT content, markdown, type FROM blocks WHERE id = '${blockId}' LIMIT 1`;
+      assertBlockId(blockId);
+      const safeId = escapeSqlString(blockId);
+      const sql = `SELECT content, markdown, type FROM blocks WHERE id = '${safeId}' LIMIT 1`;
       const rows = await clientQuerySql<Array<{ content: string; markdown: string; type: string }>>(sql);
       if (Array.isArray(rows) && rows.length > 0) {
         const row = rows[0]!;

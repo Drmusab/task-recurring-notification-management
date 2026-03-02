@@ -6,7 +6,7 @@
  * system to the new RRule-based Recurrence system.
  */
 
-import type { Task } from '@domain/models/Task';
+import type { Task } from '@backend/core/models/Task';
 import type { Recurrence } from '@domain/models/Recurrence';
 import * as logger from '@backend/logging/logger';
 import { RecurrenceEngine } from '@backend/core/engine/recurrence/RecurrenceEngine';
@@ -82,7 +82,7 @@ export class FrequencyConverter {
         : new Date();
 
       // Convert using FrequencyToRecurrenceConverter
-      const conversionResult = FrequencyToRecurrenceConverter.convert(task.frequency, referenceDate);
+      const conversionResult = FrequencyToRecurrenceConverter.convert(task.frequency as unknown as LegacyFrequency, referenceDate);
       
       if (!conversionResult.success || !conversionResult.rruleString) {
         return {
@@ -94,7 +94,7 @@ export class FrequencyConverter {
       // Build Recurrence object from conversion result
       const recurrence: Recurrence = {
         rrule: conversionResult.rruleString,
-        baseOnToday: task.frequency.whenDone || false,
+        baseOnToday: (task.frequency as unknown as LegacyFrequency).whenDone || false,
         humanReadable: this.recurrenceEngine.toNaturalLanguage(conversionResult.rruleString, referenceDate),
         referenceDate: referenceDate
       };
@@ -127,8 +127,8 @@ export class FrequencyConverter {
       return null;
     }
 
-    // Create updated task
-    const updated: Task = {
+    // Create updated task (mutable copy to allow optional frequency removal)
+    const updated: { -readonly [K in keyof Task]?: Task[K] } = {
       ...task,
       recurrence: result.recurrence,
       recurrenceText: this.recurrenceEngine.toNaturalLanguage(
@@ -143,7 +143,7 @@ export class FrequencyConverter {
       delete updated.frequency;
     }
 
-    return updated;
+    return updated as Task;
   }
 
   /**

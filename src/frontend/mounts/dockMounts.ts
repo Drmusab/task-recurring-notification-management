@@ -34,6 +34,7 @@ import {
 import type { PluginServices } from "../../plugin/types";
 import type { MountHandle } from "./types";
 import { isRuntimeReady } from "../stores/RuntimeReady.store";
+import * as logger from "@shared/logging/logger";
 
 // ─── State ──────────────────────────────────────────────────
 let calendarHandle: ReturnType<typeof mount> | null = null;
@@ -108,7 +109,7 @@ export function mountCalendarDock(
                       color:var(--b3-theme-on-surface-light);font-size:13px;">
             Waiting for runtime…
           </div>`;
-        console.warn("[dockMounts] Calendar init called before runtimeReady — showing placeholder");
+        logger.warn("[dockMounts] Calendar init called before runtimeReady — showing placeholder");
         return;
       }
 

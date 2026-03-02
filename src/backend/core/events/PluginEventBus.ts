@@ -72,6 +72,8 @@ export type PluginEventMap = {
   'cache:task:invalidated': { scope: 'full' | 'single' | 'due'; taskId?: string };
   /** Emitted when analytics cache is refreshed */
   'cache:analytics:updated': { scope: 'full' | 'task'; taskId?: string };
+  /** Emitted when recurrence cache is rebuilt or a single task entry is refreshed */
+  'cache:recurrence:updated': { scope: 'full' | 'task'; taskId?: string };
   // ─── Dependency Layer Events ────────────────────────────────
   /** Emitted when a task becomes blocked (all deps not met) */
   'task:blocked': { taskId: string; blockers: string[] };
@@ -123,6 +125,31 @@ export type PluginEventMap = {
   'query:tasks:filtered': { before: number; after: number; filters: string[] };
   /** Emitted when query cache is invalidated (e.g. task mutation, block update) */
   'query:tasks:invalidated': { scope: 'full' | 'single'; taskId?: string; reason: string };
+
+  // ─── Spec-Required Domain Events (Master Refactor Prompt §7) ─
+  /** Emitted when a new task is instantiated via TaskService.createTask() */
+  'task:runtime:created': { taskId: string; task?: Task; source?: string };
+  /** Emitted when a dependency is added or removed */
+  'task:runtime:dependencyChanged': { taskId: string; dependencyId: string; action: 'add' | 'remove' };
+  /** Emitted when RecurrenceEngine generates a new recurring instance */
+  'task:runtime:recurrenceGenerated': { taskId: string; parentTaskId: string; nextDueAt: string; rrule?: string };
+  /** Emitted when a task's due date passes — reminder layer trigger */
+  'task:reminder:due': { taskId: string; task?: Task };
+  /** Emitted when a task is missed (deadline exceeded without completion) */
+  'task:runtime:missed': { taskId: string; task?: Task; missedAt: string };
+  /** Emitted when the runtime is fully initialized and ready */
+  'runtime:ready': Record<string, never>;
+  /** Emitted when a task is deleted via TaskService.deleteTask() */
+  'task:runtime:deleted': { taskId: string; task?: Task };
+  /** Emitted when plugin storage is reloaded from disk */
+  'plugin:storage:reload': Record<string, never>;
+  // ─── Execution Pipeline Events ──────────────────────────────
+  /** Emitted when ExecutionPipeline starts a tick cycle */
+  'pipeline:tick:start': { tickId: string; timestamp: string };
+  /** Emitted when ExecutionPipeline completes a tick cycle */
+  'pipeline:tick:complete': { tickId: string; processed: number; skipped: number; errors: number; durationMs: number };
+  /** Emitted when a task is skipped in the pipeline (blocked, invalid block, etc.) */
+  'pipeline:task:skipped': { taskId: string; reason: string; stage: string };
 };
 
 type EventHandler<T> = (data: T) => void;

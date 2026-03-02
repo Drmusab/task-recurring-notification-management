@@ -54,14 +54,14 @@ export class AttentionScoreFilter extends Filter {
       'at-least': 'is at least',
       'at-most': 'is at most'
     }[this.comparator];
-    const taskName = (task as any).name || task.id;
+    const taskName = task.name || task.id;
     return `Task "${taskName}" has attention score ${score} which ${opDesc} ${this.targetScore.toFixed(1)}`;
   }
 
   explainMismatch(task: { id: string; name?: string }): string {
     const profile = this.provider.getProfile(task.id);
     if (!profile) {
-      const taskName = (task as any).name || task.id;
+      const taskName = task.name || task.id;
       return `Task "${taskName}" has no attention profile`;
     }
     const score = profile.score.toFixed(1);
@@ -72,7 +72,7 @@ export class AttentionScoreFilter extends Filter {
       'at-least': 'is less than',
       'at-most': 'is greater than'
     }[this.comparator];
-    const taskName = (task as any).name || task.id;
+    const taskName = task.name || task.id;
     return `Task "${taskName}" has attention score ${score} which ${opDesc} ${this.targetScore.toFixed(1)}`;
   }
 }
@@ -98,18 +98,18 @@ export class AttentionLaneFilter extends Filter {
   explainMatch(task: { id: string; name?: string }): string {
     const profile = this.provider.getProfile(task.id);
     const lane = profile ? profile.lane : 'N/A';
-    const taskName = (task as any).name || task.id;
+    const taskName = task.name || task.id;
     return `Task "${taskName}" is in attention lane "${lane}"`;
   }
 
   explainMismatch(task: { id: string; name?: string }): string {
     const profile = this.provider.getProfile(task.id);
     if (!profile) {
-      const taskName = (task as any).name || task.id;
+      const taskName = task.name || task.id;
       return `Task "${taskName}" has no attention profile`;
     }
     const lane = profile.lane;
-    const taskName = (task as any).name || task.id;
+    const taskName = task.name || task.id;
     return `Task "${taskName}" is in attention lane "${lane}" (expected "${this.lane}")`;
   }
 }

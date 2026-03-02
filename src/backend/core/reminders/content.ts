@@ -46,7 +46,7 @@ export class Content {
   private async modifyReminderLine(reminder: Reminder, edit: ReminderTodoEdit) {
     const modified = await modifyReminder(this.doc, reminder, edit);
     if (modified) {
-      console.info("Reminder was updated: reminder=%o", reminder);
+      logger.info("Reminder was updated: reminder=%o", { error: reminder });
     } else {
       logger.warn(
         "Cannot modify reminder because it's not a reminder todo: reminder=%o",

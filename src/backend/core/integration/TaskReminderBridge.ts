@@ -236,7 +236,7 @@ export class TaskReminderBridge {
       return;
     }
     
-    logger.info('Batch syncing', tasks.length, 'tasks to reminders');
+    logger.info(`Batch syncing ${tasks.length} tasks to reminders`);
     
     for (const task of tasks) {
       await this.syncTask(task);

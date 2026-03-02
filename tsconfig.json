@@ -33,13 +33,33 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+
+      /* ── Target architecture (flat) ─────────────────── */
+      "@domain/*": ["src/domain/*"],
+      "@application/*": ["src/application/*"],
+      "@infrastructure/*": ["src/infrastructure/*"],
+      "@runtime/*": ["src/runtime/*"],
+      "@services/*": ["src/services/*"],
+      "@query/*": ["src/query/*"],
+      "@cache/*": ["src/cache/*"],
+      "@engine/*": ["src/engine/*"],
+      "@reminders/*": ["src/reminders/*"],
+      "@dependencies/*": ["src/dependencies/*"],
+      "@escalation/*": ["src/escalation/*"],
+      "@integrations/*": ["src/integrations/*"],
+      "@events/*": ["src/events/*"],
+      "@parsers/*": ["src/parsers/*"],
+      "@models/*": ["src/models/*"],
+      "@stores/*": ["src/stores/*"],
+      "@mounts/*": ["src/mounts/*"],
+      "@components/*": ["src/components/*"],
+      "@styles/*": ["src/styles/*"],
+      "@utils/*": ["src/utils/*"],
+
+      /* ── Legacy aliases (backward compat during migration) ── */
       "@backend/*": ["src/backend/*"],
       "@frontend/*": ["src/frontend/*"],
       "@shared/*": ["src/shared/*"],
-      "@domain/*": ["src/domain/*"],
-      "@infrastructure/*": ["src/infrastructure/*"],
-      "@components/*": ["src/frontend/components/*"],
-      "@stores/*": ["src/frontend/stores/*"],
       "@hooks/*": ["src/frontend/hooks/*"],
       "@modals/*": ["src/frontend/modals/*"],
       "@views/*": ["src/frontend/views/*"]

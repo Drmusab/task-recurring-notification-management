@@ -17,6 +17,7 @@
   import type { TaskDTO } from "../../services/DTOs";
   import { uiQueryService } from "../../services/UIQueryService";
   import { uiEventService } from "../../services/UIEventService";
+  import * as logger from "@shared/logging/logger";
 
   // Props — NO backend types
   export let plugin: Plugin;
@@ -51,7 +52,7 @@
       tasks = uiQueryService.selectInRange(start, end);
       buildCalendarGrid();
     } catch (err) {
-      console.error("[CalendarView] Failed to load tasks:", err);
+      logger.error("[CalendarView] Failed to load tasks:", err);
     } finally {
       loading = false;
     }

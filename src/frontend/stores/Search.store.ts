@@ -50,44 +50,6 @@ function getTodayDateString(): string {
 }
 
 /**
- * Apply smart filters to tasks
- */
-export function applySmartFilters(tasks: TaskDTO[], filters: Set<SmartFilter>): TaskDTO[] {
-  let filtered = tasks;
-  
-  if (filters.has('today')) {
-    const today = getTodayDateString();
-    filtered = filtered.filter(task => {
-      if (!task.dueAt) return false;
-      const taskDate = task.dueAt.split('T')[0];
-      return taskDate === today;
-    });
-  }
-  
-  if (filters.has('overdue')) {
-    filtered = filtered.filter(task => task.isOverdue);
-  }
-  
-  if (filters.has('high-priority')) {
-    filtered = filtered.filter(task => task.priority === 'high' || task.priority === 'highest');
-  }
-  
-  if (filters.has('recurring')) {
-    filtered = filtered.filter(task => task.isRecurring);
-  }
-  
-  if (filters.has('no-due-date')) {
-    filtered = filtered.filter(task => !task.dueAt);
-  }
-  
-  if (filters.has('completed')) {
-    filtered = filtered.filter(task => task.status === 'done' || task.status === 'completed' || !task.enabled);
-  }
-  
-  return filtered;
-}
-
-/**
  * Calculate counts for each filter
  */
 export function calculateFilterCounts(tasks: TaskDTO[]): Record<SmartFilter, number> {

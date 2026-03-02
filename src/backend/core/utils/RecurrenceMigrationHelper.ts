@@ -7,7 +7,7 @@
  * This helper ensures backward compatibility during the transition period.
  */
 
-import type { Task } from '@domain/models/Task';
+import type { Task } from '@backend/core/models/Task';
 import type { Recurrence } from '@domain/models/Recurrence';
 import { FrequencyConverter } from './FrequencyConverter';
 import * as logger from '@backend/logging/logger';

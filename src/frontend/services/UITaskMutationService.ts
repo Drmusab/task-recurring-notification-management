@@ -122,7 +122,7 @@ export class UITaskMutationService {
     if (!this.taskService) return this.disconnected("createTask");
 
     try {
-      const result = await this.taskService.createTask(input as Record<string, unknown>);
+      const result = await this.taskService.createTask(input as unknown as Record<string, unknown>);
       return {
         success: result.success,
         taskId: result.task?.id,
@@ -328,7 +328,7 @@ export class UITaskMutationService {
 
     try {
       const recurrence = rule ? { rrule: rule } : undefined;
-      const result = await this.taskService.updateTask(taskId, { recurrence } as any);
+      const result = await this.taskService.updateTask(taskId, { recurrence } as Record<string, unknown>);
       return {
         success: result.success,
         taskId,

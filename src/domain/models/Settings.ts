@@ -31,156 +31,156 @@ export type SortDirection = 'asc' | 'desc';
 export interface Settings {
   // ===== General Settings =====
   /** Plugin version for migrations */
-  version: string;
+  readonly version: string;
   
   /** Enable debug logging */
-  debugMode: boolean;
+  readonly debugMode: boolean;
   
   /** User's timezone (IANA format, e.g., 'America/New_York') */
-  timezone: string;
+  readonly timezone: string;
   
   // ===== Task Display Settings =====
   /** Preferred date format */
-  dateFormat: DateFormat;
+  readonly dateFormat: DateFormat;
   
   /** Show relative dates (e.g., "tomorrow", "2 days ago") */
-  showRelativeDates: boolean;
+  readonly showRelativeDates: boolean;
   
   /** Show task path in task list */
-  showPath: boolean;
+  readonly showPath: boolean;
   
   /** Show task heading/section */
-  showHeading: boolean;
+  readonly showHeading: boolean;
   
   /** Show task description as popover */
-  showDescriptionPopover: boolean;
+  readonly showDescriptionPopover: boolean;
   
   /** Max items to display before virtual scrolling */
-  virtualScrollThreshold: number;
+  readonly virtualScrollThreshold: number;
   
   // ===== Task Format Settings =====
   /** Preferred task format: emoji or text signifiers */
-  preferredFormat: 'emoji' | 'text';
+  readonly preferredFormat: 'emoji' | 'text';
   
   /** Custom status definitions */
-  customStatuses: Status[];
+  readonly customStatuses: readonly Status[];
   
   /** Default priority for new tasks */
-  defaultPriority: 'highest' | 'high' | 'medium' | 'low' | 'lowest' | 'none';
+  readonly defaultPriority: 'highest' | 'high' | 'medium' | 'low' | 'lowest' | 'none';
   
   /** Use filename as date for daily notes */
-  useFilenameAsDate: boolean;
+  readonly useFilenameAsDate: boolean;
   
   /** Filename date format regex pattern */
-  filenameDatePattern: string;
+  readonly filenameDatePattern: string;
   
   // ===== Query & Filter Settings =====
   /** Default query for task list */
-  defaultQuery: string;
+  readonly defaultQuery: string;
   
   /** Group tasks by field */
-  groupBy: GroupByOption;
+  readonly groupBy: GroupByOption;
   
   /** Sort tasks by field */
-  sortBy: SortByOption;
+  readonly sortBy: SortByOption;
   
   /** Sort direction */
-  sortDirection: SortDirection;
+  readonly sortDirection: SortDirection;
   
   /** Hide completed tasks by default */
-  hideCompleted: boolean;
+  readonly hideCompleted: boolean;
   
   /** Auto-hide completed tasks after N days */
-  autoHideCompletedDays: number;
+  readonly autoHideCompletedDays: number;
   
   // ===== Recurrence Settings =====
   /** Calculate next recurrence from completion date instead of due date */
-  recurrenceFromCompletion: boolean;
+  readonly recurrenceFromCompletion: boolean;
   
   /** Auto-create next task in series on completion */
-  autoCreateNextTask: boolean;
+  readonly autoCreateNextTask: boolean;
   
   /** Keep completed recurring tasks in history */
-  keepCompletedRecurring: boolean;
+  readonly keepCompletedRecurring: boolean;
   
   // ===== Dependency Settings =====
   /** Enable dependency graph */
-  enableDependencies: boolean;
+  readonly enableDependencies: boolean;
   
   /** Show dependency warnings */
-  showDependencyWarnings: boolean;
+  readonly showDependencyWarnings: boolean;
   
   /** Auto-hide blocked tasks */
-  autoHideBlockedTasks: boolean;
+  readonly autoHideBlockedTasks: boolean;
   
   // ===== Notification Settings =====
   /** Enable notifications */
-  enableNotifications: boolean;
+  readonly enableNotifications: boolean;
   
   /** Notification channels */
-  notificationChannels: string[];
+  readonly notificationChannels: readonly string[];
   
   /** Notification lead time (minutes before due) */
-  notificationLeadMinutes: number;
+  readonly notificationLeadMinutes: number;
   
   /** Show notification for overdue tasks */
-  notifyOverdue: boolean;
+  readonly notifyOverdue: boolean;
   
   // ===== Performance Settings =====
   /** Enable indexing for faster queries */
-  enableIndexing: boolean;
+  readonly enableIndexing: boolean;
   
   /** Enable query caching */
-  enableQueryCache: boolean;
+  readonly enableQueryCache: boolean;
   
   /** Query cache TTL (seconds) */
-  queryCacheTTL: number;
+  readonly queryCacheTTL: number;
   
   /** Debounce save delay (milliseconds) */
-  saveDebounceDuration: number;
+  readonly saveDebounceDuration: number;
   
   /** Auto-archive completed tasks older than N days */
-  autoArchiveDays: number;
+  readonly autoArchiveDays: number;
   
   // ===== Storage Settings =====
   /** Storage file path */
-  storageFilePath: string;
+  readonly storageFilePath: string;
   
   /** Archive directory path */
-  archiveDirectoryPath: string;
+  readonly archiveDirectoryPath: string;
   
   /** Enable time-partitioned storage */
-  enablePartitionedStorage: boolean;
+  readonly enablePartitionedStorage: boolean;
   
   /** Partition by month/year */
-  partitionBy: 'month' | 'year';
+  readonly partitionBy: 'month' | 'year';
   
   // ===== Advanced Settings =====
   /** Enable experimental features */
-  enableExperimentalFeatures: boolean;
+  readonly enableExperimentalFeatures: boolean;
   
   /** Enable AI suggestions */
-  enableAISuggestions: boolean;
+  readonly enableAISuggestions: boolean;
   
   /** Enable smart recurrence learning */
-  enableSmartRecurrence: boolean;
+  readonly enableSmartRecurrence: boolean;
   
   /** Smart recurrence confidence threshold */
-  smartRecurrenceConfidence: number;
+  readonly smartRecurrenceConfidence: number;
 }
 
 /**
  * Default settings factory
  */
 export function getDefaultSettings(): Settings {
-  return {
+  return Object.freeze({
     // General
     version: '2.0.0',
     debugMode: false,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     
     // Display
-    dateFormat: 'YYYY-MM-DD',
+    dateFormat: 'YYYY-MM-DD' as DateFormat,
     showRelativeDates: true,
     showPath: true,
     showHeading: true,
@@ -188,17 +188,17 @@ export function getDefaultSettings(): Settings {
     virtualScrollThreshold: 100,
     
     // Task Format
-    preferredFormat: 'emoji',
-    customStatuses: [],
-    defaultPriority: 'none',
+    preferredFormat: 'emoji' as const,
+    customStatuses: Object.freeze([] as Status[]),
+    defaultPriority: 'none' as const,
     useFilenameAsDate: true,
     filenameDatePattern: '^(\\d{4})-(\\d{2})-(\\d{2})',
     
     // Query & Filter
     defaultQuery: 'not done',
-    groupBy: 'none',
-    sortBy: 'due',
-    sortDirection: 'asc',
+    groupBy: 'none' as GroupByOption,
+    sortBy: 'due' as SortByOption,
+    sortDirection: 'asc' as SortDirection,
     hideCompleted: false,
     autoHideCompletedDays: 30,
     
@@ -214,7 +214,7 @@ export function getDefaultSettings(): Settings {
     
     // Notifications
     enableNotifications: true,
-    notificationChannels: ['siyuan'],
+    notificationChannels: Object.freeze(['siyuan'] as string[]),
     notificationLeadMinutes: 15,
     notifyOverdue: true,
     
@@ -229,14 +229,14 @@ export function getDefaultSettings(): Settings {
     storageFilePath: 'data/tasks.json',
     archiveDirectoryPath: 'data/archives',
     enablePartitionedStorage: true,
-    partitionBy: 'month',
+    partitionBy: 'month' as const,
     
     // Advanced
     enableExperimentalFeatures: false,
     enableAISuggestions: false,
     enableSmartRecurrence: false,
     smartRecurrenceConfidence: 0.8,
-  };
+  });
 }
 
 /**
@@ -245,7 +245,7 @@ export function getDefaultSettings(): Settings {
 export function validateSettings(settings: Partial<Settings>): Settings {
   const defaults = getDefaultSettings();
   
-  return {
+  return Object.freeze({
     ...defaults,
     ...settings,
     // Ensure valid ranges
@@ -256,5 +256,5 @@ export function validateSettings(settings: Partial<Settings>): Settings {
     saveDebounceDuration: Math.max(0, settings.saveDebounceDuration || defaults.saveDebounceDuration),
     autoArchiveDays: Math.max(0, settings.autoArchiveDays || defaults.autoArchiveDays),
     smartRecurrenceConfidence: Math.max(0, Math.min(1, settings.smartRecurrenceConfidence || defaults.smartRecurrenceConfidence)),
-  };
+  });
 }

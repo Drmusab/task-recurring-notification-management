@@ -6,6 +6,7 @@
 
 import type { Task } from "@backend/core/models/Task";
 import type { ListItem } from "@backend/Task/ListItem";
+import * as logger from "@shared/logging/logger";
 
 /** Minimal vault interface expected from SiYuan/Obsidian */
 interface VaultLike {
@@ -56,7 +57,7 @@ export async function replaceTaskWithTasks(options: ReplaceTaskOptions): Promise
     const { originalTask, newTasks } = options;
     
     if (!vault) {
-        console.error('File module not initialized. Call initializeFile first.');
+        logger.error('File module not initialized. Call initializeFile first.');
         return;
     }
 
@@ -65,14 +66,14 @@ export async function replaceTaskWithTasks(options: ReplaceTaskOptions): Promise
         const filePath = originalTask.taskLocation?.path;
         
         if (!filePath) {
-            console.error('Task does not have a valid file path');
+            logger.error('Task does not have a valid file path');
             return;
         }
 
         // Get the file from the vault
         const file = vault.getAbstractFileByPath?.(filePath);
         if (!file) {
-            console.error(`File not found: ${filePath}`);
+            logger.error(`File not found: ${filePath}`);
             return;
         }
 
@@ -83,7 +84,7 @@ export async function replaceTaskWithTasks(options: ReplaceTaskOptions): Promise
         // Get the line number of the original task
         const lineNumber = originalTask.taskLocation?.lineNumber;
         if (lineNumber === undefined || lineNumber < 0 || lineNumber >= lines.length) {
-            console.error(`Invalid line number: ${lineNumber}`);
+            logger.error(`Invalid line number: ${lineNumber}`);
             return;
         }
 
@@ -103,7 +104,7 @@ export async function replaceTaskWithTasks(options: ReplaceTaskOptions): Promise
         await vault.modify(file, newContent);
 
     } catch (error) {
-        console.error('Error replacing task:', error);
+        logger.error('Error replacing task', { error: error });
         throw error;
     }
 }
@@ -113,7 +114,7 @@ export async function replaceTaskWithTasks(options: ReplaceTaskOptions): Promise
  */
 export async function readTaskFromFile(filePath: string, lineNumber: number): Promise<string | null> {
     if (!vault) {
-        console.error('File module not initialized. Call initializeFile first.');
+        logger.error('File module not initialized. Call initializeFile first.');
         return null;
     }
 
@@ -132,7 +133,7 @@ export async function readTaskFromFile(filePath: string, lineNumber: number): Pr
 
         return null;
     } catch (error) {
-        console.error('Error reading task from file:', error);
+        logger.error('Error reading task from file', { error: error });
         return null;
     }
 }
@@ -142,7 +143,7 @@ export async function readTaskFromFile(filePath: string, lineNumber: number): Pr
  */
 export async function writeToFile(filePath: string, content: string): Promise<boolean> {
     if (!vault) {
-        console.error('File module not initialized. Call initializeFile first.');
+        logger.error('File module not initialized. Call initializeFile first.');
         return false;
     }
 
@@ -158,7 +159,7 @@ export async function writeToFile(filePath: string, content: string): Promise<bo
 
         return true;
     } catch (error) {
-        console.error('Error writing to file:', error);
+        logger.error('Error writing to file', { error: error });
         return false;
     }
 }

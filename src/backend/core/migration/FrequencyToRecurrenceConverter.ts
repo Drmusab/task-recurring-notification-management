@@ -490,7 +490,7 @@ export class FrequencyToRecurrenceConverter {
         whenDone: frequency.whenDone,
         time: frequency.time
       }
-    } as Task;
+    } as unknown as Task;
   }
 
   /**
@@ -515,7 +515,7 @@ export class FrequencyToRecurrenceConverter {
         time: legacyFreq.time,
         timezone: legacyFreq.timezone
       }
-    } as Task;
+    } as unknown as Task;
   }
 
   /**
@@ -531,7 +531,7 @@ export class FrequencyToRecurrenceConverter {
     }
 
     // Skip if already migrated (has rruleString)
-    if (task.frequency.rruleString) {
+    if ((task.frequency as unknown as Record<string, unknown>).rruleString) {
       return null;
     }
 

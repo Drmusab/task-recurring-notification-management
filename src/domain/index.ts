@@ -9,6 +9,22 @@
  */
 
 // ===================================================================
+// ===== Domain Errors ===============================================
+// ===================================================================
+
+export {
+  DomainError,
+  TaskNotFoundError,
+  InvalidTaskStateError,
+  TaskValidationError,
+  CircularDependencyError,
+  DependencyResolutionError,
+  BlockValidationError,
+  RecurrenceError,
+  PipelineStageError,
+} from "./errors";
+
+// ===================================================================
 // ===== NEW Immutable Domain Layer (Session 23) =====================
 // ===================================================================
 

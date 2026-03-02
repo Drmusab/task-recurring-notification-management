@@ -1,7 +1,7 @@
 import type { TaskDTO } from '../../../services/DTOs';
 type Task = TaskDTO;
-import { allPriorityInstructions } from "@components/shared/EditInstructions/PriorityInstructions";
-import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@components/shared/Menus/TaskEditingMenu";
+import { allPriorityInstructions } from "@frontend/components/shared/EditInstructions/PriorityInstructions";
+import { TaskEditingMenu, type TaskSaver, defaultTaskSaver } from "@frontend/components/shared/Menus/TaskEditingMenu";
 
 /**
  * A Menu of options for editing the status of a Task object.
@@ -21,6 +21,6 @@ export class PriorityMenu extends TaskEditingMenu {
     constructor(task: Task, taskSaver: TaskSaver = defaultTaskSaver) {
         super(taskSaver);
 
-        this.addItemsForInstructions(allPriorityInstructions(), task);
+        this.addItemsForInstructions(allPriorityInstructions(task), task);
     }
 }

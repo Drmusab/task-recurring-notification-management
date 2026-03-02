@@ -143,6 +143,7 @@ export class TaskModelAdapter {
       bestStreak: 0,
       
       path: obsTask.taskLocation?.path,
+      version: 1,
     };
   }
 
@@ -170,8 +171,8 @@ export class TaskModelAdapter {
       
       status,
       
-      dependsOn: siyTask.dependsOn || [],
-      tags: siyTask.tags || [],
+      dependsOn: [...(siyTask.dependsOn || [])],
+      tags: [...(siyTask.tags || [])],
       
       blockLink: siyTask.linkedBlockId ? ` ^${siyTask.linkedBlockId}` : '',
       
@@ -185,7 +186,7 @@ export class TaskModelAdapter {
    */
   static toUnified(source: ObsidianTaskLike | SiYuanTask): UnifiedTask {
     // Check if it's an Obsidian task (has description property and is a class instance)
-    if ('description' in source && typeof (source as any).description === 'string') {
+    if ('description' in source && typeof source.description === 'string') {
       const obs = source as ObsidianTaskLike;
       return {
         id: obs.id,
@@ -222,18 +223,18 @@ export class TaskModelAdapter {
         enabled: siy.enabled,
         status: siy.status,
         priority: siy.priority,
-        dependsOn: siy.dependsOn,
+        dependsOn: siy.dependsOn ? [...siy.dependsOn] : undefined,
         linkedBlockId: siy.linkedBlockId,
         blockActions: siy.blockActions,
         completionCount: siy.completionCount,
         missCount: siy.missCount,
         currentStreak: siy.currentStreak,
         bestStreak: siy.bestStreak,
-        recentCompletions: siy.recentCompletions,
-        completionTimes: siy.completionTimes,
+        recentCompletions: siy.recentCompletions ? [...siy.recentCompletions] : undefined,
+        completionTimes: siy.completionTimes ? [...siy.completionTimes] : undefined,
         completionContexts: siy.completionContexts,
         suggestionHistory: siy.suggestionHistory,
-        tags: siy.tags,
+        tags: siy.tags ? [...siy.tags] : undefined,
         category: siy.category,
         description: siy.description,
         path: siy.path,
@@ -247,12 +248,12 @@ export class TaskModelAdapter {
    */
   private static obsidianPriorityToSiyuan(obsPriority: ObsidianPriority): TaskPriority {
     switch (obsPriority) {
-      case 'highest': return 'highest';
-      case 'high': return 'high';
-      case 'medium': return 'medium';
-      case 'normal': return 'medium'; // Map 'normal' to 'medium'
-      case 'low': return 'low';
-      case 'lowest': return 'lowest';
+      case ObsidianPriority.Highest: return 'highest';
+      case ObsidianPriority.High: return 'high';
+      case ObsidianPriority.Medium: return 'medium';
+      case ObsidianPriority.None: return 'medium'; // Map 'none' to 'medium'
+      case ObsidianPriority.Low: return 'low';
+      case ObsidianPriority.Lowest: return 'lowest';
       default: return 'medium';
     }
   }
@@ -262,12 +263,12 @@ export class TaskModelAdapter {
    */
   private static siyuanPriorityToObsidian(siyPriority?: TaskPriority): ObsidianPriority {
     switch (siyPriority) {
-      case 'highest': return 'highest';
-      case 'high': return 'high';
-      case 'medium': return 'medium';
-      case 'low': return 'low';
-      case 'lowest': return 'lowest';
-      default: return 'medium';
+      case 'highest': return ObsidianPriority.Highest;
+      case 'high': return ObsidianPriority.High;
+      case 'medium': return ObsidianPriority.Medium;
+      case 'low': return ObsidianPriority.Low;
+      case 'lowest': return ObsidianPriority.Lowest;
+      default: return ObsidianPriority.Medium;
     }
   }
 
@@ -286,9 +287,9 @@ export class TaskModelAdapter {
     } else if (recurrenceText.includes('month')) {
       return { type: 'monthly', interval: 1, dayOfMonth: new Date().getDate() };
     } else if (recurrenceText.includes('year')) {
-      return { type: 'yearly', interval: 1, month: new Date().getMonth(), dayOfMonth: new Date().getDate() };
+      return { type: 'yearly', interval: 1, monthOfYear: new Date().getMonth() + 1, dayOfMonth: new Date().getDate() };
     } else {
-      return { type: 'custom', rrule: recurrenceText };
+      return { type: 'custom', interval: 1, rrule: recurrenceText };
     }
   }
 
@@ -398,18 +399,18 @@ export class TaskModelAdapter {
       enabled: siyTask.enabled,
       status: siyTask.status,
       priority: siyTask.priority,
-      dependsOn: siyTask.dependsOn,
+      dependsOn: siyTask.dependsOn ? [...siyTask.dependsOn] : undefined,
       linkedBlockId: siyTask.linkedBlockId,
       blockActions: siyTask.blockActions,
       completionCount: siyTask.completionCount,
       missCount: siyTask.missCount,
       currentStreak: siyTask.currentStreak,
       bestStreak: siyTask.bestStreak,
-      recentCompletions: siyTask.recentCompletions,
-      completionTimes: siyTask.completionTimes,
+      recentCompletions: siyTask.recentCompletions ? [...siyTask.recentCompletions] : undefined,
+      completionTimes: siyTask.completionTimes ? [...siyTask.completionTimes] : undefined,
       completionContexts: siyTask.completionContexts,
       suggestionHistory: siyTask.suggestionHistory,
-      tags: siyTask.tags,
+      tags: siyTask.tags ? [...siyTask.tags] : undefined,
       category: siyTask.category,
       description: siyTask.description,
       path: siyTask.path,
@@ -461,7 +462,7 @@ export class TaskModelAdapter {
       updatedAt: new Date().toISOString(),
       doneAt: unified.doneAt,
       cancelledAt: unified.cancelledAt,
-      frequency: unified.frequency || { type: 'once' },
+      frequency: unified.frequency,
       enabled: unified.enabled !== undefined ? unified.enabled : true,
       status: unified.status || 'todo',
       priority: unified.priority,

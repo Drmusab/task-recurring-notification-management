@@ -478,8 +478,10 @@ export class QueryExplainer {
       case 'status':
         return `${negate}Status ${filter.operator} "${filter.value}"`;
 
-      case 'date':
-        return `${negate}${filter.value.field} ${filter.value.comparator} ${filter.value.date}`;
+      case 'date': {
+        const dateVal = filter.value as import('./QueryParser').DateFilterValue | null;
+        return `${negate}${dateVal?.field ?? 'date'} ${filter.operator} ${dateVal?.date ?? ''}`;
+      }
 
       case 'priority':
         return `${negate}Priority ${filter.operator} ${filter.value}`;

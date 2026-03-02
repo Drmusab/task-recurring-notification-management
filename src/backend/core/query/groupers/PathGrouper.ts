@@ -50,6 +50,6 @@ export class TagGrouper extends Grouper {
 
   getGroupKey(task: Task): string {
     const tags = task.tags || [];
-    return tags.length > 0 ? tags[0] : 'No tags';
+    return tags.length > 0 ? tags[0]! : 'No tags';
   }
 }

@@ -45,7 +45,7 @@ export const PRIORITY_ORDER: Record<string, number> = {
 
 export function getPriorityEmoji(priority: string): string | undefined {
   const validPriorities = ['highest', 'high', 'medium', 'low', 'lowest'] as const;
-  if (!validPriorities.includes(priority as any)) {
+  if (!(validPriorities as readonly string[]).includes(priority)) {
     return undefined;
   }
   return EMOJI_SIGNIFIERS.priority[priority as keyof typeof EMOJI_SIGNIFIERS.priority];

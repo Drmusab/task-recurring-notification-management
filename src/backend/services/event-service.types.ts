@@ -48,12 +48,12 @@ export interface TaskSnapshot {
   id: string;
   name: string;
   dueAt: string;
-  frequency: Frequency;
+  frequency?: Frequency;
   linkedBlockId?: string;
   linkedBlockContent?: string;
   priority?: TaskPriority;
-  tags?: string[];
-  notificationChannels?: string[];
+  tags?: readonly string[];
+  notificationChannels?: readonly string[];
   completionCount?: number;
   missCount?: number;
   currentStreak?: number;

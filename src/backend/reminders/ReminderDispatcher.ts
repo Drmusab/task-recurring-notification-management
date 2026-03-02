@@ -1,18 +1,18 @@
-/**
- * ReminderDispatcher — Runtime-Safe Reminder Event Emitter
+﻿/**
+ * ReminderDispatcher â€” Runtime-Safe Reminder Event Emitter
  *
  * Drains validated entries from ReminderQueue and fires the appropriate
  * events through EventService. Enforces the once-per-overdue-state-change
  * rule by delegating to ReminderPolicy.markReminded().
  *
  * Emitted events:
- *   task:reminder:due       — task is due and should be reminded
- *   task:reminder:overdue   — task is overdue (fires ONCE per state change)
- *   task:reminder:suppressed — reminder was suppressed (for frontend debug)
+ *   task:reminder:due       â€” task is due and should be reminded
+ *   task:reminder:overdue   â€” task is overdue (fires ONCE per state change)
+ *   task:reminder:suppressed â€” reminder was suppressed (for frontend debug)
  *
  * Consumers:
- *   ReminderService    → fire() to dispatch next batch
- *   Frontend panels    → subscribe via EventService to task:reminder:* events
+ *   ReminderService    â†’ fire() to dispatch next batch
+ *   Frontend panels    â†’ subscribe via EventService to task:reminder:* events
  *
  * FORBIDDEN:
  *   - Evaluate policy (caller must validate before enqueue)
@@ -27,9 +27,9 @@ import type { ReminderQueue, ReminderQueueEntry } from "./ReminderQueue";
 import type { ReminderPolicy } from "./ReminderPolicy";
 import * as logger from "@backend/logging/logger";
 
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Types
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ReminderDispatcherDeps {
   eventService: EventService;
@@ -53,9 +53,9 @@ export interface ReminderDispatcherStats {
   lastDispatchAt: string | null;
 }
 
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Implementation
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export class ReminderDispatcher {
   private readonly eventService: EventService;
@@ -64,7 +64,7 @@ export class ReminderDispatcher {
 
   private active = false;
 
-  // ── Stats ──
+  // â”€â”€ Stats â”€â”€
   private totalDispatched = 0;
   private totalSuppressed = 0;
   private totalBatchesFired = 0;
@@ -76,7 +76,7 @@ export class ReminderDispatcher {
     this.policy = deps.reminderPolicy;
   }
 
-  // ── Lifecycle ────────────────────────────────────────────────
+  // â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   start(): void {
     if (this.active) return;
@@ -90,7 +90,7 @@ export class ReminderDispatcher {
     logger.info("[ReminderDispatcher] Stopped");
   }
 
-  // ── Public API ───────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Drain the queue and fire reminder events for all validated entries.
@@ -170,12 +170,12 @@ export class ReminderDispatcher {
     };
   }
 
-  // ── Private ──────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Emit the correct event based on priority:
-   *   priority 1 → task:reminder:due
-   *   priority 2+ → task:reminder:overdue
+   *   priority 1 â†’ task:reminder:due
+   *   priority 2+ â†’ task:reminder:overdue
    */
   private dispatchEntry(entry: ReminderQueueEntry): void {
     const { task, priority, retryCount } = entry;
@@ -184,12 +184,12 @@ export class ReminderDispatcher {
     if (isOverdue) {
       this.eventService.emit("task:overdue", {
         taskId: task.id,
-        task: task as any,
+        task: task,
       });
     }
 
     // Always emit the runtime due event for frontend consumption
-    this.eventService.emitRuntimeDue(task.id, task.dueAt, task as any);
+    this.eventService.emitRuntimeDue(task.id, task.dueAt, task);
 
     logger.debug("[ReminderDispatcher] Dispatched", {
       taskId: task.id,
@@ -205,7 +205,7 @@ export class ReminderDispatcher {
   private emitSuppressed(entry: ReminderQueueEntry, reason: string): void {
     this.eventService.emit("task:attention:suppressed", {
       taskId: entry.task.id,
-      task: entry.task as any,
+      task: entry.task,
       attentionScore: 0,
       reason,
       action: "suppress" as const,

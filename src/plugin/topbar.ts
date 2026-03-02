@@ -10,6 +10,7 @@
 import type { Plugin } from "siyuan";
 import { Menu, openTab } from "siyuan";
 import { TAB_TYPE } from "./constants";
+import * as logger from "@shared/logging/logger";
 
 export interface TopBarState {
   topBarElement: HTMLElement | null;
@@ -66,7 +67,7 @@ export function registerTopBarButton(
       },
     });
   } catch (error) {
-    console.warn(`[TaskRecurring] Top bar registration failed:`, error);
+    logger.warn("[TaskRecurring] Top bar registration failed", { error });
   }
 }
 

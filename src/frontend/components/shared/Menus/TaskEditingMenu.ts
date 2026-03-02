@@ -1,7 +1,7 @@
 import type { TaskDTO } from '../../../services/DTOs';
 import { uiQueryService } from '../../../services/UIQueryService';
-import type { TaskEditingInstruction } from "@components/shared/EditInstructions/TaskEditingInstruction";
-import { SEPARATOR_INSTRUCTION_DISPLAY_NAME } from "@components/shared/EditInstructions/MenuDividerInstruction";
+import type { TaskEditingInstruction } from "@frontend/components/shared/EditInstructions/TaskEditingInstruction";
+import { SEPARATOR_INSTRUCTION_DISPLAY_NAME } from "@frontend/components/shared/EditInstructions/MenuDividerInstruction";
 import { Menu, MenuItem } from "@shared/utils/compat/siyuan-compat";
 
 // Local alias for compatibility
@@ -19,7 +19,7 @@ export type TaskSaver = (originalTask: Task, newTasks: Task | Task[]) => Promise
  * @param newTasks
  */
 export async function defaultTaskSaver(originalTask: Task, newTasks: Task | Task[]) {
-    await uiQueryService.replaceTaskInFile(originalTask as any, newTasks as any);
+    await uiQueryService.replaceTaskInFile(originalTask, newTasks);
 }
 
 /**

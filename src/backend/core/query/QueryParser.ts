@@ -22,10 +22,16 @@ export interface QueryAST {
   useProfile?: string;
 }
 
+export interface DateFilterValue {
+  field: DateField;
+  date?: Date;
+  endDate?: Date;
+}
+
 export interface FilterNode {
   type: 'status' | 'date' | 'priority' | 'urgency' | 'escalation' | 'attention' | 'attention-lane' | 'tag' | 'path' | 'dependency' | 'recurrence' | 'boolean' | 'done' | 'description' | 'heading' | 'description-regex' | 'path-regex' | 'tag-regex';
   operator: string;
-  value: string | number | boolean | Date | RegexSpec | StatusType | PriorityLevel | DateComparator | null;
+  value: string | number | boolean | Date | RegexSpec | StatusType | PriorityLevel | DateComparator | DateFilterValue | null;
   negate?: boolean;
   left?: FilterNode;
   right?: FilterNode;
@@ -35,6 +41,8 @@ export interface FilterNode {
 export interface SortNode {
   field: string;
   reverse?: boolean;
+  /** Multi-field sort: populated when query has multiple "sort by" fields */
+  sortFields?: SortField[];
 }
 
 export interface SortField {
@@ -86,7 +94,7 @@ export class QueryParser {
       // @profile <name> directive
       const profileMatch = trimmed.match(/^@profile\s+(.+)$/);
       if (profileMatch) {
-        directives.useProfile = profileMatch[1].trim();
+        directives.useProfile = profileMatch[1]!.trim();
         continue;
       }
       
@@ -110,7 +118,7 @@ export class QueryParser {
     for (let i = 0; i < astLines.length; i++) {
       this.line = i + 1;
       this.column = 1;
-      const line = astLines[i];
+      const line = astLines[i]!;
 
       if (line.startsWith('sort by ')) {
         ast.sort = this.parseSortInstruction(line);
@@ -394,8 +402,8 @@ export class QueryParser {
       // "X between DATE1 and DATE2" pattern
       const betweenMatch = line.match(new RegExp(`^${field}\\s+between\\s+(.+?)\\s+and\\s+(.+)$`, 'i'));
       if (betweenMatch) {
-        const startDateStr = betweenMatch[1].trim();
-        const endDateStr = betweenMatch[2].trim();
+        const startDateStr = betweenMatch[1]!.trim();
+        const endDateStr = betweenMatch[2]!.trim();
         
         const parsedStart = DateParser.parse(startDateStr, this.referenceDate);
         const parsedEnd = DateParser.parse(endDateStr, this.referenceDate);
@@ -484,7 +492,7 @@ export class QueryParser {
       }
       
       sortFields.push({
-        field: match[1],
+        field: match[1]!,
         reverse: !!match[2],
       });
     }
@@ -493,17 +501,16 @@ export class QueryParser {
     // Otherwise, store in sortFields array
     if (sortFields.length === 1) {
       return {
-        field: sortFields[0].field,
-        reverse: sortFields[0].reverse,
+        field: sortFields[0]!.field,
+        reverse: sortFields[0]!.reverse,
       };
     }
     
     // Multi-field sorting: return first field as legacy format,
     // but the full array will be stored in AST.sortFields
     return {
-      field: sortFields[0].field,
-      reverse: sortFields[0].reverse,
-      // @ts-ignore - Add sortFields as extended property
+      field: sortFields[0]!.field,
+      reverse: sortFields[0]!.reverse,
       sortFields,
     };
   }
@@ -520,19 +527,19 @@ export class QueryParser {
     }
 
     return {
-      field: match[1],
+      field: match[1]!,
     };
   }
 
   private parseLimitInstruction(line: string): number {
     let match = line.match(/^limit (\d+)$/);
     if (match) {
-      return parseInt(match[1], 10);
+      return parseInt(match[1]!, 10);
     }
 
     match = line.match(/^limit to (\d+) tasks?$/);
     if (match) {
-      return parseInt(match[1], 10);
+      return parseInt(match[1]!, 10);
     }
 
     throw new QuerySyntaxError(
@@ -627,18 +634,18 @@ export class QueryParser {
     const parts = this.splitByOperator(line, /\s+(or|OR)\s+/i);
     
     if (parts.length === 1) {
-      return this.parseAndExpression(parts[0]);
+      return this.parseAndExpression(parts[0]!);
     }
     
     // Build left-associative tree: (a OR b) OR c
-    let result = this.parseAndExpression(parts[0]);
+    let result = this.parseAndExpression(parts[0]!);
     for (let i = 1; i < parts.length; i++) {
       result = {
         type: 'boolean',
         operator: 'OR',
         value: null,
         left: result,
-        right: this.parseAndExpression(parts[i]),
+        right: this.parseAndExpression(parts[i]!),
       };
     }
     
@@ -654,18 +661,18 @@ export class QueryParser {
     const parts = this.splitByOperator(line, /\s+(and|AND)\s+/i, true);
     
     if (parts.length === 1) {
-      return this.parseNotExpression(parts[0]);
+      return this.parseNotExpression(parts[0]!);
     }
     
     // Build left-associative tree: (a AND b) AND c
-    let result = this.parseNotExpression(parts[0]);
+    let result = this.parseNotExpression(parts[0]!);
     for (let i = 1; i < parts.length; i++) {
       result = {
         type: 'boolean',
         operator: 'AND',
         value: null,
         left: result,
-        right: this.parseNotExpression(parts[i]),
+        right: this.parseNotExpression(parts[i]!),
       };
     }
     
@@ -1052,21 +1059,21 @@ export class QueryParser {
         "<=": "at-most",
         "=": "is",
       };
-      const operator = operatorMap[comparisonMatch[1]] ?? "is";
-      const level = this.parseEscalationLevel(comparisonMatch[2]);
+      const operator = operatorMap[comparisonMatch[1]!] ?? "is";
+      const level = this.parseEscalationLevel(comparisonMatch[2]!);
       return { type: "escalation", operator, value: level };
     }
 
     const namedMatch = normalized.match(/^escalation\s+(is|above|below|at\s+least|at\s+most)\s+(.+)$/i);
     if (namedMatch) {
-      const rawOperator = namedMatch[1].toLowerCase();
+      const rawOperator = namedMatch[1]!.toLowerCase();
       const operator =
         rawOperator === "at least"
           ? "at-least"
           : rawOperator === "at most"
           ? "at-most"
           : rawOperator;
-      const level = this.parseEscalationLevel(namedMatch[2]);
+      const level = this.parseEscalationLevel(namedMatch[2]!);
       return { type: "escalation", operator, value: level };
     }
 
@@ -1088,20 +1095,20 @@ export class QueryParser {
         "<=": "at-most",
         "=": "is",
       };
-      const operator = operatorMap[comparisonMatch[1]] ?? "is";
-      return { type: "priority", operator, value: this.unquote(comparisonMatch[2].trim()) as PriorityLevel };
+      const operator = operatorMap[comparisonMatch[1]!] ?? "is";
+      return { type: "priority", operator, value: this.unquote(comparisonMatch[2]!.trim()) as PriorityLevel };
     }
 
     const namedMatch = normalized.match(/^priority\s+(is|above|below|at\s+least|at\s+most)\s+(.+)$/i);
     if (namedMatch) {
-      const rawOperator = namedMatch[1].toLowerCase();
+      const rawOperator = namedMatch[1]!.toLowerCase();
       const operator =
         rawOperator === "at least"
           ? "at-least"
           : rawOperator === "at most"
           ? "at-most"
           : rawOperator;
-      return { type: "priority", operator, value: this.unquote(namedMatch[2].trim()) as PriorityLevel };
+      return { type: "priority", operator, value: this.unquote(namedMatch[2]!.trim()) as PriorityLevel };
     }
 
     return null;
@@ -1122,20 +1129,20 @@ export class QueryParser {
         "<=": "at-most",
         "=": "is",
       };
-      const operator = operatorMap[comparisonMatch[1]] ?? "is";
-      return { type: "attention", operator, value: this.parseNumericValue(comparisonMatch[2], "attention") };
+      const operator = operatorMap[comparisonMatch[1]!] ?? "is";
+      return { type: "attention", operator, value: this.parseNumericValue(comparisonMatch[2]!, "attention") };
     }
 
     const namedMatch = normalized.match(/^attention\s+(is|above|below|at\s+least|at\s+most)\s+(\d+)$/i);
     if (namedMatch) {
-      const rawOperator = namedMatch[1].toLowerCase();
+      const rawOperator = namedMatch[1]!.toLowerCase();
       const operator =
         rawOperator === "at least"
           ? "at-least"
           : rawOperator === "at most"
           ? "at-most"
           : rawOperator;
-      return { type: "attention", operator, value: this.parseNumericValue(namedMatch[2], "attention") };
+      return { type: "attention", operator, value: this.parseNumericValue(namedMatch[2]!, "attention") };
     }
 
     return null;
@@ -1147,11 +1154,12 @@ export class QueryParser {
     if (!match) {
       return null;
     }
-    const lane = match[1].trim().toUpperCase().replace(/\s+/g, "_");
+    const lane = match[1]!.trim().toUpperCase().replace(/\s+/g, "_");
     const allowed = new Set(["DO_NOW", "UNBLOCK_FIRST", "BLOCKED", "WATCHLIST"]);
     if (!allowed.has(lane)) {
       throw new QuerySyntaxError(
-        `Invalid lane value: "${match[1].trim()}"`,
+        `Invalid lane value: "${match[1]!.trim()}"`,
+
         this.line,
         this.column,
         "Valid lanes: DO_NOW, UNBLOCK_FIRST, BLOCKED, WATCHLIST"

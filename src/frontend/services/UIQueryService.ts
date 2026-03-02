@@ -1,9 +1,9 @@
 /**
- * UIQueryService — Frontend Query Facade
+ * UIQueryService â€” Frontend Query Facade
  *
  * The ONLY way components should read task data.
  * Wraps the backend QueryService/TaskStorage and projects
- * results as DTOs — never exposing domain types to the UI.
+ * results as DTOs â€” never exposing domain types to the UI.
  *
  * Components call:
  *   uiQueryService.selectDashboard()
@@ -14,9 +14,9 @@
  *   uiQueryService.selectById(id)
  *
  * Components NEVER call:
- *   ❌ TaskStorage.loadActive()
- *   ❌ TaskCache.get()
- *   ❌ QueryService.selectAll() (backend-only)
+ *   âŒ TaskStorage.loadActive()
+ *   âŒ TaskCache.get()
+ *   âŒ QueryService.selectAll() (backend-only)
  *
  * REFACTORED (Session 25):
  *   All dynamic `import("@backend/...")` calls removed.
@@ -25,15 +25,15 @@
  *   NEVER reaches into the backend module graph.
  *
  * FORBIDDEN:
- *   ❌ Import Svelte (this is a plain TS class)
- *   ❌ Trigger mutations (delegate to UITaskMutationService)
- *   ❌ Access DOM
- *   ❌ import("@backend/...")
- *   ❌ import("@domain/...")
- *   ❌ import("@shared/...")
+ *   âŒ Import Svelte (this is a plain TS class)
+ *   âŒ Trigger mutations (delegate to UITaskMutationService)
+ *   âŒ Access DOM
+ *   âŒ import("@backend/...")
+ *   âŒ import("@domain/...")
+ *   âŒ import("@shared/...")
  */
 
-// ── No backend imports — structural typing only ────────────────
+// â”€â”€ No backend imports â€” structural typing only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 import type {
   TaskDTO,
@@ -48,10 +48,11 @@ import type {
   SuggestedFixDTO,
   SuggestionDTO,
 } from "./DTOs";
+import * as logger from "@shared/logging/logger";
 
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Structural Interfaces (replace backend type imports)
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Shape expected from backend task data source.
@@ -71,6 +72,33 @@ interface RawTaskShape {
   recurrence?: unknown;
   blockId?: string;
   dependsOn?: string[];
+  /** Pre-computed by backend DomainMapper â€” avoids local recomputation */
+  lifecycleState?: string;
+  /** Pre-computed by backend DependencyGraph */
+  isBlocked?: boolean;
+  /** Pre-computed by backend QueryEngine */
+  isOverdue?: boolean;
+
+  // â”€â”€ Extended fields from backend Task â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  linkedBlockId?: string;
+  recurrenceText?: string;
+  frequency?: unknown;
+  snoozeCount?: number;
+  maxSnoozes?: number;
+  completionCount?: number;
+  missCount?: number;
+  currentStreak?: number;
+  bestStreak?: number;
+  scheduledAt?: string;
+  doneAt?: string;
+  order?: number;
+  path?: string;
+  heading?: string;
+  seriesId?: string;
+  occurrenceIndex?: number;
+  statusSymbol?: string;
+  lastCompletedAt?: string;
+  cancelledAt?: string;
   [key: string]: unknown;
 }
 
@@ -111,7 +139,7 @@ interface FileReplacerLike {
   replaceTaskWithTasks(opts: { originalTask: unknown; newTasks: unknown }): Promise<void>;
 }
 
-// ── NEW: Injected backend capability interfaces ────────────────
+// â”€â”€ NEW: Injected backend capability interfaces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Every backend capability that was previously reached via
 // dynamic import("@backend/...") is now a structural interface
@@ -175,7 +203,7 @@ interface TaskTemplateStoreLike {
   deleteTaskTemplate(templateId: string): void;
 }
 
-/** Structural interface for frequency → RRule conversion. */
+/** Structural interface for frequency â†’ RRule conversion. */
 interface FrequencyConverterLike {
   previewConversion(task: unknown): unknown;
   updateTaskRecurrence(task: unknown, persist: boolean): unknown | null;
@@ -193,9 +221,9 @@ interface TaskModelAdapterLike {
   unifiedToSiyuan(task: unknown): unknown;
 }
 
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Types
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface UIQueryServiceDeps {
   taskStorage: TaskDataSource;
@@ -229,9 +257,9 @@ export interface UIQueryServiceDeps {
   taskModelAdapter?: TaskModelAdapterLike;
 }
 
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Implementation
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export class UIQueryService {
   private taskStorage: TaskDataSource | null = null;
@@ -293,7 +321,7 @@ export class UIQueryService {
     this.taskModelAdapter = null;
   }
 
-  // ── Query API (returns DTOs only) ──────────────────────────
+  // â”€â”€ Query API (returns DTOs only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Select all active tasks projected as TaskDTOs.
@@ -326,14 +354,10 @@ export class UIQueryService {
    */
   selectOverdue(): TaskDTO[] {
     const tasks = this.getAllTasks();
-    const now = Date.now();
-
+    // Map first, then filter on DTO's pre-computed isOverdue flag
     return tasks
-      .filter((t) => {
-        if (!t.dueAt || t.status === "done" || t.status === "cancelled") return false;
-        return new Date(t.dueAt).getTime() < now;
-      })
-      .map((t) => this.mapTaskToDTO(t));
+      .map((t) => this.mapTaskToDTO(t))
+      .filter((dto) => dto.isOverdue);
   }
 
   /**
@@ -397,11 +421,11 @@ export class UIQueryService {
         priority: t.priority as string | undefined,
         isOverdue: dueMs <= nowMs,
         minutesUntilDue: Math.round(minutesUntilDue),
-        recurrenceText: (t as any).recurrenceText ?? (t.recurrence ? "Recurring" : undefined),
+        recurrenceText: t.recurrenceText ?? (t.recurrence ? "Recurring" : undefined),
         tags: t.tags as readonly string[] | undefined,
-        blockId: t.blockId ?? (t as any).linkedBlockId,
-        snoozeCount: (t as any).snoozeCount ?? 0,
-        maxSnoozes: (t as any).maxSnoozes ?? 3,
+        blockId: t.blockId ?? t.linkedBlockId,
+        snoozeCount: t.snoozeCount ?? 0,
+        maxSnoozes: t.maxSnoozes ?? 3,
       };
 
       if (dueMs <= nowMs) {
@@ -464,11 +488,11 @@ export class UIQueryService {
     let bestStreak = 0;
     let currentStreak = 0;
     for (const t of tasks) {
-      totalCompletions += (t as any).completionCount ?? 0;
-      totalMisses += (t as any).missCount ?? 0;
-      const streak = (t as any).currentStreak ?? 0;
+      totalCompletions += t.completionCount ?? 0;
+      totalMisses += t.missCount ?? 0;
+      const streak = t.currentStreak ?? 0;
       if (streak > currentStreak) currentStreak = streak;
-      const best = (t as any).bestStreak ?? 0;
+      const best = t.bestStreak ?? 0;
       if (best > bestStreak) bestStreak = best;
     }
 
@@ -540,9 +564,9 @@ export class UIQueryService {
     });
   }
 
-  // ── Natural-Language Query API ─────────────────────────────
+  // â”€â”€ Natural-Language Query API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // Delegates to injected queryEngine — NEVER imports backend modules.
+  // Delegates to injected queryEngine â€” NEVER imports backend modules.
 
   /**
    * Execute a natural-language query string and return matching TaskDTOs.
@@ -553,7 +577,7 @@ export class UIQueryService {
     settingsOverride?: Record<string, unknown>
   ): Promise<TaskDTO[]> {
     if (!this.queryEngine) {
-      console.warn("[UIQueryService] executeQuery: queryEngine not connected — returning all tasks");
+      logger.warn("[UIQueryService] executeQuery: queryEngine not connected â€” returning all tasks");
       return this.selectDashboard();
     }
 
@@ -570,7 +594,7 @@ export class UIQueryService {
     settingsOverride?: Record<string, unknown>
   ): Promise<{ results: TaskDTO[]; explanation: unknown }> {
     if (!this.queryEngine) {
-      console.warn("[UIQueryService] executeQueryWithExplanation: queryEngine not connected");
+      logger.warn("[UIQueryService] executeQueryWithExplanation: queryEngine not connected");
       return { results: this.selectDashboard(), explanation: null };
     }
 
@@ -582,7 +606,7 @@ export class UIQueryService {
     };
   }
 
-  // ── Private Helpers ──────────────────────────────────────────
+  // â”€â”€ Private Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private getAllTasks(): RawTaskShape[] {
     if (!this.taskStorage) return [];
@@ -591,34 +615,21 @@ export class UIQueryService {
 
   /**
    * Map a backend task shape to a TaskDTO.
-   * This is the SINGLE projection point — all domain knowledge
+   * This is the SINGLE projection point â€” all domain knowledge
    * is encapsulated here.
    */
   private mapTaskToDTO(task: RawTaskShape): TaskDTO {
     const now = Date.now();
     const dueMs = task.dueAt ? new Date(task.dueAt).getTime() : undefined;
-    const isOverdue = !!dueMs && dueMs < now && task.status !== "done" && task.status !== "cancelled";
 
-    // Dependency blocked check
-    const allTasks = this.getAllTasks();
-    let isBlocked = false;
-    if (task.dependsOn && task.dependsOn.length > 0) {
-      isBlocked = task.dependsOn.some((depId) => {
-        const dep = allTasks.find((d) => d.id === depId);
-        return dep && dep.status !== "done";
-      });
-    }
+    // Prefer pre-computed fields from backend (DomainMapper/DependencyGraph/QueryEngine)
+    // Fall back to local computation only if backend hasn't enriched them
+    const isOverdue = task.isOverdue ?? (!!dueMs && dueMs < now && task.status !== "done" && task.status !== "cancelled");
+    const isBlocked = task.isBlocked ?? this.computeIsBlockedFallback(task);
+    const lifecycleState = task.lifecycleState ?? this.computeLifecycleStateFallback(task, isOverdue, isBlocked, dueMs, now);
 
-    // Derive lifecycle state
-    let lifecycleState = "idle";
-    if (task.status === "done") lifecycleState = "completed";
-    else if (task.status === "cancelled") lifecycleState = "cancelled";
-    else if (isBlocked) lifecycleState = "blocked";
-    else if (isOverdue) lifecycleState = "overdue";
-    else if (dueMs && dueMs - now < 60 * 60 * 1000) lifecycleState = "due"; // within 1 hour
-
-    const completionCount = (task as any).completionCount ?? 0;
-    const missCount = (task as any).missCount ?? 0;
+    const completionCount = task.completionCount ?? 0;
+    const missCount = task.missCount ?? 0;
     const total = completionCount + missCount;
 
     return {
@@ -628,33 +639,65 @@ export class UIQueryService {
       lifecycleState,
       enabled: task.enabled !== false,
       dueAt: task.dueAt,
-      scheduledAt: (task as any).scheduledAt,
-      doneAt: (task as any).doneAt,
+      scheduledAt: task.scheduledAt,
+      doneAt: task.doneAt,
       priority: task.priority as string | undefined,
       tags: task.tags as readonly string[] | undefined,
       category: task.category as string | undefined,
       description: task.description as string | undefined,
-      order: (task as any).order,
-      isRecurring: !!(task.recurrence || (task as any).recurrenceText || (task as any).frequency),
+      order: task.order,
+      isRecurring: !!(task.recurrence || task.recurrenceText || task.frequency),
       isBlocked,
       isOverdue,
       completionCount,
       missCount,
-      currentStreak: (task as any).currentStreak ?? 0,
+      currentStreak: task.currentStreak ?? 0,
       healthScore: total > 0 ? Math.round((completionCount / total) * 100) : 100,
-      blockId: task.blockId ?? (task as any).linkedBlockId,
-      path: (task as any).path,
-      heading: (task as any).heading,
-      recurrenceText: (task as any).recurrenceText,
-      seriesId: (task as any).seriesId,
-      occurrenceIndex: (task as any).occurrenceIndex,
-      statusSymbol: (task as any).statusSymbol,
+      blockId: task.blockId ?? task.linkedBlockId,
+      path: task.path,
+      heading: task.heading,
+      recurrenceText: task.recurrenceText,
+      seriesId: task.seriesId,
+      occurrenceIndex: task.occurrenceIndex,
+      statusSymbol: task.statusSymbol,
     };
   }
 
-  // ── Saved Query Facade ───────────────────────────────────────
+  // â”€â”€ Saved Query Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // Routes through injected savedQueryStore — NEVER imports backend.
+  // Routes through injected savedQueryStore â€” NEVER imports backend.
+
+  /**
+   * Fallback: compute isBlocked locally when backend doesn't provide it.
+   * @deprecated â€” remove once all backend task providers enrich isBlocked
+   */
+  private computeIsBlockedFallback(task: RawTaskShape): boolean {
+    if (!task.dependsOn || task.dependsOn.length === 0) return false;
+    const allTasks = this.getAllTasks();
+    return task.dependsOn.some((depId) => {
+      const dep = allTasks.find((d) => d.id === depId);
+      return dep && dep.status !== "done";
+    });
+  }
+
+  /**
+   * Fallback: derive lifecycleState locally when backend doesn't provide it.
+   * @deprecated â€” remove once all backend task providers enrich lifecycleState
+   */
+  private computeLifecycleStateFallback(
+    task: RawTaskShape,
+    isOverdue: boolean,
+    isBlocked: boolean,
+    dueMs: number | undefined,
+    now: number,
+  ): string {
+    if (task.status === "done") return "completed";
+    if (task.status === "cancelled") return "cancelled";
+    if (isBlocked) return "blocked";
+    if (isOverdue) return "overdue";
+    if (dueMs && dueMs - now < 60 * 60 * 1000) return "due";
+    return "idle";
+  }
 
   /** Load all saved queries as DTOs. */
   async selectSavedQueries(): Promise<SavedQueryDTO[]> {
@@ -766,7 +809,7 @@ export class UIQueryService {
     this.savedQueryStore.clear();
   }
 
-  // ── Saved Query Folder Facade ────────────────────────────────
+  // â”€â”€ Saved Query Folder Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Get all folders. */
   async selectSavedQueryFolders(): Promise<SavedQueryFolderDTO[]> {
@@ -786,7 +829,7 @@ export class UIQueryService {
     this.savedQueryStore.deleteFolder(folderId);
   }
 
-  // ── Query Explanation Facade ─────────────────────────────────
+  // â”€â”€ Query Explanation Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Convert an Explanation into markdown string. */
   async explainAsMarkdown(explanation: unknown): Promise<string> {
@@ -794,7 +837,7 @@ export class UIQueryService {
     return this.queryExplainer.explainAsMarkdown(explanation);
   }
 
-  // ── Suggested Fix Facade ─────────────────────────────────────
+  // â”€â”€ Suggested Fix Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Generate suggested fixes for a query AST. */
   async generateSuggestedFixes(queryAST: unknown): Promise<SuggestedFixDTO[]> {
@@ -802,42 +845,45 @@ export class UIQueryService {
     return this.suggestedFixGenerator.generateFixes(queryAST);
   }
 
-  // ── CSV Export Facade ────────────────────────────────────────
+  // â”€â”€ CSV Export Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Export task data as CSV and trigger download. */
   async exportTasksAsCSV(tasks: TaskDTO[], filename?: string): Promise<void> {
     if (!this.csvExporter) {
-      console.warn("[UIQueryService] exportTasksAsCSV: csvExporter not connected");
+      logger.warn("[UIQueryService] exportTasksAsCSV: csvExporter not connected");
       return;
     }
     this.csvExporter.exportAndDownload(tasks, filename);
   }
 
-  // ── AI Analysis Facade ───────────────────────────────────────
+  // â”€â”€ AI Analysis Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // Routes through injected aiAnalyzer — NEVER imports backend.
+  // Routes through injected aiAnalyzer â€” NEVER imports backend.
 
   /** On-demand AI analysis for a single task (manual trigger). */
   async requestAIAnalysis(task: TaskDTO, trigger: string = "manual"): Promise<SuggestionDTO[]> {
     if (!this.aiAnalyzer) {
-      console.warn("[UIQueryService] requestAIAnalysis: aiAnalyzer not connected");
+      logger.warn("[UIQueryService] requestAIAnalysis: aiAnalyzer not connected");
       return [];
     }
 
     const suggestions = this.aiAnalyzer.analyzeTask(task, trigger);
-    return suggestions.map((s: Record<string, unknown>) => ({
-      id: (s.id as string) ?? `sug_${Math.random().toString(36).slice(2, 9)}`,
-      taskId: task.id,
-      type: (s.type as string) ?? "general",
-      reason: (s.reason as string) ?? (s.description as string) ?? "",
-      confidence: (s.confidence as number) ?? 0,
-      dismissed: false,
-      action: {
-        type: ((s.action as any)?.type as string) ?? "none",
-        label: ((s.action as any)?.label as string) ?? ((s.action as any)?.description as string) ?? "No action",
-        parameters: ((s.action as any)?.parameters as Record<string, unknown>) ?? {},
-      },
-    }));
+    return suggestions.map((s: Record<string, unknown>) => {
+      const action = (s.action ?? {}) as Record<string, unknown>;
+      return {
+        id: (s.id as string) ?? `sug_${Math.random().toString(36).slice(2, 9)}`,
+        taskId: task.id,
+        type: (s.type as string) ?? "general",
+        reason: (s.reason as string) ?? (s.description as string) ?? "",
+        confidence: (s.confidence as number) ?? 0,
+        dismissed: false,
+        action: {
+          type: (action.type as string) ?? "none",
+          label: (action.label as string) ?? (action.description as string) ?? "No action",
+          parameters: (action.parameters as Record<string, unknown>) ?? {},
+        },
+      };
+    });
   }
 
   /** Check if a task has enough AI data for analysis. */
@@ -845,7 +891,7 @@ export class UIQueryService {
     return (task.completionCount ?? 0) > 0 || (task.missCount ?? 0) > 0;
   }
 
-  // ── Task Template Facade ─────────────────────────────────────
+  // â”€â”€ Task Template Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Load all task templates. */
   async selectTaskTemplates(): Promise<TaskTemplateDTO[]> {
@@ -866,9 +912,9 @@ export class UIQueryService {
     this.taskTemplateStore.deleteTaskTemplate(templateId);
   }
 
-  // ── Recurrence Conversion Facade ─────────────────────────────
+  // â”€â”€ Recurrence Conversion Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  /** Preview a legacy frequency → RRule conversion. */
+  /** Preview a legacy frequency â†’ RRule conversion. */
   async previewRecurrenceConversion(task: TaskDTO): Promise<unknown> {
     if (!this.frequencyConverter) return null;
     return this.frequencyConverter.previewConversion(task);
@@ -881,7 +927,7 @@ export class UIQueryService {
     return migrated ? this.mapTaskToDTO(migrated as RawTaskShape) : null;
   }
 
-  // ── File Replacement Facade ──────────────────────────────────
+  // â”€â”€ File Replacement Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Replace one task with zero or more new tasks (file-level).
@@ -889,7 +935,7 @@ export class UIQueryService {
    */
   async replaceTaskInFile(originalTask: TaskDTO, newTasks: TaskDTO | TaskDTO[]): Promise<void> {
     if (!this.fileReplacer) {
-      console.warn("[UIQueryService] replaceTaskInFile: not connected");
+      logger.warn("[UIQueryService] replaceTaskInFile: not connected");
       return;
     }
     await this.fileReplacer.replaceTaskWithTasks({
@@ -898,20 +944,20 @@ export class UIQueryService {
     });
   }
 
-  // ── Grouper Facade ───────────────────────────────────────────
+  // â”€â”€ Grouper Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Get the Grouper class (injected). */
   async getGrouperClass(): Promise<any> {
     if (!this.grouperClass) {
-      console.warn("[UIQueryService] getGrouperClass: grouperClass not connected");
+      logger.warn("[UIQueryService] getGrouperClass: grouperClass not connected");
       return null;
     }
     return this.grouperClass;
   }
 
-  // ── Form Utility Facades ─────────────────────────────────────
+  // â”€â”€ Form Utility Facades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // Delegates to injected structural providers — never imports @domain.
+  // Delegates to injected structural providers â€” never imports @domain.
 
   /** Parse a natural language date string. */
   async parseNaturalDate(input: string, referenceDate?: Date): Promise<Date | null> {
@@ -922,7 +968,7 @@ export class UIQueryService {
   /** Convert a Date to ISO date string (YYYY-MM-DD). */
   async toISODate(date: Date): Promise<string> {
     if (this.dateParser) return this.dateParser.toISODateString(date);
-    // Inline fallback — pure formatting, no domain dependency.
+    // Inline fallback â€” pure formatting, no domain dependency.
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
@@ -941,14 +987,14 @@ export class UIQueryService {
     return this.recurrenceParser.serializeRecurrenceRule(rule);
   }
 
-  // ── Task Model Adapter Facade ────────────────────────────────
+  // â”€â”€ Task Model Adapter Facade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // Routes through injected taskModelAdapter — NEVER imports backend.
+  // Routes through injected taskModelAdapter â€” NEVER imports backend.
 
   /** Convert an adapter-compatible task to unified format. */
   async toUnifiedTask(task: TaskDTO): Promise<unknown> {
     if (!this.taskModelAdapter) {
-      console.warn("[UIQueryService] toUnifiedTask: taskModelAdapter not connected");
+      logger.warn("[UIQueryService] toUnifiedTask: taskModelAdapter not connected");
       return task;
     }
     return this.taskModelAdapter.siyuanToUnified(task);
@@ -957,7 +1003,7 @@ export class UIQueryService {
   /** Convert a unified task back to SiYuan format. */
   async fromUnifiedTask(unifiedTask: unknown): Promise<TaskDTO> {
     if (!this.taskModelAdapter) {
-      console.warn("[UIQueryService] fromUnifiedTask: taskModelAdapter not connected");
+      logger.warn("[UIQueryService] fromUnifiedTask: taskModelAdapter not connected");
       return unifiedTask as TaskDTO;
     }
     const siyuan = this.taskModelAdapter.unifiedToSiyuan(unifiedTask);
@@ -965,6 +1011,6 @@ export class UIQueryService {
   }
 }
 
-// ── Singleton ──────────────────────────────────────────────────
+// â”€â”€ Singleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const uiQueryService = new UIQueryService();

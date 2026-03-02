@@ -21,16 +21,16 @@ export function extractRRuleOptions(rruleString: string): any {
   // Parse the RRULE
   const parsed = rrulestr(normalized);
   
-  // Extract options based on parsed type
-  if (parsed instanceof RRule) {
-    return { ...parsed.origOptions };
-  } else if (parsed instanceof RRuleSet) {
+  // Extract options based on parsed type (check RRuleSet first since it extends RRule)
+  if (parsed instanceof RRuleSet) {
     const rrules = parsed.rrules();
     if (rrules && rrules.length > 0) {
-      return { ...rrules[0].origOptions };
+      return { ...rrules[0]!.origOptions };
     } else {
       throw new Error('RRuleSet has no rrules');
     }
+  } else if (parsed instanceof RRule) {
+    return { ...parsed.origOptions };
   } else {
     throw new Error('Unexpected parsed rule type');
   }

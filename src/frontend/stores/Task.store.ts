@@ -22,8 +22,9 @@ import { writable, derived, get } from 'svelte/store';
 import type { Writable } from 'svelte/store';
 import type { TaskDTO } from '../services/DTOs';
 import { uiQueryService } from '../services/UIQueryService';
-import { uiMutationService } from '../services/UITaskMutationService';
+import { uiMutationService, type UpdateTaskDTO } from '../services/UITaskMutationService';
 import { uiEventService } from '../services/UIEventService';
+import * as logger from "@shared/logging/logger";
 
 interface TaskStoreState {
   tasks: Map<string, TaskDTO>;
@@ -54,13 +55,13 @@ class TaskStore {
     // Auto-refresh when tasks change in the backend
     this.eventCleanup = uiEventService.onTaskRefresh(() => {
       this.refreshFromBackend().catch((err) => {
-        console.warn("[TaskStore] Auto-refresh failed:", err);
+        logger.warn("[TaskStore] Auto-refresh failed", { error: err });
       });
     });
 
     // Initial load from backend via UIQueryService
     this.refreshFromBackend().catch((err) => {
-      console.warn("[TaskStore] Initial backend load failed:", err);
+      logger.warn("[TaskStore] Initial backend load failed", { error: err });
     });
   }
 
@@ -155,7 +156,7 @@ class TaskStore {
       // Refresh to get updated state from backend
       await this.refreshFromBackend();
     } catch (error) {
-      console.error('Failed to toggle task:', error);
+      logger.error('Failed to toggle task', { error: error });
     }
   }
 
@@ -164,16 +165,16 @@ class TaskStore {
    * All field changes route through the mutation service —
    * NEVER mutate fields inline.
    */
-  async updateTask(taskId: string, updates: Record<string, unknown>): Promise<void> {
+  async updateTask(taskId: string, updates: UpdateTaskDTO): Promise<void> {
     try {
-      const result = await uiMutationService.updateTask(taskId, updates as any);
+      const result = await uiMutationService.updateTask(taskId, updates);
       if (result.success) {
         await this.refreshFromBackend();
       } else {
-        console.error(`[TaskStore] Update failed for ${taskId}:`, result.error);
+        logger.error(`[TaskStore] Update failed for ${taskId}:`, { error: result.error });
       }
     } catch (error) {
-      console.error(`[TaskStore] Update failed for ${taskId}:`, error);
+      logger.error(`[TaskStore] Update failed for ${taskId}:`, { error: error });
     }
   }
 
@@ -197,10 +198,10 @@ class TaskStore {
       if (result.success) {
         await this.refreshFromBackend();
       } else {
-        console.error(`[TaskStore] Add failed:`, result.error);
+        logger.error(`[TaskStore] Add failed:`, { error: result.error });
       }
     } catch (error) {
-      console.error(`[TaskStore] Add failed:`, error);
+      logger.error(`[TaskStore] Add failed:`, { error: error });
     }
   }
 
@@ -213,10 +214,10 @@ class TaskStore {
       if (result.success) {
         await this.refreshFromBackend();
       } else {
-        console.error(`[TaskStore] Delete failed for ${taskId}:`, result.error);
+        logger.error(`[TaskStore] Delete failed for ${taskId}:`, { error: result.error });
       }
     } catch (error) {
-      console.error(`[TaskStore] Delete failed for ${taskId}:`, error);
+      logger.error(`[TaskStore] Delete failed for ${taskId}:`, { error: error });
     }
   }
 
@@ -267,16 +268,17 @@ export const allTasks = derived(taskStore, ($state) =>
   Array.from($state.tasks.values())
 );
 
-/** Tasks due today */
+/** Tasks due today — filters on DTO.dueAt (presentation date bucketing, not lifecycle logic) */
 export const tasksDueToday = derived(taskStore, ($state) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrowMs = today.getTime() + 86_400_000;
+  const todayMs = today.getTime();
   const result: TaskDTO[] = [];
   for (const task of $state.tasks.values()) {
-    if (task.dueAt) {
+    if (task.dueAt && task.status !== "done" && task.status !== "cancelled") {
       const dueMs = new Date(task.dueAt).getTime();
-      if (dueMs >= today.getTime() && dueMs < tomorrowMs) {
+      if (dueMs >= todayMs && dueMs < tomorrowMs) {
         result.push(task);
       }
     }

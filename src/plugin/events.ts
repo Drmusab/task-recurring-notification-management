@@ -14,6 +14,7 @@ import type { PluginEventBus } from "@backend/core/events/PluginEventBus";
 import type { BlockMetadataService } from "@backend/core/api/BlockMetadataService";
 import type { Scheduler } from "@backend/core/engine/Scheduler";
 import { showMessage } from "siyuan";
+import * as logger from "@shared/logging/logger";
 
 export interface EventHandlerState {
   wsMainHandler: ((evt: { detail: any }) => void) | null;
@@ -282,13 +283,13 @@ function addBlockContextMenu(
               "info"
             );
           } catch {
-            console.log(`Task: ${meta.taskId} | Status: ${meta.status}`);
+            logger.info(`Task: ${meta.taskId} | Status: ${meta.status}`);
           }
         } else {
           try {
             showMessage("No task metadata on this block", 6000, "info");
           } catch {
-            console.log("No task metadata on this block");
+            logger.info("No task metadata on this block");
           }
         }
       }

@@ -25,31 +25,31 @@ import * as logger from "@backend/logging/logger";
 // ──────────────────────────────────────────────────────────────
 
 export interface TaskAnalyticsEntry {
-  taskId: string;
-  completionCount: number;
-  missCount: number;
-  currentStreak: number;
-  bestStreak: number;
-  snoozeCount: number;
+  readonly taskId: string;
+  readonly completionCount: number;
+  readonly missCount: number;
+  readonly currentStreak: number;
+  readonly bestStreak: number;
+  readonly snoozeCount: number;
   /** Ratio: completionCount / (completionCount + missCount). 0-1, NaN → 0 */
-  completionRate: number;
+  readonly completionRate: number;
   /** Most recent completion timestamps (ISO strings, max 10) */
-  recentCompletions: string[];
+  readonly recentCompletions: readonly string[];
   /** True if missCount > completionCount × 2 */
-  abandonmentRisk: boolean;
+  readonly abandonmentRisk: boolean;
   /** Updated timestamp */
-  computedAt: string;
+  readonly computedAt: string;
 }
 
 export interface AggregateAnalytics {
-  totalTasks: number;
-  enabledTasks: number;
-  recurringTasks: number;
-  avgCompletionRate: number;
-  totalCompletions: number;
-  totalMisses: number;
-  highRiskTasks: string[]; // task IDs flagged for abandonment
-  computedAt: string;
+  readonly totalTasks: number;
+  readonly enabledTasks: number;
+  readonly recurringTasks: number;
+  readonly avgCompletionRate: number;
+  readonly totalCompletions: number;
+  readonly totalMisses: number;
+  readonly highRiskTasks: readonly string[]; // task IDs flagged for abandonment
+  readonly computedAt: string;
 }
 
 export interface AnalyticsCacheStats {
@@ -210,29 +210,35 @@ export class AnalyticsCache {
     };
   }
 
+  /**
+   * Compute aggregate from CACHED entries — never re-reads from repository.
+   * This ensures the aggregate snapshot is consistent with per-task entries.
+   */
   private computeAggregate(): AggregateAnalytics {
-    const all = this.repository.getAllTasks();
     let totalCompletions = 0;
     let totalMisses = 0;
-    let enabledCount = 0;
-    let recurringCount = 0;
     const highRisk: string[] = [];
 
-    for (const task of all) {
-      totalCompletions += task.completionCount ?? 0;
-      totalMisses += task.missCount ?? 0;
-      if (task.enabled) enabledCount++;
-      if (task.recurrence?.rrule) recurringCount++;
+    for (const entry of this.taskEntries.values()) {
+      totalCompletions += entry.completionCount;
+      totalMisses += entry.missCount;
+      if (entry.abandonmentRisk) highRisk.push(entry.taskId);
     }
 
-    for (const [tid, entry] of this.taskEntries) {
-      if (entry.abandonmentRisk) highRisk.push(tid);
+    // enabledTasks / recurringTasks require task model fields not in
+    // TaskAnalyticsEntry — read from repository only for these counters.
+    const all = this.repository.getAllTasks();
+    let enabledCount = 0;
+    let recurringCount = 0;
+    for (const task of all) {
+      if (task.enabled) enabledCount++;
+      if (task.recurrence?.rrule) recurringCount++;
     }
 
     const total = totalCompletions + totalMisses;
 
     return {
-      totalTasks: all.length,
+      totalTasks: this.taskEntries.size,
       enabledTasks: enabledCount,
       recurringTasks: recurringCount,
       avgCompletionRate: total > 0 ? totalCompletions / total : 0,

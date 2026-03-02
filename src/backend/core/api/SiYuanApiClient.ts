@@ -199,3 +199,64 @@ export async function pushErrMsg(
     timeout,
   });
 }
+
+// ─── Block Endpoint Wrappers ────────────────────────────────
+
+/**
+ * Get child blocks of a parent block.
+ * Endpoint: POST /api/block/getChildBlocks
+ *
+ * @param id  Parent block ID. Blocks below a heading are also counted as children.
+ * @returns   Array of `{ id, type, subType? }` entries
+ */
+export async function getChildBlocks(
+  id: string,
+): Promise<Array<{ id: string; type: string; subType?: string }>> {
+  return siyuanRequest<Array<{ id: string; type: string; subType?: string }>>(
+    "/api/block/getChildBlocks",
+    { id },
+  );
+}
+
+/**
+ * Get a block's Kramdown source.
+ * Endpoint: POST /api/block/getBlockKramdown
+ *
+ * @param id  Block ID
+ * @returns   `{ id, kramdown }` object
+ */
+export async function getBlockKramdown(
+  id: string,
+): Promise<{ id: string; kramdown: string }> {
+  return siyuanRequest<{ id: string; kramdown: string }>(
+    "/api/block/getBlockKramdown",
+    { id },
+  );
+}
+
+// ─── System / SQLite Endpoint Wrappers ──────────────────────
+
+/**
+ * Get boot progress of the SiYuan kernel.
+ * Endpoint: POST /api/system/bootProgress
+ *
+ * @returns `{ progress, details }` — progress is 0-100
+ */
+export async function getBootProgress(): Promise<{
+  progress: number;
+  details: string;
+}> {
+  return siyuanRequest<{ progress: number; details: string }>(
+    "/api/system/bootProgress",
+    {},
+  );
+}
+
+/**
+ * Flush the SQLite write-ahead log so that subsequent SQL queries
+ * see the latest data.  No parameters.
+ * Endpoint: POST /api/sqlite/flushTransaction
+ */
+export async function flushTransaction(): Promise<void> {
+  await siyuanRequest("/api/sqlite/flushTransaction", {});
+}

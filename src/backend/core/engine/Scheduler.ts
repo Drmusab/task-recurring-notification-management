@@ -562,17 +562,11 @@ export class Scheduler {
       throw new Error(`Task not found: ${taskId}`);
     }
 
-    // Work on a deep copy to prevent in-memory state corruption if save fails
-    const task: Task = JSON.parse(JSON.stringify(original));
+    // Immutable copy — recordCompletion returns a new Task
     const now = new Date();
-    
-    // Set doneAt date
-    task.doneAt = now.toISOString();
-    
-    // Record completion (updates analytics)
-    recordCompletion(task);
+    let task: Task = recordCompletion({ ...original, doneAt: now.toISOString() });
 
-    const completionSnapshot = JSON.parse(JSON.stringify(task));
+    const completionSnapshot: Task = { ...task };
     try {
       await this.storage.archiveTask(completionSnapshot);
     } catch (archiveErr) {
@@ -624,7 +618,7 @@ export class Scheduler {
       const nextDue = this.recurrenceEngine.next(taskWithRecurrence, referenceDate);
 
       if (!nextDue) {
-        task.enabled = false;
+        task = { ...task, enabled: false };
         await this.storage.saveTask(task);
         logger.info(`Task "${task.name}" recurrence series exhausted, disabled`);
         // Emit completed + no next
@@ -638,13 +632,13 @@ export class Scheduler {
         return;
       }
       
-      if (!task.recurrence && taskWithRecurrence.recurrence) {
-        task.recurrence = taskWithRecurrence.recurrence;
-      }
-
       const previousDueAt = task.dueAt;
-      task.dueAt = nextDue.toISOString();
-      task.doneAt = undefined;
+      task = {
+        ...task,
+        recurrence: task.recurrence ?? taskWithRecurrence.recurrence,
+        dueAt: nextDue.toISOString(),
+        doneAt: undefined,
+      };
       await this.storage.saveTask(task);
 
       // Emit runtime events
@@ -754,19 +748,20 @@ export class Scheduler {
    * Emits task:runtime:skipped via EventQueue.
    */
   async skipOccurrence(taskId: string): Promise<void> {
-    const task = this.storage.getTask(taskId);
-    if (!task) {
+    const original = this.storage.getTask(taskId);
+    if (!original) {
       throw new Error(`Task not found: ${taskId}`);
     }
 
-    // Record as a miss
-    recordMiss(task);
+    // Record as a miss — immutable
+    let task: Task = recordMiss(original);
 
     // Clear overdue state for this task
     this.overdueStateSet.delete(taskId);
 
     if (!hasRecurrence(task)) {
       logger.warn('Task has no recurrence configured for skip', { taskId: task.id });
+      await this.storage.saveTask(task);
       return;
     }
 
@@ -778,7 +773,7 @@ export class Scheduler {
       const nextDue = this.recurrenceEngine.next(taskWithRecurrence, currentDue);
 
       if (!nextDue) {
-        task.enabled = false;
+        task = { ...task, enabled: false };
         await this.storage.saveTask(task);
         // Emit skip with no next
         if (this.eventQueue) {
@@ -792,11 +787,11 @@ export class Scheduler {
         return;
       }
       
-      if (!task.recurrence && taskWithRecurrence.recurrence) {
-        task.recurrence = taskWithRecurrence.recurrence;
-      }
-
-      task.dueAt = nextDue.toISOString();
+      task = {
+        ...task,
+        recurrence: task.recurrence ?? taskWithRecurrence.recurrence,
+        dueAt: nextDue.toISOString(),
+      };
       await this.storage.saveTask(task);
 
       // Emit runtime event
@@ -876,7 +871,7 @@ export class Scheduler {
           task,
           lastRunAt,
           now,
-          { policy: "catchUp", maxMissed: Scheduler.MAX_MISSED_EMISSIONS_PER_TASK }
+          { policy: "catch-up", maxMissed: Scheduler.MAX_MISSED_EMISSIONS_PER_TASK }
         );
         
         // Backpressure: cap per-task emissions to avoid flooding after long downtime
@@ -897,7 +892,7 @@ export class Scheduler {
               taskId: task.id,
               dueAt: missedAt,
               context: "overdue",
-              task,
+              task: task,
             });
             this.registerEmittedKey("missed", taskKey);
             emittedForTask++;
@@ -940,28 +935,27 @@ export class Scheduler {
     }
 
     // Use RecurrenceEngine.next() which finds the next occurrence after a given date.
-    // We pass `now` as reference so it returns the next future occurrence directly.
     const nextDue = this.recurrenceEngine.next(task, now);
     
     if (!nextDue) {
       // Series exhausted during recovery — disable task
-      task.enabled = false;
-      await this.storage.saveTask(task);
+      const disabledTask: Task = { ...task, enabled: false };
+      await this.storage.saveTask(disabledTask);
       logger.info(`Task "${task.name}" recurrence series exhausted during recovery, disabled`);
       return;
     }
 
     if (nextDue > currentDue) {
       const previousDueAt = task.dueAt;
-      task.dueAt = nextDue.toISOString();
-      await this.storage.saveTask(task);
+      const advancedTask: Task = { ...task, dueAt: nextDue.toISOString() };
+      await this.storage.saveTask(advancedTask);
 
       // Emit runtime rescheduled event
       if (this.eventQueue) {
         this.eventQueue.enqueue("task:runtime:rescheduled", {
           taskId: task.id,
           previousDueAt,
-          newDueAt: task.dueAt,
+          newDueAt: advancedTask.dueAt,
           reason: "recovery advance",
         });
       }

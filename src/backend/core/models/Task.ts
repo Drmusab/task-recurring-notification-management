@@ -2,45 +2,45 @@
 import type { Recurrence } from "@domain/models/Recurrence";
 import { isValidFrequency } from "./Frequency";
 import { MAX_RECENT_COMPLETIONS, CURRENT_SCHEMA_VERSION } from "@shared/constants/misc-constants";
-import { calculateUrgencyScore } from "@backend/core/urgency/UrgencyScoreCalculator";
 import type { BlockLinkedAction } from "@backend/core/block-actions/BlockActionTypes";
 
 /**
  * Custom action to take when task is completed
  */
 export interface OnCompletionAction {
-  action: 'keep' | 'delete' | 'archive' | 'customTransition';
-  nextStatus?: 'todo' | 'done' | 'cancelled' | string;
-  customHandler?: string;
+  readonly action: 'keep' | 'delete' | 'archive' | 'customTransition';
+  readonly nextStatus?: 'todo' | 'done' | 'cancelled' | string;
+  readonly customHandler?: string;
 }
 
 /**
  * Task entity representing a recurring task
+ * v3.0 — All fields readonly. Mutations via immutable factory functions.
  */
 export interface Task {
   /** Unique task identifier */
-  id: string;
+  readonly id: string;
   
   /** Task title/name */
-  name: string;
+  readonly name: string;
   
   /** Timestamp of last completion (ISO string) */
-  lastCompletedAt?: string;
+  readonly lastCompletedAt?: string;
   
   /** Current due date & time (ISO string) */
-  dueAt: string;
+  readonly dueAt: string;
   
   /** DEPRECATED: Legacy frequency-based recurrence (Phase 1-2 only, use 'recurrence' instead) */
-  frequency?: Frequency;
+  readonly frequency?: Frequency;
   
   /** NEW: RRule-based recurrence (Phase 3: Required for all tasks) */
-  recurrence?: Recurrence;
+  readonly recurrence?: Recurrence;
   
   /** Whether task is active */
-  enabled: boolean;
+  readonly enabled: boolean;
 
   /** Display order for manual task ordering (Phase 4: Drag-to-reorder) */
-  order?: number;
+  readonly order?: number;
 
   // ─── Block-Aware Metadata (CQRS Phase) ─────────────────────
 
@@ -49,208 +49,211 @@ export interface Task {
    * Primary identifier for block↔task binding.
    * Set when task is created from a block or linked to one.
    */
-  blockId?: string;
+  readonly blockId?: string;
 
   /**
    * Root document ID containing this task's block.
    * Used for document-scoped queries and lifecycle tracking.
    */
-  rootId?: string;
+  readonly rootId?: string;
 
   /**
    * SiYuan workspace identifier.
    * Ensures scheduler only processes tasks belonging to current workspace.
    */
-  workspaceId?: string;
+  readonly workspaceId?: string;
 
   /**
    * Timestamp of the last block mutation affecting this task (epoch ms).
    * Used by the recurrence engine to detect stale tasks and prevent
    * ghost notifications when block content has changed externally.
    */
-  lastMutationTime?: number;
+  readonly lastMutationTime?: number;
 
   // ─── Legacy Block Fields (kept for backward compat) ────────
 
   /** Linked block ID in Shehab-Note */
-  linkedBlockId?: string;
+  readonly linkedBlockId?: string;
 
   /** Cached block content for quick access */
-  linkedBlockContent?: string;
+  readonly linkedBlockContent?: string;
 
   /** Block-linked smart actions */
-  blockActions?: BlockLinkedAction[];
+  readonly blockActions?: readonly BlockLinkedAction[];
 
   /** Priority for routing */
-  priority?: TaskPriority;
+  readonly priority?: TaskPriority;
 
   /** Tags for routing */
-  tags?: string[];
+  readonly tags?: readonly string[];
 
   /** Notification channels (e.g., ["email", "slack"]) */
-  notificationChannels?: string[];
+  readonly notificationChannels?: readonly string[];
 
   /** Timezone for scheduling */
-  timezone?: string;
+  readonly timezone?: string;
 
   /** Category for grouping */
-  category?: string;
+  readonly category?: string;
 
   /** Description/notes */
-  description?: string;
+  readonly description?: string;
 
   /** Analytics: Number of completions */
-  completionCount?: number;
+  readonly completionCount?: number;
 
   /** Analytics: Number of misses */
-  missCount?: number;
+  readonly missCount?: number;
 
   /** Analytics: Current completion streak */
-  currentStreak?: number;
+  readonly currentStreak?: number;
 
   /** Analytics: Best completion streak */
-  bestStreak?: number;
+  readonly bestStreak?: number;
 
   /** Recent completion timestamps (ISO strings) */
-  recentCompletions?: string[];
+  readonly recentCompletions?: readonly string[];
 
   /** Snooze count for this occurrence */
-  snoozeCount?: number;
+  readonly snoozeCount?: number;
 
   /** Maximum number of snoozes allowed */
-  maxSnoozes?: number;
+  readonly maxSnoozes?: number;
 
   /** Escalation policy for missed tasks */
-  escalationPolicy?: {
-    enabled: boolean;
-    levels: Array<{
-      missCount: number;
-      action: "notify" | "escalate" | "disable";
-      channels?: string[];
-    }>;
+  readonly escalationPolicy?: {
+    readonly enabled: boolean;
+    readonly levels: readonly {
+      readonly missCount: number;
+      readonly action: "notify" | "escalate" | "disable";
+      readonly channels?: readonly string[];
+    }[];
   };
 
   /** Schema version for migrations (REQUIRED for domain compatibility) */
-  version: number;
+  readonly version: number;
   
   /** Creation timestamp (ISO string) */
-  createdAt: string;
+  readonly createdAt: string;
   
   /** Last update timestamp (ISO string) */
-  updatedAt: string;
+  readonly updatedAt: string;
 
   // New fields for -Tasks feature parity
   
   /** Task status (replaces boolean 'enabled' semantically) */
-  status?: 'todo' | 'done' | 'cancelled';
+  readonly status: 'todo' | 'done' | 'cancelled';
   
   /** Human-readable recurrence string */
-  recurrenceText?: string;
+  readonly recurrenceText?: string;
   
   /** When to start working on task (ISO string) */
-  scheduledAt?: string;
+  readonly scheduledAt?: string;
   
   /** Earliest date task can begin (ISO string) */
-  startAt?: string;
+  readonly startAt?: string;
   
   /** Task IDs this task depends on */
-  dependsOn?: string[];
+  readonly dependsOn?: readonly string[];
   
   /** Task IDs blocked by this task (derived, not stored) */
-  blocks?: string[];
+  readonly blocks?: readonly string[];
 
   /** Task IDs blocking this task */
-  blockedBy?: string[];
+  readonly blockedBy?: readonly string[];
   
   /** Links recurring task instances */
-  seriesId?: string;
+  readonly seriesId?: string;
   
   /** Which instance in recurring series */
-  occurrenceIndex?: number;
+  readonly occurrenceIndex?: number;
   
   /** Cancellation timestamp (ISO string) */
-  cancelledAt?: string;
+  readonly cancelledAt?: string;
 
   /** Completion timestamp (ISO string) */
-  doneAt?: string;
+  readonly doneAt?: string;
+
+  /** Last generated occurrence timestamp (ISO string) — dedup guard for OccurrenceBlockCreator */
+  readonly lastGeneratedAt?: string;
 
   /** Action to take when task is completed */
-  onCompletion?: 'keep' | 'delete' | OnCompletionAction;
+  readonly onCompletion?: 'keep' | 'delete' | OnCompletionAction;
 
   /** Calculate next recurrence from completion date instead of due date */
-  whenDone?: boolean;
+  readonly whenDone?: boolean;
 
   /** The character in the checkbox for line-based tasks */
-  statusSymbol?: string;
+  readonly statusSymbol?: string;
 
   /** File path (for path-based filtering) */
-  path?: string;
+  readonly path?: string;
 
   /** Document heading/section where task is located */
-  heading?: string;
+  readonly heading?: string;
 
   /** Unrecognized line metadata preserved for lossless serialization */
-  unknownFields?: string[];
+  readonly unknownFields?: readonly string[];
 
   // Phase 3: Smart Recurrence (ML-Based Pattern Learning)
   
   /** Historical completion data for pattern learning */
-  completionHistory?: CompletionHistoryEntry[];
+  readonly completionHistory?: readonly CompletionHistoryEntry[];
   
   /** Learning metrics from pattern analysis */
-  learningMetrics?: {
-    averageDelayMinutes: number;
-    optimalHour: number;
-    consistencyScore: number;
-    lastLearningUpdate: string;
+  readonly learningMetrics?: {
+    readonly averageDelayMinutes: number;
+    readonly optimalHour: number;
+    readonly consistencyScore: number;
+    readonly lastLearningUpdate: string;
   };
   
   /** Smart recurrence configuration */
-  smartRecurrence?: {
-    enabled: boolean;
-    autoAdjust: boolean;
-    minDataPoints: number;  // minimum completions before suggestions
-    confidenceThreshold: number; // 0-1
+  readonly smartRecurrence?: {
+    readonly enabled: boolean;
+    readonly autoAdjust: boolean;
+    readonly minDataPoints: number;  // minimum completions before suggestions
+    readonly confidenceThreshold: number; // 0-1
   };
 
   // AI-driven analytics (for Smart Suggestions)
   
   /** Unix timestamps of completions */
-  completionTimes?: number[];
+  readonly completionTimes?: readonly number[];
   
   /** Minutes to complete (if tracked) */
-  completionDurations?: number[];
+  readonly completionDurations?: readonly number[];
   
   /** Completion context data for predictive scheduling */
-  completionContexts?: {
-    dayOfWeek: number;
-    hourOfDay: number;
-    wasOverdue: boolean;
-    delayMinutes?: number;
+  readonly completionContexts?: readonly {
+    readonly dayOfWeek: number;
+    readonly hourOfDay: number;
+    readonly wasOverdue: boolean;
+    readonly delayMinutes?: number;
   }[];
   
   /** Suggestion interaction history */
-  suggestionHistory?: {
-    suggestionId: string;
-    accepted: boolean;
-    timestamp: string;
+  readonly suggestionHistory?: readonly {
+    readonly suggestionId: string;
+    readonly accepted: boolean;
+    readonly timestamp: string;
   }[];
 
   // Phase 3: Cross-Note Dependencies
   
   /** Dependencies on other SiYuan notes/blocks */
-  crossNoteDependencies?: CrossNoteDependency[];
+  readonly crossNoteDependencies?: readonly CrossNoteDependency[];
 
   // RRULE Migration Support
   
   /** Legacy recurrence data before RRULE migration (for rollback/debug) */
-  legacyRecurrenceSnapshot?: {
-    type: string;
-    interval: number;
-    weekdays?: number[];
-    dayOfMonth?: number;
-    month?: number;
-    migratedAt: string; // ISO timestamp
+  readonly legacyRecurrenceSnapshot?: {
+    readonly type: string;
+    readonly interval: number;
+    readonly weekdays?: readonly number[];
+    readonly dayOfMonth?: number;
+    readonly month?: number;
+    readonly migratedAt: string; // ISO timestamp
   };
 }
 
@@ -277,18 +280,18 @@ export type ReadonlyTask = Readonly<Task>;
  * Completion history entry for pattern learning
  */
 export interface CompletionHistoryEntry {
-  scheduledFor?: string;
-  completedAt: string;
-  delayMinutes?: number;
-  durationMinutes?: number; // How long did it take?
-  dayOfWeek?: number;
-  context?: {
-    dayOfWeek: number;
-    hourOfDay: number;
-    wasOverdue: boolean;
-    location?: string;
-    tags?: string[];
-    relatedBlocks?: string[];
+  readonly scheduledFor?: string;
+  readonly completedAt: string;
+  readonly delayMinutes?: number;
+  readonly durationMinutes?: number; // How long did it take?
+  readonly dayOfWeek?: number;
+  readonly context?: {
+    readonly dayOfWeek: number;
+    readonly hourOfDay: number;
+    readonly wasOverdue: boolean;
+    readonly location?: string;
+    readonly tags?: readonly string[];
+    readonly relatedBlocks?: readonly string[];
   };
 }
 
@@ -296,26 +299,26 @@ export interface CompletionHistoryEntry {
  * Cross-note dependency configuration
  */
 export interface CrossNoteDependency {
-  id: string;
-  type: 'blockExists' | 'blockContent' | 'noteAttribute' | 'tagPresence' | 'backlinks';
-  target: {
-    blockId?: string;
-    notePath?: string;
-    attribute?: string;
-    tag?: string;
+  readonly id: string;
+  readonly type: 'blockExists' | 'blockContent' | 'noteAttribute' | 'tagPresence' | 'backlinks';
+  readonly target: {
+    readonly blockId?: string;
+    readonly notePath?: string;
+    readonly attribute?: string;
+    readonly tag?: string;
   };
-  condition: DependencyCondition;
-  status: 'met' | 'unmet' | 'checking';
-  lastChecked: string;
+  readonly condition: DependencyCondition;
+  readonly status: 'met' | 'unmet' | 'checking';
+  readonly lastChecked: string;
 }
 
 /**
  * Dependency condition for evaluation
  */
 export interface DependencyCondition {
-  operator: 'exists' | 'equals' | 'contains' | 'greaterThan' | 'lessThan' | 'matches';
-  value?: string | number;
-  caseSensitive?: boolean;
+  readonly operator: 'exists' | 'equals' | 'contains' | 'greaterThan' | 'lessThan' | 'matches';
+  readonly value?: string | number;
+  readonly caseSensitive?: boolean;
 }
 
 /**
@@ -332,26 +335,27 @@ export function createTask(
   const now = new Date().toISOString();
   const dueDate = dueAt || new Date();
   
-  return {
+  return Object.freeze({
     id: generateTaskId(),
     name,
     lastCompletedAt: undefined,
     dueAt: dueDate.toISOString(),
     frequency,
     enabled: true,
+    status: 'todo' as const,
     priority: "normal",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     completionCount: 0,
     missCount: 0,
     currentStreak: 0,
     bestStreak: 0,
-    recentCompletions: [],
+    recentCompletions: Object.freeze([] as string[]),
     snoozeCount: 0,
     maxSnoozes: 3,
     version: CURRENT_SCHEMA_VERSION,
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 export type TaskPriority = "lowest" | "low" | "normal" | "medium" | "high" | "highest";
@@ -397,14 +401,14 @@ export function duplicateTask(task: Task, overrides: Partial<Task> = {}): Task {
     missCount: 0,
     currentStreak: 0,
     bestStreak: 0,
-    recentCompletions: [],
+    recentCompletions: Object.freeze([] as string[]),
     snoozeCount: 0,
   };
 
-  return {
+  return Object.freeze({
     ...clone,
     ...overrides,
-  };
+  });
 }
 
 /**
@@ -419,7 +423,7 @@ export function isTask(obj: unknown): obj is Task {
   
   // Phase 3: Accept tasks with either frequency OR recurrence (prefer recurrence)
   const hasRecurrence = candidate.recurrence !== undefined;
-  const hasFrequency = candidate.frequency !== undefined && isValidFrequency(candidate.frequency as any);
+  const hasFrequency = candidate.frequency !== undefined && isValidFrequency(candidate.frequency);
 
   // Validate version field (required for schema migration)
   const hasValidVersion = typeof candidate.version === "number" && candidate.version > 0;
@@ -445,36 +449,28 @@ export function isTask(obj: unknown): obj is Task {
 }
 
 /**
- * Record a task completion
+ * Record a task completion — IMMUTABLE.
+ * Returns a new Task with updated analytics. Does NOT mutate the input.
  */
-export function recordCompletion(task: Task): void {
+export function recordCompletion(task: Task): Task {
   const nowDate = new Date();
   const now = nowDate.toISOString();
   
-  // Update completion count
-  task.completionCount = (task.completionCount || 0) + 1;
+  // Analytics
+  const newCompletionCount = (task.completionCount || 0) + 1;
+  const newCurrentStreak = (task.currentStreak || 0) + 1;
+  const newBestStreak = Math.max(task.bestStreak || 0, newCurrentStreak);
   
-  // Update streaks
-  task.currentStreak = (task.currentStreak || 0) + 1;
-  task.bestStreak = Math.max(task.bestStreak || 0, task.currentStreak);
+  // Recent completions (capped)
+  const prevRecent = task.recentCompletions ? [...task.recentCompletions] : [];
+  prevRecent.push(now);
+  const newRecentCompletions = prevRecent.length > MAX_RECENT_COMPLETIONS
+    ? prevRecent.slice(-MAX_RECENT_COMPLETIONS)
+    : prevRecent;
   
-  // Add to recent completions
-  if (!task.recentCompletions) {
-    task.recentCompletions = [];
-  }
-  task.recentCompletions.push(now);
-  
-  // Keep only the most recent completions
-  if (task.recentCompletions.length > MAX_RECENT_COMPLETIONS) {
-    task.recentCompletions = task.recentCompletions.slice(-MAX_RECENT_COMPLETIONS);
-  }
-  
-  // Phase 3: Track completion history for pattern learning
+  // Phase 3: Completion history for pattern learning
+  let newCompletionHistory = task.completionHistory ? [...task.completionHistory] : [];
   if (task.smartRecurrence?.enabled) {
-    if (!task.completionHistory) {
-      task.completionHistory = [];
-    }
-    
     const scheduledDate = new Date(task.dueAt);
     const delayMinutes = Math.round((nowDate.getTime() - scheduledDate.getTime()) / (1000 * 60));
     
@@ -484,92 +480,61 @@ export function recordCompletion(task: Task): void {
       delayMinutes,
       dayOfWeek: nowDate.getDay(),
       context: {
-        tags: task.tags || [],
-        relatedBlocks: task.linkedBlockId ? [task.linkedBlockId] : []
-      }
+        dayOfWeek: nowDate.getDay(),
+        hourOfDay: nowDate.getHours(),
+        wasOverdue: delayMinutes > 0,
+        tags: task.tags ? [...task.tags] : [],
+        relatedBlocks: task.linkedBlockId ? [task.linkedBlockId] : [],
+      },
     };
     
-    task.completionHistory.push(historyEntry);
-    
-    // Keep only the most recent 100 entries to avoid bloat
-    if (task.completionHistory.length > 100) {
-      task.completionHistory = task.completionHistory.slice(-100);
+    newCompletionHistory.push(historyEntry);
+    if (newCompletionHistory.length > 100) {
+      newCompletionHistory = newCompletionHistory.slice(-100);
     }
   }
   
-  // Reset snooze count
-  task.snoozeCount = 0;
-  
-  // ─── Populate completionContexts for AI analysis ──────────
-  // Always record context (not gated by smartRecurrence.enabled)
-  if (!task.completionContexts) {
-    task.completionContexts = [];
-  }
+  // Completion contexts for AI analysis (always recorded)
   const scheduledForCtx = task.dueAt ? new Date(task.dueAt) : nowDate;
   const ctxDelayMinutes = Math.round(
     (nowDate.getTime() - scheduledForCtx.getTime()) / (1000 * 60)
   );
-  task.completionContexts.push({
+  const prevContexts = task.completionContexts ? [...task.completionContexts] : [];
+  prevContexts.push({
     dayOfWeek: nowDate.getDay(),
     hourOfDay: nowDate.getHours(),
     wasOverdue: ctxDelayMinutes > 0,
     delayMinutes: ctxDelayMinutes,
   });
-  // Cap to 50 entries to avoid storage bloat
-  if (task.completionContexts.length > 50) {
-    task.completionContexts = task.completionContexts.slice(-50);
-  }
+  const newCompletionContexts = prevContexts.length > 50
+    ? prevContexts.slice(-50)
+    : prevContexts;
 
-  // Update timestamps
-  task.lastCompletedAt = now;
-  task.updatedAt = now;
+  return {
+    ...task,
+    completionCount: newCompletionCount,
+    currentStreak: newCurrentStreak,
+    bestStreak: newBestStreak,
+    recentCompletions: newRecentCompletions,
+    completionHistory: newCompletionHistory,
+    completionContexts: newCompletionContexts,
+    snoozeCount: 0,
+    lastCompletedAt: now,
+    updatedAt: now,
+  };
 }
 
 /**
- * Record a task miss
+ * Record a task miss — IMMUTABLE.
+ * Returns a new Task with updated miss analytics. Does NOT mutate the input.
  */
-export function recordMiss(task: Task): void {
-  // Update miss count
-  task.missCount = (task.missCount || 0) + 1;
-  
-  // Reset current streak
-  task.currentStreak = 0;
-  
-  // Update timestamp
-  task.updatedAt = new Date().toISOString();
-}
-
-/**
- * Calculate task health score (0-100)
- * Based on completion rate and streak
- */
-export function calculateTaskHealth(task: Task): number {
-  const completions = task.completionCount || 0;
-  const misses = task.missCount || 0;
-  const total = completions + misses;
-  
-  if (total === 0) {
-    return 100; // New task, optimistic
-  }
-  
-  // Base score from completion rate
-  const completionRate = completions / total;
-  let score = completionRate * 70; // 70% weight
-  
-  // Bonus from current streak (up to 30 points)
-  const streak = task.currentStreak || 0;
-  const streakBonus = Math.min(30, streak * 3);
-  score += streakBonus;
-  
-  return Math.round(Math.min(100, score));
-}
-
-/**
- * Calculate task urgency score (configurable range).
- * Based on due date proximity, priority, and overdue penalties.
- */
-export function calculateTaskUrgency(task: Task, now: Date = new Date()): number {
-  return calculateUrgencyScore(task, { now });
+export function recordMiss(task: Task): Task {
+  return {
+    ...task,
+    missCount: (task.missCount || 0) + 1,
+    currentStreak: 0,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /**

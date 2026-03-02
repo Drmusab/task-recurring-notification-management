@@ -23,18 +23,18 @@ import TagsCategoryEditor from "@components/shared/editors/TagsCategoryEditor.sv
 import AISuggestionsPanel from "@components/shared/AISuggestionsPanel.svelte";
 import type { TaskDTO } from '../../services/DTOs';
 import { uiQueryService } from '../../services/UIQueryService';
-import type { Status } from '@shared/types/Status';
+import type { Status } from '@shared/constants/statuses/Status';
 import * as logger from "@shared/logging/logger";
 
 // Local type aliases for the bridge layer
 type Task = TaskDTO;
-type UnifiedTask = Record<string, any>;
+type UnifiedTask = Record<string, unknown>;
 type TaskSuggestion = {
   type: string;
-  action: { type: string; parameters: Record<string, any>; description?: string; label?: string };
-  [key: string]: any;
+  action: { type: string; parameters: Record<string, unknown>; description?: string; label?: string };
+  [key: string]: unknown;
 };
-type BlockLinkedAction = Record<string, any>;
+type BlockLinkedAction = Record<string, unknown>;
 
 export interface EditTaskUnifiedProps {
   task: Task;
@@ -67,18 +67,18 @@ export function createUnifiedEditor(
 ): { destroy: () => void } {
   // Convert to unified format via service facade
   const isObsidian = 'description' in props.task && 'status' in props.task;
-  let unifiedTask: UnifiedTask = props.task as any;
+  let unifiedTask: UnifiedTask = props.task as unknown as UnifiedTask;
+  
+  const unifiedAllTasks: UnifiedTask[] = props.allTasks.map(t => t as unknown as UnifiedTask);
+  
+  // Create reactive store for unified task (must be before async IIFE that references it)
+  const unifiedTaskStore = writable<UnifiedTask>(unifiedTask);
   
   // Async initialization — convert task via service facade
   (async () => {
-    unifiedTask = await uiQueryService.toUnifiedTask(props.task as any);
+    unifiedTask = await uiQueryService.toUnifiedTask(props.task) as UnifiedTask;
     unifiedTaskStore.set(unifiedTask);
   })();
-  
-  const unifiedAllTasks: UnifiedTask[] = props.allTasks.map(t => t as any);
-  
-  // Create reactive store for unified task
-  const unifiedTaskStore = writable<UnifiedTask>(unifiedTask);
   
   // Track extended fields (not handled by legacy editor)
   let currentBlockActions = unifiedTask.blockActions || [];
@@ -111,11 +111,11 @@ export function createUnifiedEditor(
     props: {
       task: legacyTask,
       statusOptions: props.statusOptions,
-      allTasks: props.allTasks as any[],
-      onSubmit: async (updatedTasks: any[]) => {
+      allTasks: props.allTasks as unknown as UnifiedTask[],
+      onSubmit: async (updatedTasks: unknown[]) => {
         // Convert back and merge with extended fields
         if (updatedTasks.length > 0) {
-          const updatedUnified = await uiQueryService.toUnifiedTask(updatedTasks[0]);
+          const updatedUnified = await uiQueryService.toUnifiedTask(updatedTasks[0] as TaskDTO) as UnifiedTask;
           
           // Merge with current extended fields
           const merged: Task = await uiQueryService.fromUnifiedTask({
@@ -123,7 +123,7 @@ export function createUnifiedEditor(
             blockActions: currentBlockActions,
             tags: currentTags,
             category: currentCategory,
-          }) as any;
+          }) as unknown as Task;
           
           try {
             await props.onSubmit(merged);
@@ -209,8 +209,8 @@ export function createUnifiedEditor(
     logger.debug('Unified task updated', { 
       id: task.id, 
       name: task.name,
-      tags: task.tags?.length,
-      blockActions: task.blockActions?.length,
+      tags: (task.tags as unknown[] | undefined)?.length,
+      blockActions: (task.blockActions as unknown[] | undefined)?.length,
     });
   });
   
@@ -241,14 +241,14 @@ function applySuggestionToTask(task: UnifiedTask, suggestion: TaskSuggestion): v
       break;
       
     case 'updateTime': {
-      const hour = suggestion.action.parameters.hour;
+      const hour = suggestion.action.parameters.hour as number;
       if (task.dueAt) {
-        const date = new Date(task.dueAt);
+        const date = new Date(task.dueAt as string);
         date.setHours(hour);
         task.dueAt = date.toISOString();
         logger.debug('Task time updated', { hour, newDueAt: task.dueAt });
       } else if (task.scheduledAt) {
-        const date = new Date(task.scheduledAt);
+        const date = new Date(task.scheduledAt as string);
         date.setHours(hour);
         task.scheduledAt = date.toISOString();
         logger.debug('Task scheduled time updated', { hour });
@@ -257,14 +257,14 @@ function applySuggestionToTask(task: UnifiedTask, suggestion: TaskSuggestion): v
     }
       
     case 'setPriority':
-      task.priority = suggestion.action.parameters.priority;
+      task.priority = suggestion.action.parameters.priority as string;
       logger.debug('Task priority updated', { priority: task.priority });
       break;
       
     case 'adjustFrequency': {
-      const newInterval = suggestion.action.parameters.interval;
+      const newInterval = suggestion.action.parameters.interval as number;
       if (task.frequency && newInterval) {
-        task.frequency = { ...task.frequency, interval: newInterval };
+        task.frequency = { ...(task.frequency as Record<string, unknown>), interval: newInterval };
         logger.debug('Task frequency adjusted', { newInterval });
       }
       break;

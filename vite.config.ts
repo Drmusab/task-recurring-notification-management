@@ -63,13 +63,33 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
+
+      /* ── Target architecture (flat) ─────────────────── */
+      "@domain": resolve(__dirname, "src/domain"),
+      "@application": resolve(__dirname, "src/application"),
+      "@infrastructure": resolve(__dirname, "src/infrastructure"),
+      "@runtime": resolve(__dirname, "src/runtime"),
+      "@services": resolve(__dirname, "src/services"),
+      "@query": resolve(__dirname, "src/query"),
+      "@cache": resolve(__dirname, "src/cache"),
+      "@engine": resolve(__dirname, "src/engine"),
+      "@reminders": resolve(__dirname, "src/reminders"),
+      "@dependencies": resolve(__dirname, "src/dependencies"),
+      "@escalation": resolve(__dirname, "src/escalation"),
+      "@integrations": resolve(__dirname, "src/integrations"),
+      "@events": resolve(__dirname, "src/events"),
+      "@parsers": resolve(__dirname, "src/parsers"),
+      "@models": resolve(__dirname, "src/models"),
+      "@stores": resolve(__dirname, "src/stores"),
+      "@mounts": resolve(__dirname, "src/mounts"),
+      "@components": resolve(__dirname, "src/components"),
+      "@styles": resolve(__dirname, "src/styles"),
+      "@utils": resolve(__dirname, "src/utils"),
+
+      /* ── Legacy aliases (backward compat during migration) ── */
       "@backend": resolve(__dirname, "src/backend"),
       "@frontend": resolve(__dirname, "src/frontend"),
       "@shared": resolve(__dirname, "src/shared"),
-      "@domain": resolve(__dirname, "src/domain"),
-      "@infrastructure": resolve(__dirname, "src/infrastructure"),
-      "@components": resolve(__dirname, "src/frontend/components"),
-      "@stores": resolve(__dirname, "src/frontend/stores"),
       "@hooks": resolve(__dirname, "src/frontend/hooks"),
       "@modals": resolve(__dirname, "src/frontend/modals"),
       "@views": resolve(__dirname, "src/frontend/views"),

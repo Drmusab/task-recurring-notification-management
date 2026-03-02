@@ -214,7 +214,7 @@ export class WebhookQueue {
    * Peek at the next item without removing.
    */
   peek(): WebhookQueueItem | null {
-    return this.queue.length > 0 ? this.queue[0] : null;
+    return this.queue[0] ?? null;
   }
 
   /**
@@ -268,7 +268,7 @@ export class WebhookQueue {
    */
   private findInsertIndex(priority: number): number {
     for (let i = 0; i < this.queue.length; i++) {
-      if (this.queue[i].priority > priority) return i;
+      if (this.queue[i]!.priority > priority) return i;
     }
     return this.queue.length;
   }

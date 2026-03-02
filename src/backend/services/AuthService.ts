@@ -64,19 +64,24 @@ export class ApiKeyManager {
   }
 
   /**
-   * Simple hash for key comparison.
-   * Uses a synchronous approach suitable for in-process validation.
+   * Synchronous hash for key comparison (cyrb53).
+   * Two independent 32-bit seeds combined for 53-bit collision resistance.
+   * NEVER leaks key material (length, prefix, suffix) in the output.
    */
   private hashKey(key: string): string {
-    // Use a simple non-cryptographic hash for fast in-memory comparison.
-    // The key itself provides the entropy; this just avoids storing plaintext.
-    let hash = 0;
+    let h1 = 0xdeadbeef;
+    let h2 = 0x41c6ce57;
     for (let i = 0; i < key.length; i++) {
-      const char = key.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash |= 0; // 32-bit integer
+      const ch = key.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    return `h:${key.length}:${hash.toString(36)}:${key.slice(-8)}`;
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    // 53-bit hash — no key material leaked
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
   }
 
   /** Number of registered keys */

@@ -19,22 +19,22 @@ export enum StatusType {
  */
 export interface Status {
   /** Character inside checkbox (e.g., ' ', 'x', '/', '-', '>') */
-  symbol: string;
+  readonly symbol: string;
   
   /** Display name (e.g., "To Do", "Done", "In Progress") */
-  name: string;
+  readonly name: string;
   
   /** Status type for business logic classification */
-  type: StatusType;
+  readonly type: StatusType;
   
   /** Next symbol in toggle cycle (what happens when user clicks checkbox) */
-  nextSymbol: string;
+  readonly nextSymbol: string;
   
   /** Optional color for UI display */
-  color?: string;
+  readonly color?: string;
   
   /** Optional icon or emoji */
-  icon?: string;
+  readonly icon?: string;
 }
 
 /**
@@ -93,12 +93,17 @@ export const DEFAULT_STATUSES: Status[] = [
 ];
 
 /**
- * StatusRegistry manages user-defined task statuses
- * Singleton pattern for global access
+ * StatusRegistry manages user-defined task statuses.
+ * Singleton pattern — status data is immutable once loaded.
+ * 
+ * v2.0: Internal map is replaced wholesale (not mutated) on
+ * loadFromSettings(). Individual set()/remove() rebuild the map
+ * from scratch to preserve snapshot immutability.
  */
 export class StatusRegistry {
   private static instance: StatusRegistry | null = null;
-  private statuses: Map<string, Status> = new Map();
+  /** Immutable status map — replaced, never mutated in-place */
+  private statuses: ReadonlyMap<string, Status> = new Map();
   
   private constructor() {
     this.loadDefaults();
@@ -122,12 +127,14 @@ export class StatusRegistry {
   }
   
   /**
-   * Load default statuses
+   * Load default statuses (replaces map wholesale)
    */
   private loadDefaults(): void {
-    DEFAULT_STATUSES.forEach(status => {
-      this.statuses.set(status.symbol, status);
-    });
+    const map = new Map<string, Status>();
+    for (const status of DEFAULT_STATUSES) {
+      map.set(status.symbol, Object.freeze(status));
+    }
+    this.statuses = map;
   }
   
   /**
@@ -141,32 +148,36 @@ export class StatusRegistry {
       return status;
     }
     
-    // Unknown symbol - create safe default
-    return {
+    // Unknown symbol - create safe default (frozen)
+    return Object.freeze({
       symbol,
       name: 'Unknown',
       type: StatusType.NON_TASK,
       nextSymbol: 'x',
       color: '#999999',
-    };
+    });
   }
   
   /**
-   * Add or update a status
+   * Add or update a status — rebuilds map immutably
    */
   set(status: Status): void {
-    this.statuses.set(status.symbol, status);
+    const map = new Map(this.statuses);
+    map.set(status.symbol, Object.freeze(status));
+    this.statuses = map;
   }
   
   /**
-   * Remove a status
+   * Remove a status — rebuilds map immutably
    */
   remove(symbol: string): void {
-    this.statuses.delete(symbol);
+    const map = new Map(this.statuses);
+    map.delete(symbol);
+    this.statuses = map;
   }
   
   /**
-   * Get all statuses
+   * Get all statuses (frozen copies)
    */
   getAll(): Status[] {
     return Array.from(this.statuses.values());
@@ -188,15 +199,19 @@ export class StatusRegistry {
   }
   
   /**
-   * Load custom statuses from settings
+   * Load custom statuses from settings — replaces map wholesale
    */
   loadFromSettings(customStatuses: Status[]): void {
-    this.statuses.clear();
-    this.loadDefaults();
-    
-    customStatuses.forEach(status => {
-      this.statuses.set(status.symbol, status);
-    });
+    const map = new Map<string, Status>();
+    // Load defaults first
+    for (const status of DEFAULT_STATUSES) {
+      map.set(status.symbol, Object.freeze(status));
+    }
+    // Then overlay custom statuses
+    for (const status of customStatuses) {
+      map.set(status.symbol, Object.freeze(status));
+    }
+    this.statuses = map;
   }
   
   /**

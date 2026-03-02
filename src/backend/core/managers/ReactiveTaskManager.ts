@@ -33,7 +33,6 @@ import type {
 } from "@backend/runtime/SiYuanRuntimeBridge";
 import type { BlockMetadataService } from "@backend/core/api/BlockMetadataService";
 import { BLOCK_ATTR_TASK_STATUS, BLOCK_ATTR_TASK_COMPLETED_AT } from "@shared/constants/misc-constants";
-import { updateAnalyticsFromTasks } from "@stores/TaskAnalytics.store";
 import * as logger from "@backend/logging/logger";
 
 export interface ReactiveTaskManagerDeps {
@@ -249,24 +248,22 @@ export class ReactiveTaskManager {
     const linkedTask = this.findTaskByBlockId(blockId);
     if (!linkedTask) return;
 
-    // Update mutation timestamp
-    linkedTask.lastMutationTime = mutation.timestamp;
-    linkedTask.updatedAt = new Date().toISOString();
-
-    // Update cached content if available
-    if (mutation.data) {
-      linkedTask.linkedBlockContent = this.stripHtml(mutation.data);
-    }
+    // Immutable update — create a new copy with updated fields
+    const updatedTask: Task = {
+      ...linkedTask,
+      lastMutationTime: mutation.timestamp,
+      updatedAt: new Date().toISOString(),
+      ...(mutation.data ? { linkedBlockContent: this.stripHtml(mutation.data) } : {}),
+    };
 
     // Persist
-    await this.storage.saveTask(linkedTask);
+    await this.storage.saveTask(updatedTask);
 
     // Sync block attributes
-    await this.blockMetadataService.syncTaskToBlock(linkedTask);
+    await this.blockMetadataService.syncTaskToBlock(updatedTask);
 
-    // Refresh stores
-    this.pluginEventBus.emit("task:updated", { taskId: linkedTask.id });
-    this.refreshAnalytics();
+    // Notify — single event, cache subscribes to task:updated
+    this.pluginEventBus.emit("task:updated", { taskId: updatedTask.id });
 
     logger.info("[ReactiveTaskManager] Task updated from block mutation", {
       taskId: linkedTask.id,
@@ -285,19 +282,21 @@ export class ReactiveTaskManager {
     const linkedTask = this.findTaskByBlockId(blockId);
     if (!linkedTask) return;
 
-    // Mark task as disabled when its block is deleted
-    linkedTask.enabled = false;
-    linkedTask.status = "cancelled";
-    linkedTask.cancelledAt = new Date().toISOString();
-    linkedTask.updatedAt = new Date().toISOString();
-    linkedTask.lastMutationTime = mutation.timestamp;
+    // Immutable update — disable task when block is deleted
+    const now = new Date().toISOString();
+    const updatedTask: Task = {
+      ...linkedTask,
+      enabled: false,
+      status: "cancelled",
+      cancelledAt: now,
+      updatedAt: now,
+      lastMutationTime: mutation.timestamp,
+    };
 
-    await this.storage.saveTask(linkedTask);
+    await this.storage.saveTask(updatedTask);
 
-    // Refresh stores
-    this.pluginEventBus.emit("task:updated", { taskId: linkedTask.id });
-    this.pluginEventBus.emit("task:refresh", undefined);
-    this.refreshAnalytics();
+    // Single event — cache subscribes to task:updated and will invalidate
+    this.pluginEventBus.emit("task:updated", { taskId: updatedTask.id });
 
     logger.info("[ReactiveTaskManager] Task disabled — linked block deleted", {
       taskId: linkedTask.id,
@@ -319,23 +318,25 @@ export class ReactiveTaskManager {
       // Task completed → route through scheduler
       await this.completeTask(linkedTask.id);
     } else {
-      // Task unchecked → reactivate
-      linkedTask.status = "todo";
-      linkedTask.enabled = true;
-      linkedTask.doneAt = undefined;
-      linkedTask.lastCompletedAt = undefined;
-      linkedTask.updatedAt = new Date().toISOString();
-      linkedTask.lastMutationTime = evt.timestamp;
+      // Task unchecked → reactivate (immutable copy)
+      const updatedTask: Task = {
+        ...linkedTask,
+        status: "todo",
+        enabled: true,
+        doneAt: undefined,
+        lastCompletedAt: undefined,
+        updatedAt: new Date().toISOString(),
+        lastMutationTime: evt.timestamp,
+      };
 
-      await this.storage.saveTask(linkedTask);
+      await this.storage.saveTask(updatedTask);
 
       // Sync block attributes
       await this.runtimeBridge.updateBlockAttrs(evt.blockId, {
         "custom-task-status": "todo",
       });
 
-      this.pluginEventBus.emit("task:updated", { taskId: linkedTask.id });
-      this.refreshAnalytics();
+      this.pluginEventBus.emit("task:updated", { taskId: updatedTask.id });
 
       logger.info("[ReactiveTaskManager] Task reactivated from checkbox uncheck", {
         taskId: linkedTask.id,
@@ -367,8 +368,6 @@ export class ReactiveTaskManager {
       }
 
       this.pluginEventBus.emit("task:updated", { taskId });
-      this.pluginEventBus.emit("task:refresh", undefined);
-      this.refreshAnalytics();
 
       logger.info("[ReactiveTaskManager] Task completed", { taskId });
     } catch (err) {
@@ -393,7 +392,6 @@ export class ReactiveTaskManager {
       }
 
       this.pluginEventBus.emit("task:updated", { taskId });
-      this.pluginEventBus.emit("task:refresh", undefined);
 
       logger.info("[ReactiveTaskManager] Task skipped", { taskId });
     } catch (err) {
@@ -452,19 +450,5 @@ export class ReactiveTaskManager {
    */
   private stripHtml(html: string): string {
     return html.replace(/<[^>]+>/g, "").trim();
-  }
-
-  /**
-   * Refresh analytics from current task data.
-   */
-  private refreshAnalytics(): void {
-    try {
-      const allTasks = this.storage.getAllTasks();
-      if (allTasks.length > 0) {
-        updateAnalyticsFromTasks(allTasks);
-      }
-    } catch (err) {
-      logger.error("[ReactiveTaskManager] refreshAnalytics failed", err);
-    }
   }
 }

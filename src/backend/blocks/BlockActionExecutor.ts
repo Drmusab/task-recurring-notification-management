@@ -248,46 +248,56 @@ export class BlockActionExecutor {
     settings: PluginSettings
   ): Promise<Task | null> {
     const now = new Date();
-    const updated: Task = { ...task, updatedAt: now.toISOString() };
+    const base: Task = { ...task, updatedAt: now.toISOString() };
 
     switch (action.type) {
       case "setStatus": {
         if (action.status === "done") {
-          updated.status = "done";
-          updated.statusSymbol = "x";
-          updated.doneAt = now.toISOString();
-          updated.lastCompletedAt = now.toISOString();
-          updated.cancelledAt = undefined;
+          return {
+            ...base,
+            status: "done" as const,
+            statusSymbol: "x",
+            doneAt: now.toISOString(),
+            lastCompletedAt: now.toISOString(),
+            cancelledAt: undefined,
+          };
         } else if (action.status === "cancelled") {
-          updated.status = "cancelled";
-          updated.statusSymbol = "-";
-          updated.cancelledAt = now.toISOString();
-          updated.doneAt = undefined;
+          return {
+            ...base,
+            status: "cancelled" as const,
+            statusSymbol: "-",
+            cancelledAt: now.toISOString(),
+            doneAt: undefined,
+          };
         } else {
-          updated.status = "todo";
-          updated.statusSymbol = "/";
+          return {
+            ...base,
+            status: "todo" as const,
+            statusSymbol: "/",
+          };
         }
-        return updated;
       }
 
       case "reschedule": {
         if (action.mode === "absolute") {
-          if (!action.at) return updated;
+          if (!action.at) return base;
           const target = new Date(action.at);
           if (Number.isNaN(target.getTime())) {
             logger.warn("[BlockActionExecutor] Invalid reschedule date", { action });
-            return updated;
+            return base;
           }
-          updated.dueAt = target.toISOString();
+          return { ...base, dueAt: target.toISOString() };
         } else {
-          const base = new Date(task.dueAt || new Date().toISOString());
+          const baseDate = new Date(task.dueAt || new Date().toISOString());
           const deltaMinutes = action.amountMinutes ?? 0;
           const deltaDays = action.amountDays ?? 0;
-          updated.dueAt = new Date(
-            base.getTime() + deltaMinutes * 60000 + deltaDays * 86400000
-          ).toISOString();
+          return {
+            ...base,
+            dueAt: new Date(
+              baseDate.getTime() + deltaMinutes * 60000 + deltaDays * 86400000
+            ).toISOString(),
+          };
         }
-        return updated;
       }
 
       case "triggerNextRecurrence": {
@@ -296,11 +306,11 @@ export class BlockActionExecutor {
           logger.warn("[BlockActionExecutor] RecurrenceEngine unavailable", {
             taskId: task.id,
           });
-          return updated;
+          return base;
         }
         const completionDate = new Date();
         const completedTask: Task = {
-          ...updated,
+          ...base,
           status: "done" as const,
           statusSymbol: "x",
           lastCompletedAt: completionDate.toISOString(),
@@ -311,33 +321,28 @@ export class BlockActionExecutor {
       }
 
       case "pauseRecurrence": {
-        updated.enabled = false;
-        return updated;
+        return { ...base, enabled: false };
       }
 
       case "addTag": {
-        const tags = new Set(updated.tags ?? []);
+        const tags = new Set(base.tags ?? []);
         tags.add(action.tag);
-        updated.tags = Array.from(tags);
-        return updated;
+        return { ...base, tags: Array.from(tags) };
       }
 
       case "removeTag": {
-        updated.tags = (updated.tags ?? []).filter((tag) => tag !== action.tag);
-        return updated;
+        return { ...base, tags: (base.tags ?? []).filter((tag) => tag !== action.tag) };
       }
 
       case "changePriority": {
-        updated.priority = action.priority;
-        return updated;
+        return { ...base, priority: action.priority };
       }
 
       case "addCompletionNote": {
         const note = action.note.trim();
-        if (!note) return updated;
-        const existing = updated.description?.trim();
-        updated.description = existing ? `${existing}\n\n${note}` : note;
-        return updated;
+        if (!note) return base;
+        const existing = base.description?.trim();
+        return { ...base, description: existing ? `${existing}\n\n${note}` : note };
       }
 
       case "sendWebhook": {
@@ -345,7 +350,7 @@ export class BlockActionExecutor {
           taskId: task.id,
           url: action.url,
         });
-        return updated;
+        return base;
       }
 
       case "notify": {
@@ -353,7 +358,7 @@ export class BlockActionExecutor {
           taskId: task.id,
           message: action.message,
         });
-        return updated;
+        return base;
       }
 
       default:
@@ -406,7 +411,7 @@ export class BlockActionExecutor {
 
     if (!this.completionHandler) {
       this.completionHandler = new CompletionHandler(
-        this.repository as any, // TaskStorage implements TaskRepositoryProvider
+        this.repository, // TaskRepositoryProvider structurally satisfies CompletionHandler.TaskStorage
         this.recurrenceEngine,
         settings
       );

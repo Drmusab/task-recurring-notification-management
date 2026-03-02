@@ -16,3 +16,4 @@ export { default as NotificationSettings } from "./NotificationSettings.svelte";
 export { default as KeyboardSettings } from "./KeyboardSettings.svelte";
 export { default as DataSettings } from "./DataSettings.svelte";
 export { default as AdvancedSettings } from "./AdvancedSettings.svelte";
+export { default as WebhookSettings } from "./WebhookSettings.svelte";

@@ -26,8 +26,15 @@ export * from './lib';
 // Task utilities (generic only)
 export * from './task/link-resolver';
 
-// Performance monitoring
-export * from './PerformanceMonitor';
+// Performance monitoring (exclude Logger/logger to avoid duplicate with lib/logging)
+export {
+  type PerformanceMetric,
+  type PerformanceStats,
+  PerformanceMonitor,
+  performanceMonitor,
+  Measure,
+  MeasureAsync,
+} from './PerformanceMonitor';
 
 // Scripting types
 export * from './Scripting/TasksFile';

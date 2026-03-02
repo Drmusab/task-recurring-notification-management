@@ -10,6 +10,7 @@
 
 import { Dialog } from "siyuan";
 import type { Plugin } from "siyuan";
+import * as logger from "@shared/logging/logger";
 
 /** Current editor field visibility settings */
 export interface EditorFieldVisibility {
@@ -82,7 +83,7 @@ async function saveFieldVisibility(vis: EditorFieldVisibility): Promise<void> {
     try {
       await pluginRef.saveData(STORAGE_KEY, vis);
     } catch {
-      console.warn("[OptionsModal] Failed to persist field visibility");
+      logger.warn("[OptionsModal] Failed to persist field visibility");
     }
   }
 }

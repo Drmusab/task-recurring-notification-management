@@ -7,19 +7,19 @@
  */
 
 import type { Plugin } from "siyuan";
-import { siyuanRequest } from "@backend/core/api/SiYuanApiClient";
+import { siyuanRequestSafe } from "@backend/core/api/SiYuanApiClient";
+import { escapeSqlString } from "@shared/utils/sql-sanitize";
+
+/** SiYuan API response data — shape varies by endpoint. */
+type SiYuanData = unknown;
 
 /**
  * Request wrapper — delegates to canonical SiYuanApiClient.
  * Returns the `data` field on success, or null if the call fails
  * (to preserve backwards-compatible null-return semantics).
  */
-async function request(url: string, data: any): Promise<any> {
-  try {
-    return await siyuanRequest(url, data);
-  } catch {
-    return null;
-  }
+async function request(url: string, data: Record<string, unknown>): Promise<SiYuanData> {
+  return siyuanRequestSafe(url, data);
 }
 
 /**
@@ -49,7 +49,7 @@ class BlockAPI {
     nextID?: string,
     previousID?: string,
     parentID?: string,
-  ): Promise<any> {
+  ): Promise<SiYuanData> {
     return request("/api/block/insertBlock", {
       dataType,
       data,
@@ -62,7 +62,7 @@ class BlockAPI {
   /**
    * Prepend a block to a parent
    */
-  async prependBlock(parentID: string, dataType: string, data: string): Promise<any> {
+  async prependBlock(parentID: string, dataType: string, data: string): Promise<SiYuanData> {
     return request("/api/block/prependBlock", {
       parentID,
       dataType,
@@ -73,7 +73,7 @@ class BlockAPI {
   /**
    * Append a block to a parent
    */
-  async appendBlock(parentID: string, dataType: string, data: string): Promise<any> {
+  async appendBlock(parentID: string, dataType: string, data: string): Promise<SiYuanData> {
     return request("/api/block/appendBlock", {
       parentID,
       dataType,
@@ -84,7 +84,7 @@ class BlockAPI {
   /**
    * Update an existing block
    */
-  async updateBlock(id: string, data: string, dataType: string = "markdown"): Promise<any> {
+  async updateBlock(id: string, data: string, dataType: string = "markdown"): Promise<SiYuanData> {
     return request("/api/block/updateBlock", {
       id,
       data,
@@ -95,14 +95,14 @@ class BlockAPI {
   /**
    * Delete a block
    */
-  async deleteBlock(id: string): Promise<any> {
+  async deleteBlock(id: string): Promise<SiYuanData> {
     return request("/api/block/deleteBlock", { id });
   }
 
   /**
    * Move a block to a new location
    */
-  async moveBlock(id: string, previousID?: string, parentID?: string): Promise<any> {
+  async moveBlock(id: string, previousID?: string, parentID?: string): Promise<SiYuanData> {
     return request("/api/block/moveBlock", {
       id,
       previousID,
@@ -115,7 +115,7 @@ class BlockAPI {
   /**
    * Set custom attributes on a block
    */
-  async setBlockAttrs(id: string, attrs: Record<string, string>): Promise<any> {
+  async setBlockAttrs(id: string, attrs: Record<string, string>): Promise<SiYuanData> {
     return request("/api/attr/setBlockAttrs", {
       id,
       attrs,
@@ -125,7 +125,7 @@ class BlockAPI {
   /**
    * Get block attributes
    */
-  async getBlockAttrs(id: string): Promise<any> {
+  async getBlockAttrs(id: string): Promise<SiYuanData> {
     return request("/api/attr/getBlockAttrs", { id });
   }
 
@@ -134,14 +134,14 @@ class BlockAPI {
   /**
    * Get block in Kramdown format
    */
-  async getBlockKramdown(id: string): Promise<any> {
+  async getBlockKramdown(id: string): Promise<SiYuanData> {
     return request("/api/block/getBlockKramdown", { id });
   }
 
   /**
    * Get child blocks of a parent
    */
-  async getChildBlocks(id: string): Promise<any> {
+  async getChildBlocks(id: string): Promise<SiYuanData> {
     return request("/api/block/getChildBlocks", { id });
   }
 
@@ -150,14 +150,14 @@ class BlockAPI {
   /**
    * List all notebooks
    */
-  async lsNotebooks(): Promise<any> {
+  async lsNotebooks(): Promise<SiYuanData> {
     return request("/api/notebook/lsNotebooks", {});
   }
 
   /**
    * Get notebook configuration
    */
-  async getNotebookConf(notebook: string): Promise<any> {
+  async getNotebookConf(notebook: string): Promise<SiYuanData> {
     return request("/api/notebook/getNotebookConf", { notebook });
   }
 
@@ -166,7 +166,7 @@ class BlockAPI {
   /**
    * Create document with markdown
    */
-  async createDocWithMd(notebook: string, path: string, markdown: string): Promise<any> {
+  async createDocWithMd(notebook: string, path: string, markdown: string): Promise<SiYuanData> {
     return request("/api/filetree/createDocWithMd", {
       notebook,
       path,
@@ -177,7 +177,7 @@ class BlockAPI {
   /**
    * Rename document
    */
-  async renameDoc(notebook: string, path: string, title: string): Promise<any> {
+  async renameDoc(notebook: string, path: string, title: string): Promise<SiYuanData> {
     return request("/api/filetree/renameDoc", {
       notebook,
       path,
@@ -188,7 +188,7 @@ class BlockAPI {
   /**
    * Remove document
    */
-  async removeDoc(notebook: string, path: string): Promise<any> {
+  async removeDoc(notebook: string, path: string): Promise<SiYuanData> {
     return request("/api/filetree/removeDoc", {
       notebook,
       path,
@@ -200,7 +200,7 @@ class BlockAPI {
   /**
    * Execute SQL query on SiYuan database
    */
-  async sql(sql: string): Promise<any> {
+  async sql(sql: string): Promise<SiYuanData> {
     return request("/api/query/sql", { stmt: sql });
   }
 }
@@ -239,7 +239,9 @@ export class TaskBlockService {
 
     const result = await this.blockAPI.appendBlock(parentBlockId, "markdown", markdown);
 
-    const blockId = result?.[0]?.doOperations?.[0]?.id;
+    // Extract block ID from SiYuan's insert response shape
+    const ops = result as Array<{ doOperations?: Array<{ id?: string }> }> | null;
+    const blockId = ops?.[0]?.doOperations?.[0]?.id;
     if (!blockId) {
       throw new Error("Failed to get block ID from insert result");
     }
@@ -283,10 +285,11 @@ export class TaskBlockService {
   /**
    * Find task blocks by custom attributes
    */
-  async findTaskBlocks(taskId: string): Promise<any[]> {
-    const sql = `SELECT * FROM blocks WHERE type='p' AND content LIKE '%${taskId}%' AND ial LIKE '%custom-task-id="${taskId}"%'`;
+  async findTaskBlocks(taskId: string): Promise<Record<string, unknown>[]> {
+    const safeId = escapeSqlString(taskId);
+    const sql = `SELECT * FROM blocks WHERE type='p' AND content LIKE '%${safeId}%' AND ial LIKE '%custom-task-id="${safeId}"%'`;
     const result = await this.blockAPI.sql(sql);
-    return result || [];
+    return (result as Record<string, unknown>[]) || [];
   }
 
   /**

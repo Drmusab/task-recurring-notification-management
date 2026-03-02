@@ -20,6 +20,7 @@
   import { uiQueryService } from "../../services/UIQueryService";
   import { uiMutationService } from "../../services/UITaskMutationService";
   import { uiEventService } from "../../services/UIEventService";
+  import * as logger from "@shared/logging/logger";
   import type { Plugin } from "siyuan";
 
   // Props — NO backend types in the signature
@@ -68,7 +69,7 @@
       upcomingReminders = result.upcoming;
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load reminders";
-      console.error("[ReminderPanel] Load error:", err);
+      logger.error("[ReminderPanel] Load error:", err);
     } finally {
       loading = false;
     }
@@ -79,11 +80,11 @@
       // Delegate to UITaskMutationService — NOT taskStorage.saveTask()
       const result = await uiMutationService.completeTask(reminder.taskId);
       if (!result.success) {
-        console.error("[ReminderPanel] Complete failed:", result.error);
+        logger.error("[ReminderPanel] Complete failed:", result.error);
       }
       // Refresh will happen via event subscription
     } catch (err) {
-      console.error("[ReminderPanel] Complete error:", err);
+      logger.error("[ReminderPanel] Complete error:", err);
     }
   }
 
@@ -92,11 +93,11 @@
       // Delegate to UITaskMutationService — NOT taskStorage.saveTask()
       const result = await uiMutationService.snoozeTask(reminder.taskId, minutes);
       if (!result.success) {
-        console.error("[ReminderPanel] Snooze failed:", result.error);
+        logger.error("[ReminderPanel] Snooze failed:", result.error);
       }
       // Refresh will happen via event subscription
     } catch (err) {
-      console.error("[ReminderPanel] Snooze error:", err);
+      logger.error("[ReminderPanel] Snooze error:", err);
     }
   }
 

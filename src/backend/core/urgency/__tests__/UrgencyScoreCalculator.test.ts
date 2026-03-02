@@ -4,17 +4,24 @@ import { createTask } from "@backend/core/models/Task";
 
 const baseFrequency = { type: "daily", interval: 1, time: "09:00" } as const;
 
+/** Create an unfrozen mutable task for testing (createTask returns freeze). */
+function mutableTask(name: string, overrides?: Record<string, unknown>) {
+  return { ...createTask(name, baseFrequency), ...overrides };
+}
+
 describe("UrgencyScoreCalculator", () => {
   it("ranks high-priority overdue tasks above low-priority due-today tasks", () => {
     const now = new Date("2024-06-01T12:00:00Z");
 
-    const overdueHigh = createTask("Overdue High", baseFrequency);
-    overdueHigh.dueAt = new Date("2024-05-30T09:00:00Z").toISOString();
-    overdueHigh.priority = "high";
+    const overdueHigh = mutableTask("Overdue High", {
+      dueAt: new Date("2024-05-30T09:00:00Z").toISOString(),
+      priority: "high",
+    });
 
-    const dueTodayLow = createTask("Due Today Low", baseFrequency);
-    dueTodayLow.dueAt = new Date("2024-06-01T18:00:00Z").toISOString();
-    dueTodayLow.priority = "low";
+    const dueTodayLow = mutableTask("Due Today Low", {
+      dueAt: new Date("2024-06-01T18:00:00Z").toISOString(),
+      priority: "low",
+    });
 
     const overdueScore = calculateUrgencyScore(overdueHigh, { now });
     const dueTodayScore = calculateUrgencyScore(dueTodayLow, { now });
@@ -25,11 +32,13 @@ describe("UrgencyScoreCalculator", () => {
   it("ranks due-today tasks above due-next-week tasks", () => {
     const now = new Date("2024-06-01T08:00:00Z");
 
-    const dueToday = createTask("Due Today", baseFrequency);
-    dueToday.dueAt = new Date("2024-06-01T21:00:00Z").toISOString();
+    const dueToday = mutableTask("Due Today", {
+      dueAt: new Date("2024-06-01T21:00:00Z").toISOString(),
+    });
 
-    const dueNextWeek = createTask("Due Next Week", baseFrequency);
-    dueNextWeek.dueAt = new Date("2024-06-08T09:00:00Z").toISOString();
+    const dueNextWeek = mutableTask("Due Next Week", {
+      dueAt: new Date("2024-06-08T09:00:00Z").toISOString(),
+    });
 
     const dueTodayScore = calculateUrgencyScore(dueToday, { now });
     const dueNextWeekScore = calculateUrgencyScore(dueNextWeek, { now });
@@ -40,11 +49,11 @@ describe("UrgencyScoreCalculator", () => {
   it("treats tasks without due dates as lowest urgency", () => {
     const now = new Date("2024-06-01T08:00:00Z");
 
-    const noDueDate = createTask("No Due Date", baseFrequency);
-    noDueDate.dueAt = "";
+    const noDueDate = mutableTask("No Due Date", { dueAt: "" });
 
-    const dueLater = createTask("Due Later", baseFrequency);
-    dueLater.dueAt = new Date("2024-06-05T09:00:00Z").toISOString();
+    const dueLater = mutableTask("Due Later", {
+      dueAt: new Date("2024-06-05T09:00:00Z").toISOString(),
+    });
 
     expect(calculateUrgencyScore(noDueDate, { now })).toBeLessThan(
       calculateUrgencyScore(dueLater, { now })
@@ -54,13 +63,15 @@ describe("UrgencyScoreCalculator", () => {
   it("handles missing priority by keeping it below explicit high priority", () => {
     const now = new Date("2024-06-01T08:00:00Z");
 
-    const missingPriority = createTask("Missing Priority", baseFrequency);
-    missingPriority.priority = undefined;
-    missingPriority.dueAt = new Date("2024-06-02T09:00:00Z").toISOString();
+    const missingPriority = mutableTask("Missing Priority", {
+      priority: undefined,
+      dueAt: new Date("2024-06-02T09:00:00Z").toISOString(),
+    });
 
-    const highPriority = createTask("High Priority", baseFrequency);
-    highPriority.priority = "highest";
-    highPriority.dueAt = missingPriority.dueAt;
+    const highPriority = mutableTask("High Priority", {
+      priority: "highest",
+      dueAt: missingPriority.dueAt,
+    });
 
     expect(calculateUrgencyScore(highPriority, { now })).toBeGreaterThan(
       calculateUrgencyScore(missingPriority, { now })
@@ -70,11 +81,11 @@ describe("UrgencyScoreCalculator", () => {
   it("treats invalid due dates as lowest urgency", () => {
     const now = new Date("2024-06-01T08:00:00Z");
 
-    const invalidDue = createTask("Invalid Due", baseFrequency);
-    invalidDue.dueAt = "not-a-date";
+    const invalidDue = mutableTask("Invalid Due", { dueAt: "not-a-date" });
 
-    const dueToday = createTask("Due Today", baseFrequency);
-    dueToday.dueAt = new Date("2024-06-01T15:00:00Z").toISOString();
+    const dueToday = mutableTask("Due Today", {
+      dueAt: new Date("2024-06-01T15:00:00Z").toISOString(),
+    });
 
     expect(calculateUrgencyScore(invalidDue, { now })).toBeLessThan(
       calculateUrgencyScore(dueToday, { now })
@@ -84,11 +95,13 @@ describe("UrgencyScoreCalculator", () => {
   it("handles large overdue values without reversing ordering", () => {
     const now = new Date("2024-06-01T08:00:00Z");
 
-    const overdueLong = createTask("Overdue Long", baseFrequency);
-    overdueLong.dueAt = new Date("2023-06-01T08:00:00Z").toISOString();
+    const overdueLong = mutableTask("Overdue Long", {
+      dueAt: new Date("2023-06-01T08:00:00Z").toISOString(),
+    });
 
-    const overdueShort = createTask("Overdue Short", baseFrequency);
-    overdueShort.dueAt = new Date("2024-05-30T08:00:00Z").toISOString();
+    const overdueShort = mutableTask("Overdue Short", {
+      dueAt: new Date("2024-05-30T08:00:00Z").toISOString(),
+    });
 
     expect(calculateUrgencyScore(overdueLong, { now })).toBeGreaterThanOrEqual(
       calculateUrgencyScore(overdueShort, { now })
@@ -98,11 +111,13 @@ describe("UrgencyScoreCalculator", () => {
   it("respects timezone boundaries when computing day deltas", () => {
     const now = new Date("2024-05-01T23:30:00Z");
 
-    const dueTomorrow = createTask("Due Tomorrow", baseFrequency);
-    dueTomorrow.dueAt = new Date("2024-05-02T00:15:00Z").toISOString();
+    const dueTomorrow = mutableTask("Due Tomorrow", {
+      dueAt: new Date("2024-05-02T00:15:00Z").toISOString(),
+    });
 
-    const dueNextWeek = createTask("Due Next Week", baseFrequency);
-    dueNextWeek.dueAt = new Date("2024-05-08T09:00:00Z").toISOString();
+    const dueNextWeek = mutableTask("Due Next Week", {
+      dueAt: new Date("2024-05-08T09:00:00Z").toISOString(),
+    });
 
     expect(calculateUrgencyScore(dueTomorrow, { now })).toBeGreaterThan(
       calculateUrgencyScore(dueNextWeek, { now })

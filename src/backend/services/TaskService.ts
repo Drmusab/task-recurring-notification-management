@@ -153,7 +153,7 @@ export class TaskService {
         workspaceId: input.workspaceId,
         createdAt: now,
         status: "todo",
-      } as Task;
+      } as unknown as Task;
 
       await this.storage.saveTask(task);
 
@@ -165,6 +165,7 @@ export class TaskService {
       this.eventService.emitTaskSaved(task, true);
       this.eventService.emitCacheInvalidation("single", task.id);
       this.eventService.emitQueryInvalidation("single", "task:created", task.id);
+      this.eventService.emitRefresh();
 
       logger.info("[TaskService] Task created", { taskId: task.id, name: task.name });
       return { success: true, task };
@@ -203,6 +204,8 @@ export class TaskService {
       this.eventService.emitTaskSaved(merged, false);
       this.eventService.emitTaskUpdated(taskId);
       this.eventService.emitCacheInvalidation("single", taskId);
+      this.eventService.emitQueryInvalidation("single", "task:updated", taskId);
+      this.eventService.emitRefresh();
 
       // If dueAt changed, emit runtime rescheduled
       if (patch.dueAt && patch.dueAt !== previousDueAt) {
@@ -242,35 +245,33 @@ export class TaskService {
       let nextDueAt: string | undefined;
       let recurrenceGenerated = false;
 
-      // Mark current occurrence as done
-      task.lastCompletedAt = completedAt;
-      task.status = "done" as Task["status"];
+      // Build update via immutable spread — no direct mutation
+      let updated: Task = { ...task, lastCompletedAt: completedAt, status: "done" as Task["status"] };
 
       // Generate next occurrence if recurring
       if (task.recurrence?.rrule) {
         const nextDate = this.recurrenceEngine.next(task as never, now);
         if (nextDate) {
           nextDueAt = nextDate.toISOString();
-          task.dueAt = nextDueAt;
-          task.status = "todo" as Task["status"];
+          updated = { ...updated, dueAt: nextDueAt, status: "todo" as Task["status"] };
           recurrenceGenerated = true;
         }
       }
 
-      await this.storage.saveTask(task);
+      await this.storage.saveTask(updated);
 
       // Sync block attributes
-      const blockId = task.blockId || task.linkedBlockId;
+      const blockId = updated.blockId || updated.linkedBlockId;
       if (blockId) {
         if (recurrenceGenerated) {
-          await this.syncService.syncTaskToBlock(task, blockId);
+          await this.syncService.syncTaskToBlock(updated, blockId);
         } else {
           await this.syncService.markBlockCompleted(blockId, taskId);
         }
       }
 
       // Emit events
-      this.eventService.emitTaskCompleted(taskId, task);
+      this.eventService.emitTaskCompleted(taskId, updated);
       this.eventService.emitRuntimeCompleted(taskId, completedAt, nextDueAt);
       this.eventService.emitCacheInvalidation("single", taskId);
       this.eventService.emitRefresh();
@@ -319,16 +320,19 @@ export class TaskService {
       dueDate.setMinutes(dueDate.getMinutes() + delayMinutes);
       const newDueAt = dueDate.toISOString();
 
-      task.dueAt = newDueAt;
-      await this.storage.saveTask(task);
+      // Immutable update — no direct mutation
+      const updated: Task = { ...task, dueAt: newDueAt };
+      await this.storage.saveTask(updated);
 
       // Sync block attributes
-      const blockId = task.blockId || task.linkedBlockId;
+      const blockId = updated.blockId || updated.linkedBlockId;
       if (blockId) {
-        await this.syncService.syncTaskToBlock(task, blockId);
+        await this.syncService.syncTaskToBlock(updated, blockId);
       }
 
       this.eventService.emitRuntimeRescheduled(taskId, previousDueAt, newDueAt, reason);
+      this.eventService.emitTaskSaved(updated, false);
+      this.eventService.emitTaskUpdated(taskId);
       this.eventService.emitCacheInvalidation("single", taskId);
       this.eventService.emitEscalationResolved(taskId, "rescheduled");
       this.eventService.emitRefresh();
@@ -373,6 +377,7 @@ export class TaskService {
       this.eventService.emitCacheInvalidation("single", taskId);
       this.eventService.emitQueryInvalidation("single", "task:deleted", taskId);
       this.eventService.emitEscalationResolved(taskId, "deleted");
+      this.eventService.emitRuntimeDeleted(taskId, task);
       this.eventService.emitRefresh();
 
       logger.info("[TaskService] Task deleted", { taskId });
@@ -409,19 +414,23 @@ export class TaskService {
 
       const previousDueAt = task.dueAt;
       const nextDueAt = nextDate.toISOString();
-      task.dueAt = nextDueAt;
 
-      await this.storage.saveTask(task);
+      // Immutable update — no direct mutation
+      const updated: Task = { ...task, dueAt: nextDueAt };
+      await this.storage.saveTask(updated);
 
       // Sync block
-      const blockId = task.blockId || task.linkedBlockId;
+      const blockId = updated.blockId || updated.linkedBlockId;
       if (blockId) {
-        await this.syncService.syncTaskToBlock(task, blockId);
+        await this.syncService.syncTaskToBlock(updated, blockId);
       }
 
       this.eventService.emitRuntimeRecurrence(taskId, nextDueAt, task.recurrence.rrule);
       this.eventService.emitRuntimeRescheduled(taskId, previousDueAt, nextDueAt, "recurrence_advance");
+      this.eventService.emitTaskSaved(updated, false);
+      this.eventService.emitTaskUpdated(taskId);
       this.eventService.emitCacheInvalidation("single", taskId);
+      this.eventService.emitRefresh();
 
       logger.info("[TaskService] Recurrence generated", { taskId, nextDueAt });
       return { success: true, task };
@@ -457,20 +466,21 @@ export class TaskService {
         return { success: false, error: `Target task not found: ${targetTaskId}` };
       }
 
-      // Prevent duplicate links
-      const deps: string[] = (source as any).dependsOn ?? [];
-      if (!deps.includes(targetTaskId)) {
-        (source as any).dependsOn = [...deps, targetTaskId];
+      // Immutable update — no direct mutation
+      const deps: readonly string[] = source.dependsOn ?? [];
+      if (deps.includes(targetTaskId)) {
+        return { success: true, task: source }; // Already linked
       }
+      const updated: Task = { ...source, dependsOn: [...deps, targetTaskId] };
 
-      await this.storage.saveTask(source);
+      await this.storage.saveTask(updated);
 
       this.eventService.emitCacheInvalidation("single", sourceTaskId);
       this.eventService.emitTaskUpdated(sourceTaskId);
       this.eventService.emitRefresh();
 
       logger.info("[TaskService] Dependency linked", { sourceTaskId, targetTaskId, type });
-      return { success: true, task: source };
+      return { success: true, task: updated };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       logger.error("[TaskService] linkDependency failed", { error: msg, sourceTaskId, targetTaskId });
@@ -496,17 +506,18 @@ export class TaskService {
         return { success: false, error: `Source task not found: ${sourceTaskId}` };
       }
 
-      const deps: string[] = (source as any).dependsOn ?? [];
-      (source as any).dependsOn = deps.filter((id: string) => id !== targetTaskId);
+      // Immutable update — no direct mutation
+      const deps: readonly string[] = source.dependsOn ?? [];
+      const updated: Task = { ...source, dependsOn: deps.filter((id) => id !== targetTaskId) };
 
-      await this.storage.saveTask(source);
+      await this.storage.saveTask(updated);
 
       this.eventService.emitCacheInvalidation("single", sourceTaskId);
       this.eventService.emitTaskUpdated(sourceTaskId);
       this.eventService.emitRefresh();
 
       logger.info("[TaskService] Dependency unlinked", { sourceTaskId, targetTaskId, type });
-      return { success: true, task: source };
+      return { success: true, task: updated };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       logger.error("[TaskService] unlinkDependency failed", { error: msg, sourceTaskId, targetTaskId });

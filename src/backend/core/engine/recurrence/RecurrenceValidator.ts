@@ -143,7 +143,7 @@ export class RecurrenceValidator {
       const monthIndex = month - 1;
       if (monthIndex < 0 || monthIndex > 11) continue;
 
-      const maxDays = daysInMonth[monthIndex];
+      const maxDays = daysInMonth[monthIndex]!;
       
       for (const day of daysArray) {
         // Skip negative days (from end of month)
@@ -214,15 +214,15 @@ export class RecurrenceValidator {
       const parsed = rrulestr(normalized);
       
       let options;
-      if (parsed instanceof RRule) {
-        options = { ...parsed.origOptions };
-      } else if (parsed instanceof RRuleSet) {
+      if (parsed instanceof RRuleSet) {
         const rrules = parsed.rrules();
         if (rrules && rrules.length > 0) {
-          options = { ...rrules[0].origOptions };
+          options = { ...rrules[0]!.origOptions };
         } else {
           return true; // No rules means expired
         }
+      } else if (parsed instanceof RRule) {
+        options = { ...parsed.origOptions };
       } else {
         return false;
       }

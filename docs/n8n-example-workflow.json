@@ -1,0 +1,220 @@
+{
+  "name": "SiYuan Task Webhook → n8n Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "siyuan-tasks",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-receiver",
+      "name": "SiYuan Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "siyuan-task-events"
+    },
+    {
+      "parameters": {
+        "functionCode": "// ═══════════════════════════════════════════════════════════\n// HMAC-SHA256 Signature Verification\n// Validates the webhook payload against the shared secret\n// ═══════════════════════════════════════════════════════════\n\nconst crypto = require('crypto');\n\nconst WEBHOOK_SECRET = $env.SIYUAN_WEBHOOK_SECRET || 'your-shared-secret';\n\n// Get the raw body and signature from headers\nconst rawBody = $input.first().json.body ? JSON.stringify($input.first().json.body) : $input.first().binary?.data?.toString() || '';\nconst receivedSignature = $input.first().json.headers['x-webhook-signature-256'] || '';\nconst timestamp = $input.first().json.headers['x-webhook-timestamp'] || '';\n\n// Verify timestamp freshness (5 minute window)\nconst now = Date.now();\nconst ts = parseInt(timestamp, 10);\nif (isNaN(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {\n  throw new Error('Webhook timestamp expired or invalid');\n}\n\n// Compute expected signature\nconst payload = `${timestamp}.${rawBody}`;\nconst expectedSignature = 'sha256=' + crypto\n  .createHmac('sha256', WEBHOOK_SECRET)\n  .update(payload)\n  .digest('hex');\n\n// Constant-time comparison\nif (!crypto.timingSafeEqual(\n  Buffer.from(receivedSignature),\n  Buffer.from(expectedSignature)\n)) {\n  throw new Error('Invalid webhook signature');\n}\n\n// Pass through the verified payload\nreturn $input.all();"
+      },
+      "id": "verify-signature",
+      "name": "Verify HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "task.completed",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": "Task Completed"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "task.overdue",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": "Task Overdue"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "task.created",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": "Task Created"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "task.rescheduled",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": "Task Rescheduled"
+            }
+          ],
+          "fallbackOutput": {
+            "renameOutput": "Other Events"
+          }
+        }
+      },
+      "id": "event-router",
+      "name": "Route by Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=✅ Task Completed!\n\n📋 {{ $json.body.data.task.title }}\n🆔 {{ $json.body.data.task.id }}\n📅 Completed at: {{ $json.body.timestamp }}\n🔗 Source: {{ $json.body.source }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-completed",
+      "name": "Notify Completed (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [920, 100],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=⚠️ Task Overdue!\n\n📋 {{ $json.body.data.task.title }}\n🆔 {{ $json.body.data.task.id }}\n📅 Due: {{ $json.body.data.task.dueAt }}\n⏰ Overdue since: {{ $json.body.timestamp }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-overdue",
+      "name": "Notify Overdue (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [920, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.NOTION_API_URL }}/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Notion-Version", "value": "2022-06-28" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "parent",
+              "value": "={ \"database_id\": \"{{ $env.NOTION_DATABASE_ID }}\" }"
+            },
+            {
+              "name": "properties",
+              "value": "={ \"Name\": { \"title\": [{ \"text\": { \"content\": \"{{ $json.body.data.task.title }}\" } }] }, \"Status\": { \"select\": { \"name\": \"New\" } }, \"Due Date\": { \"date\": { \"start\": \"{{ $json.body.data.task.dueAt }}\" } }, \"Source\": { \"rich_text\": [{ \"text\": { \"content\": \"SiYuan\" } }] } }"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notion-create",
+      "name": "Create in Notion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log rescheduled task for analytics\nconst event = $input.first().json.body;\n\nreturn [{\n  json: {\n    taskId: event.data.task.id,\n    title: event.data.task.title,\n    event: event.event,\n    previousDue: event.data.previousDueAt || null,\n    newDue: event.data.task.dueAt,\n    timestamp: event.timestamp,\n    source: event.source,\n    version: event.version\n  }\n}];"
+      },
+      "id": "process-rescheduled",
+      "name": "Process Rescheduled",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 700]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Catch-all for unrouted events\nconst event = $input.first().json.body;\nconsole.log(`Unhandled event type: ${event.event}`, event);\nreturn $input.all();"
+      },
+      "id": "handle-other",
+      "name": "Log Other Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 900]
+    }
+  ],
+  "connections": {
+    "SiYuan Webhook Receiver": {
+      "main": [
+        [{ "node": "Verify HMAC Signature", "type": "main", "index": 0 }]
+      ]
+    },
+    "Verify HMAC Signature": {
+      "main": [
+        [{ "node": "Route by Event Type", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route by Event Type": {
+      "main": [
+        [{ "node": "Notify Completed (Telegram)", "type": "main", "index": 0 }],
+        [{ "node": "Notify Overdue (Telegram)", "type": "main", "index": 0 }],
+        [{ "node": "Create in Notion", "type": "main", "index": 0 }],
+        [{ "node": "Process Rescheduled", "type": "main", "index": 0 }],
+        [{ "node": "Log Other Events", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "SiYuan", "id": "siyuan-integration" },
+    { "name": "Webhooks", "id": "webhook-automation" }
+  ],
+  "meta": {
+    "description": "Receives SiYuan task plugin webhook events, verifies HMAC-SHA256 signatures, routes by event type, and dispatches to Telegram notifications or Notion database. Supports: task.created, task.completed, task.overdue, task.rescheduled, and catch-all for other events.",
+    "templateId": "siyuan-task-webhook-n8n"
+  }
+}

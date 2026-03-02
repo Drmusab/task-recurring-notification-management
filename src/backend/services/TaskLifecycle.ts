@@ -276,7 +276,7 @@ export class TaskLifecycle {
         success: false,
         task: resolvedTask,
         rejectionReason: `Recurrence series ended for task ${request.taskId}`,
-        rejectedBy: "recurrence" as any,
+        rejectedBy: "recurrence",
         recurrenceResult,
       };
     }

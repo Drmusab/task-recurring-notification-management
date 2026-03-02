@@ -7,7 +7,9 @@
 
 import type { TaskDTO } from '../../services/DTOs';
 type Task = TaskDTO;
-import type { Grouper } from "@components/shared/Query/Group/Grouper";
+
+/** Local type placeholder for Grouper (actual class is in backend — not importable from frontend) */
+type Grouper = Record<string, unknown>;
 
 /**
  * Layout options for task display (inline type definition)

@@ -50,7 +50,7 @@ export class BlockedStateEvaluator {
       const blockers = this.index.getBlockers(currentId).filter((id) => !this.index.isCompleted(id));
       if (blockers.length === 0) break;
 
-      const nextId = blockers[0];
+      const nextId = blockers[0]!;
       if (visited.has(nextId)) break;
 
       chain.push(nextId);

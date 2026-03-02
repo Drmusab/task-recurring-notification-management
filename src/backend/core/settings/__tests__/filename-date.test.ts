@@ -131,10 +131,11 @@ describe('FilenameDateExtractor', () => {
     let task: Task;
 
     beforeEach(() => {
-      task = createTask('Test task', { type: 'daily', interval: 1 });
-      delete task.scheduledAt;
-      delete task.dueAt;
-      delete task.startAt;
+      // Spread to get a mutable copy (createTask returns Object.freeze)
+      task = { ...createTask('Test task', { type: 'daily', interval: 1 }) };
+      delete (task as any).scheduledAt;
+      delete (task as any).dueAt;
+      delete (task as any).startAt;
     });
 
     it('should apply date to scheduled field when task has no scheduled date', () => {
@@ -163,7 +164,7 @@ describe('FilenameDateExtractor', () => {
 
     it('should not override existing date in target field', () => {
       const existingDate = new Date('2025-01-01').toISOString();
-      task.scheduledAt = existingDate;
+      (task as any).scheduledAt = existingDate;
       config.targetField = 'scheduled';
       const filepath = 'daily/2025-01-18.md';
       

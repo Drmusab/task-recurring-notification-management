@@ -215,29 +215,32 @@ export class DependencyValidator {
    * Looks for tasks sharing the same seriesId.
    */
   private async tryRebindRecurringDep(depId: string): Promise<string | null> {
-    // Check if any task has this as a seriesId or the same seriesId
     const allTasks = this.repository.getAllTasks();
-    // Try to find a task that was part of the same series
-    for (const task of allTasks) {
-      if (task.seriesId && task.id !== depId) {
-        // Check if the original dep shared the same seriesId
-        // We need to look at block attrs for the original
-        const blockResult = await this.checkBlockForSeriesId(depId, task.seriesId);
-        if (blockResult) return task.id;
-      }
-    }
-    return null;
+    
+    // Find the original task's seriesId from the repository (may still be cached)
+    const originalTask = allTasks.find(t => t.id === depId);
+    if (!originalTask?.seriesId) return null;
+    
+    // Look for an active task in the same series that isn't the deleted one
+    const replacement = allTasks.find(
+      t => t.seriesId === originalTask.seriesId
+        && t.id !== depId
+        && t.enabled !== false
+        && t.status !== 'done'
+        && t.status !== 'cancelled'
+    );
+    
+    return replacement?.id ?? null;
   }
 
   /**
    * Check if a task block had a certain seriesId via block attributes.
+   * @deprecated — replaced by in-memory lookup in tryRebindRecurringDep
    */
   private async checkBlockForSeriesId(
     _taskId: string,
     _expectedSeriesId: string
   ): Promise<boolean> {
-    // This would require the block to still exist, which it may not.
-    // For now, we rely on the repository having the series info before deletion.
     return false;
   }
 }

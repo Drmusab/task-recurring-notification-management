@@ -55,11 +55,13 @@ export class CacheManager {
   readonly analyticsCache: AnalyticsCache;
   readonly dependencyCache: DependencyCache;
   readonly dueStateCache: DueStateCache;
+  private readonly pluginEventBus: PluginEventBus;
 
   private active = false;
 
   constructor(deps: CacheManagerDeps) {
     const { repository, pluginEventBus } = deps;
+    this.pluginEventBus = pluginEventBus;
 
     this.taskCache = new TaskCache({ repository, pluginEventBus });
     this.recurrenceCache = new RecurrenceCache({
@@ -109,6 +111,7 @@ export class CacheManager {
 
   /**
    * Full rebuild of all caches (e.g., after storage reload).
+   * Emits `plugin:storage:reload` so event subscribers can react.
    */
   rebuildAll(): void {
     if (!this.active) return;
@@ -117,7 +120,8 @@ export class CacheManager {
     this.analyticsCache.rebuild();
     this.dependencyCache.rebuild();
     this.dueStateCache.rebuild();
-    logger.info("[CacheManager] Full rebuild complete");
+    this.pluginEventBus.emit("plugin:storage:reload", {} as Record<string, never>);
+    logger.info("[CacheManager] Full rebuild complete — plugin:storage:reload emitted");
   }
 
   /** Whether the cache manager is running. */

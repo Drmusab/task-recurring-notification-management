@@ -16,6 +16,7 @@
 
   import { uiQueryService } from "../../services/UIQueryService";
   import type { SavedQueryDTO } from "../../services/DTOs";
+  import * as logger from "@shared/logging/logger";
 
   // Props
   export let onTemplateSelect: (query: SavedQueryDTO) => void = () => {};
@@ -248,7 +249,7 @@
         customTemplates = JSON.parse(stored);
       }
     } catch (error) {
-      console.error("Failed to load custom templates", error);
+      logger.error("Failed to load custom templates", error);
     }
   }
 

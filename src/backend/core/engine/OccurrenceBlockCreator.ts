@@ -64,7 +64,7 @@ export class OccurrenceBlockCreator {
     }
 
     // Dedup: check if we already generated for this occurrence
-    const lastGenerated = (task as any).lastGeneratedAt;
+    const lastGenerated = task.lastGeneratedAt;
     if (lastGenerated) {
       const lastDate = new Date(lastGenerated);
       const occDate = new Date(occurrenceDate);
@@ -111,10 +111,13 @@ export class OccurrenceBlockCreator {
 
       await this.blockMetadata.setTaskAttributes(blockId, occurrenceTask);
 
-      // Update parent task's lastGeneratedAt timestamp
-      (task as any).lastGeneratedAt = occurrenceDate.toISOString();
-      task.updatedAt = new Date().toISOString();
-      await this.taskStorage.saveTask(task);
+      // Update parent task's lastGeneratedAt timestamp — immutable spread
+      const updatedParent: Task = {
+        ...task,
+        lastGeneratedAt: occurrenceDate.toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await this.taskStorage.saveTask(updatedParent);
 
       logger.info("[OccurrenceCreator] Created occurrence block", {
         parentTaskId: task.id,

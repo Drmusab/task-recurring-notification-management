@@ -17,6 +17,7 @@
 import { writable, derived, type Readable } from 'svelte/store';
 import type { AnalyticsDTO } from '../services/DTOs';
 import { uiQueryService } from '../services/UIQueryService';
+import * as logger from "@shared/logging/logger";
 
 /**
  * Analytics state interface — mirrors AnalyticsDTO + UI metadata
@@ -184,7 +185,7 @@ export function updateAnalyticsFromTasks(_tasks?: unknown[]): void {
   try {
     taskAnalyticsStore.recalculate();
   } catch (error) {
-    console.error('Failed to recalculate analytics:', error);
+    logger.error('Failed to recalculate analytics', { error: error });
     // Non-fatal - analytics can be stale, don't block UI
   } finally {
     analyticsIsLoading.set(false);

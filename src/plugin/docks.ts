@@ -18,6 +18,8 @@ import ReminderPanel from "@frontend/components/reminders/ReminderPanel.svelte";
 import { resolveDockElement, validateDockElement } from "@infrastructure/integrations/siyuan/DockAdapter";
 import { DOCK_TYPE_DASHBOARD, DOCK_TYPE_REMINDERS } from "./constants";
 import type { PluginServices } from "./types";
+import { runtimeReady, reminderReady } from "@frontend/stores/RuntimeReady.store";
+import { get } from "svelte/store";
 import * as logger from "@backend/logging/logger";
 
 /**
@@ -196,7 +198,19 @@ export function registerDashboardDock(
         : buildDesktopDockChrome("iconTaskRecurring", plugin.i18n?.dockTitle || "Recurring Tasks");
 
       const contentEl = element.querySelector(".dock__content");
-      mountDashboard(state, (contentEl || element) as HTMLElement, services);
+      const target = (contentEl || element) as HTMLElement;
+
+      // Gate: wait for full runtime before mounting dashboard
+      if (get(runtimeReady)) {
+        mountDashboard(state, target, services);
+      } else {
+        const unsub = runtimeReady.subscribe((ready) => {
+          if (ready) {
+            unsub();
+            mountDashboard(state, target, services);
+          }
+        });
+      }
     },
     destroy: () => {
       unmountDashboard(state);
@@ -240,7 +254,19 @@ export function registerReminderDock(
         : buildDesktopDockChrome("iconTaskNotification", plugin.i18n?.remindersTitle || "Reminders");
 
       const contentEl = element.querySelector(".dock__content");
-      mountReminders(state, (contentEl || element) as HTMLElement, services);
+      const target = (contentEl || element) as HTMLElement;
+
+      // Gate: wait for reminderReady before mounting reminder panel
+      if (get(reminderReady)) {
+        mountReminders(state, target, services);
+      } else {
+        const unsub = reminderReady.subscribe((ready) => {
+          if (ready) {
+            unsub();
+            mountReminders(state, target, services);
+          }
+        });
+      }
     },
     destroy: () => {
       unmountReminders(state);

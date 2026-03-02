@@ -132,7 +132,7 @@ export class StatusRegistry {
      */
     public byName(nameToFind: string): Status {
         if (this._registeredStatuses.filter(({ name }) => name === nameToFind).length > 0) {
-            return this._registeredStatuses.filter(({ name }) => name === nameToFind)[0];
+            return this._registeredStatuses.filter(({ name }) => name === nameToFind)[0]!;
         }
 
         return Status.EMPTY;
@@ -295,7 +295,7 @@ export class StatusRegistry {
      * @return {*}  {Status}
      */
     private getSymbol(symbolToFind: string): Status {
-        return this._registeredStatuses.filter(({ symbol }) => symbol === symbolToFind)[0];
+        return this._registeredStatuses.filter(({ symbol }) => symbol === symbolToFind)[0]!;
     }
 
     /**

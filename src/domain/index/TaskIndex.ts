@@ -15,14 +15,17 @@
 import type { Task } from '@domain/models/Task';
 import { isTaskCompleted, isTaskOverdue } from '@domain/models/Task';
 
+/** Readonly view of a Task — all query methods return this */
+export type ReadonlyTask = Readonly<Task>;
+
 /**
  * Index structure for fast lookups
  */
 export interface IndexStructure {
   // Primary indexes
-  byId: Map<string, Task>;                  // id -> Task
-  byBlockId: Map<string, Task>;             // linkedBlockId -> Task
-  byTaskId: Map<string, Task>;              // taskId (dependency ID) -> Task
+  byId: Map<string, ReadonlyTask>;                  // id -> Task
+  byBlockId: Map<string, ReadonlyTask>;             // linkedBlockId -> Task
+  byTaskId: Map<string, ReadonlyTask>;              // taskId (dependency ID) -> Task
   
   // Status indexes
   byStatus: Map<string, Set<string>>;       // status -> Set<id>
@@ -72,7 +75,7 @@ export class TaskIndex {
    * Build index from task array (full rebuild)
    * Complexity: O(n log n) due to sorting
    */
-  buildIndex(tasks: Task[]): void {
+  buildIndex(tasks: ReadonlyTask[]): void {
     this.index = this.createEmptyIndex();
     
     // First pass: Build primary indexes
@@ -91,7 +94,7 @@ export class TaskIndex {
    * Add single task to index (incremental update)
    * Complexity: O(log n) for date insertion, O(1) for others
    */
-  addToIndex(task: Task): void {
+  addToIndex(task: ReadonlyTask): void {
     // Primary indexes
     this.index.byId.set(task.id, task);
     
@@ -199,7 +202,7 @@ export class TaskIndex {
   /**
    * Update task in index (remove + add)
    */
-  updateInIndex(task: Task): void {
+  updateInIndex(task: ReadonlyTask): void {
     this.removeFromIndex(task.id);
     this.addToIndex(task);
     this.sortDateIndexes(); // Re-sort after update
@@ -241,7 +244,7 @@ export class TaskIndex {
    * Get task by ID
    * Complexity: O(1)
    */
-  getById(id: string): Task | undefined {
+  getById(id: string): ReadonlyTask | undefined {
     return this.index.byId.get(id);
   }
   
@@ -249,7 +252,7 @@ export class TaskIndex {
    * Get task by block ID
    * Complexity: O(1)
    */
-  getByBlockId(blockId: string): Task | undefined {
+  getByBlockId(blockId: string): ReadonlyTask | undefined {
     return this.index.byBlockId.get(blockId);
   }
   
@@ -257,7 +260,7 @@ export class TaskIndex {
    * Get task by dependency task ID
    * Complexity: O(1)
    */
-  getByTaskId(taskId: string): Task | undefined {
+  getByTaskId(taskId: string): ReadonlyTask | undefined {
     return this.index.byTaskId.get(taskId);
   }
   
@@ -265,72 +268,72 @@ export class TaskIndex {
    * Get all tasks with status
    * Complexity: O(1) for lookup, O(k) to build array where k = result size
    */
-  getByStatus(status: string): Task[] {
+  getByStatus(status: string): ReadonlyTask[] {
     const ids = this.index.byStatus.get(status);
     if (!ids) return [];
     
     return Array.from(ids)
       .map(id => this.index.byId.get(id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get tasks with tag
    * Complexity: O(k) where k = result size
    */
-  getByTag(tag: string): Task[] {
+  getByTag(tag: string): ReadonlyTask[] {
     const ids = this.index.byTag.get(tag);
     if (!ids) return [];
     
     return Array.from(ids)
       .map(id => this.index.byId.get(id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get tasks in path
    * Complexity: O(k) where k = result size
    */
-  getByPath(path: string): Task[] {
+  getByPath(path: string): ReadonlyTask[] {
     const ids = this.index.byPath.get(path);
     if (!ids) return [];
     
     return Array.from(ids)
       .map(id => this.index.byId.get(id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get tasks due before date (range query)
    * Complexity: O(log n + k) where k = result size
    */
-  getDueBefore(date: string): Task[] {
+  getDueBefore(date: string): ReadonlyTask[] {
     const index = this.binarySearchDate(this.index.byDueDate, date);
     
     return this.index.byDueDate
       .slice(0, index)
       .map(entry => this.index.byId.get(entry.id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get tasks due after date
    * Complexity: O(log n + k) where k = result size
    */
-  getDueAfter(date: string): Task[] {
+  getDueAfter(date: string): ReadonlyTask[] {
     const index = this.binarySearchDate(this.index.byDueDate, date);
     
     return this.index.byDueDate
       .slice(index)
       .map(entry => this.index.byId.get(entry.id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get overdue tasks
    * Complexity: O(log n + k)
    */
-  getOverdue(): Task[] {
+  getOverdue(): ReadonlyTask[] {
     const now = new Date().toISOString();
     return this.getDueBefore(now).filter(task => !isTaskCompleted(task));
   }
@@ -339,30 +342,30 @@ export class TaskIndex {
    * Get blocked tasks
    * Complexity: O(k) where k = number of blocked tasks
    */
-  getBlocked(): Task[] {
+  getBlocked(): ReadonlyTask[] {
     return Array.from(this.index.blockedTasks)
       .map(id => this.index.byId.get(id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get tasks that depend on given task
    * Complexity: O(k) where k = number of dependent tasks
    */
-  getDependents(taskId: string): Task[] {
+  getDependents(taskId: string): ReadonlyTask[] {
     const ids = this.index.byDependsOn.get(taskId);
     if (!ids) return [];
     
     return Array.from(ids)
       .map(id => this.index.byId.get(id))
-      .filter((task): task is Task => task !== undefined);
+      .filter((task): task is ReadonlyTask => task !== undefined);
   }
   
   /**
    * Get all tasks
    * Complexity: O(n)
    */
-  getAll(): Task[] {
+  getAll(): ReadonlyTask[] {
     return Array.from(this.index.byId.values());
   }
   
@@ -379,14 +382,14 @@ export class TaskIndex {
   /**
    * Alias for getAll() - for store compatibility
    */
-  getAllTasks(): Task[] {
+  getAllTasks(): ReadonlyTask[] {
     return this.getAll();
   }
 
   /**
    * Alias for addToIndex() - for store compatibility
    */
-  add(task: Task): void {
+  add(task: ReadonlyTask): void {
     this.addToIndex(task);
     this.sortDateIndexes();
     this.calculateBlockedTasks();
@@ -395,7 +398,7 @@ export class TaskIndex {
   /**
    * Alias for updateInIndex() - for store compatibility
    */
-  update(id: string, task: Task): void {
+  update(id: string, task: ReadonlyTask): void {
     this.updateInIndex(task);
   }
 

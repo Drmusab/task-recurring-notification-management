@@ -71,7 +71,7 @@ export interface SeriesIdentity {
 export function getRecurrenceInstanceKey(task: ReadonlyTask): RecurrenceInstanceKey | null {
   if (!task.blockId || !task.dueAt) return null;
 
-  const normalizedDue = normalizeDueDate(task.dueAt, (task as any).timezone);
+  const normalizedDue = normalizeDueDate(task.dueAt, task.timezone);
   if (!normalizedDue) return null;
 
   // Truncate to minute precision — sub-minute differences are noise

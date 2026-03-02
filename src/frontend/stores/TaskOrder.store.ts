@@ -27,7 +27,7 @@ const createTaskOrderStore = () => {
     reorder: (tasks: TaskDTO[], fromIndex: number, toIndex: number) => {
       const reordered = [...tasks];
       const [moved] = reordered.splice(fromIndex, 1);
-      reordered.splice(toIndex, 0, moved);
+      reordered.splice(toIndex, 0, moved!);
       
       const newOrderMap = new Map<string, number>();
       reordered.forEach((task, index) => {

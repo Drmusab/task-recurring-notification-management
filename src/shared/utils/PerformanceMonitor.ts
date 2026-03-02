@@ -9,6 +9,8 @@
  * - Operation counts
  */
 
+import * as perfLogger from "@shared/logging/logger";
+
 export interface PerformanceMetric {
   name: string;
   duration: number;         // milliseconds
@@ -49,7 +51,7 @@ export class PerformanceMonitor {
 
     const startTime = this.activeTimers.get(operationName);
     if (!startTime) {
-      console.warn(`Timer not found for operation: ${operationName}`);
+      perfLogger.warn(`Timer not found for operation: ${operationName}`);
       return 0;
     }
 
@@ -113,7 +115,7 @@ export class PerformanceMonitor {
 
     // Log slow operations
     if (metric.duration > 100) {
-      console.warn(`Slow operation: ${metric.name} took ${metric.duration.toFixed(2)}ms`);
+      perfLogger.warn(`Slow operation: ${metric.name} took ${metric.duration.toFixed(2)}ms`);
     }
   }
 
@@ -330,8 +332,11 @@ export class Logger {
     }
 
     // Console output
-    const logFn = console[level] || console.log;
-    logFn(`[${level.toUpperCase()}] ${message}`, data || '');
+    const logMethod = level === 'error' ? perfLogger.error
+      : level === 'warn' ? perfLogger.warn
+      : level === 'debug' ? perfLogger.debug
+      : perfLogger.info;
+    logMethod(`[${level.toUpperCase()}] ${message}`, data || '');
   }
 
   debug(message: string, data?: unknown): void {
