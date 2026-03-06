@@ -1,0 +1,53 @@
+{
+  "name": "n8n-nodes-task-recurring-notification",
+  "version": "0.1.0",
+  "description": "n8n community node for recurring task management via SiYuan plugin backend",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "siyuan",
+    "task",
+    "recurring",
+    "webhook"
+  ],
+  "license": "MIT",
+  "author": "task-recurring-notification-management",
+  "homepage": "https://github.com/Drmusab/task-recurring-notification-management",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Drmusab/task-recurring-notification-management.git",
+    "directory": "n8n-nodes-task-recurring-notification"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/TaskRecurringApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/TaskRecurring/TaskRecurring.node.js",
+      "dist/nodes/TaskRecurring/TaskRecurringTrigger.node.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "^1.0.0"
+  },
+  "dependencies": {
+    "n8n-workflow": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

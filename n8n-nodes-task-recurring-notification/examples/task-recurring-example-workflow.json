@@ -1,0 +1,62 @@
+{
+  "name": "Task Recurring Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "task.created",
+          "task.completed"
+        ]
+      },
+      "id": "trigger-1",
+      "name": "Task Recurring Trigger",
+      "type": "n8n-nodes-task-recurring-notification.taskRecurringTrigger",
+      "typeVersion": 1,
+      "position": [
+        300,
+        250
+      ],
+      "credentials": {
+        "taskRecurringApi": {
+          "id": "1",
+          "name": "Task Recurring API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "createTask",
+        "title": "Follow up for {{$json[\"data\"][\"title\"]}}",
+        "description": "Auto-created from trigger event",
+        "tags": "automation,n8n"
+      },
+      "id": "node-2",
+      "name": "Task Recurring Manager",
+      "type": "n8n-nodes-task-recurring-notification.taskRecurring",
+      "typeVersion": 1,
+      "position": [
+        640,
+        250
+      ],
+      "credentials": {
+        "taskRecurringApi": {
+          "id": "1",
+          "name": "Task Recurring API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Task Recurring Trigger": {
+      "main": [
+        [
+          {
+            "node": "Task Recurring Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
